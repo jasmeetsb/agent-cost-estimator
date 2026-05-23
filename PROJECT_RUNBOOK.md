@@ -105,6 +105,43 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 - Priced: memory $0.194 + vCPU $0.0062 = **$0.200 runtime over window** → **$0.040/query** amortized.
 - ⇒ Actual runtime/query is ~450× the prorated estimate; idle allocation dominates at this QPS.
 
+### EXP-002 — Complex multi-agent: research_coordinator, gemini-2.5-flash
+- **Date:** 2026-05-23
+- **Agent:** `research_agent` — coordinator delegating to 2 specialist sub-agents
+  (calc_agent: add/multiply/mean; facts_agent: lookup_fact). 4 tools, multi-agent fan-out.
+- **Workload:** 5 multi-part math+fact queries (force both specialists).
+- **Engine:** `reasoningEngines/1677857492765245440` | Platform: Vertex AI Agent Engine
+  (custom ADK agents deploy to Agent Engine; Gemini Enterprise surfaces these, not a separate
+  ADK deploy target — so platform held constant vs EXP-001 for a clean complexity comparison).
+
+| Mode | Avg model $/query | $/1k (model) | Avg in/out tok | Calls/query | Avg latency |
+|------|-------------------|--------------|----------------|-------------|-------------|
+| remote | $0.0177 | $17.73 | 5703 / 6055 | 4.6 | 34.9s |
+
+**Actual runtime usage by SKU (Cloud Monitoring, ~9 min window, 5 queries):**
+- vCPU = 909.6 core-sec, memory = 1028 GiB-sec, request_count = 5 ✓
+- Priced: vCPU $0.0218 + memory $0.0026 = **$0.0244 runtime over window** → **$0.0049/query** amortized.
+- Report: `data/cost_report_research_agent_remote.json`.
+
+**EXP-001 vs EXP-002 (the headline):**
+| | weather (simple) | research (complex) | ratio |
+|---|---|---|---|
+| model calls/query | 2.0 | 4.6 | 2.3× |
+| tokens/query (in+out) | ~480 | ~11,760 | ~24× |
+| model $/query | $0.0003 | $0.0177 | **~60×** |
+| vCPU core-sec/query (active) | ~52 | ~182 | ~3.5× |
+
+⇒ Agent **architecture complexity drives token cost super-linearly** (multi-agent delegation
+re-sends context to each sub-agent and adds reasoning turns). For the complex agent, active
+**vCPU dominates runtime** (heavy compute, 35s/query); for the idle simple agent, **memory
+dominated** — see caveat.
+
+**Caveat — runtime windows differ, so runtime/query is NOT directly comparable across EXPs.**
+EXP-001 used a 3 h window (idle memory accrues → memory huge); EXP-002 used a ~9 min window
+(little idle → vCPU dominates). vCPU-per-query (active compute) IS comparable; memory-per-query
+is a function of window length × provisioned GiB. Fix in harness: report runtime as a provisioned
+**$/hour rate** plus marginal vCPU/query, then cost/query = idle_rate ÷ QPS + token + marginal.
+
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
 - Date / Agent / Workload / Engine id
@@ -115,8 +152,11 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 ---
 
 ## 5. Open Questions / TODO
-- Parameterize the harness to deploy *arbitrary* ADK agents (config-driven), not just weather_agent.
-- Config-driven workload spec (set of prompts, iteration count) per experiment.
-- Refine runtime-cost model: measure actual Agent Engine instance-time vs prorated estimate.
+- [done] Parameterize deploy + harness by `--agent` (EXP-002).
+- [done] Integrate actual runtime SKU extraction from Cloud Monitoring into the harness.
+- **Report runtime as a provisioned $/hour rate + marginal vCPU/query**, so cost/query is
+  `idle_rate ÷ QPS + token_cost + marginal_compute` — fixes the window-length comparability issue.
+- Make workloads config-driven (file/JSON) instead of the in-code `WORKLOADS` dict.
 - If/when billing-account access allows: reconcile catalog estimate against BigQuery export.
-- Add a `--label` flag so each run auto-appends a row to the Experiment Log.
+- Capture the other touched SKUs (Storage, Artifact Registry/Build, Logging, Trace, egress) via
+  their own Monitoring metrics for a full picture.
