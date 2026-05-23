@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Generated artifacts (reports, cache, deployment state)
+data/
+
+# Session memory
+.remember/
+
+# Env / secrets
+.env
+*.json.key
+service-account*.json
