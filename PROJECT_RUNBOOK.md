@@ -17,7 +17,9 @@ average cost per query — broken down by the GCP products the agent consumes.
 | 2026-05-23 | Deploy target = **Vertex AI Agent Engine** | Native ADK runtime; exposes `usage_metadata` per query; runtime billed by vCPU/RAM-hr (extractable). |
 | 2026-05-23 | Primary cost method = **token-based catalog estimate** | Instant, per-query, works on internal projects with no billing-export access. BigQuery export deferred as optional ground-truth. |
 | 2026-05-23 | Pricing source = **Cloud Billing Catalog API** | Programmatic live unit prices for tokens + runtime; no setup or data-latency. |
-| 2026-05-23 | Runtime cost = **prorated wall-clock × assumed 1 vCPU + 1 GiB** | Upper-bound attribution; real Agent Engine billing is provisioned instance-time, refine later. |
+| 2026-05-23 | Runtime cost = **prorated wall-clock × assumed 1 vCPU + 1 GiB** | Initial estimate; SUPERSEDED below. |
+| 2026-05-23 | Runtime usage = **actual, from Cloud Monitoring `reasoning_engine/*` allocation metrics** | Only needs project-level monitoring read (not billing admin); gives real vCPU-sec + GiB-sec per engine. Replaces the prorated guess (which was ~450× too low). |
+| 2026-05-23 | "Cost per query" **must include utilization (queries/hour)** | Agent Engine bills continuous allocation; idle runtime dominates at low QPS, tokens dominate at high QPS. |
 
 ---
 
@@ -55,6 +57,17 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-05-23 — Actual runtime usage lives in Cloud Monitoring, not billing.** The
+  `aiplatform.googleapis.com/reasoning_engine/{cpu,memory}/allocation_time` metrics give real
+  vCPU-sec / GiB-sec per `reasoning_engine_id`. Accessible with project-level monitoring read —
+  no billing-account admin needed. See COST_DATA_COLLECTION_PROCESS.md §6a for the exact queries.
+- **2026-05-23 — Idle runtime dominates cost at low QPS.** Our engine held ~7.2 GiB allocated
+  continuously; 5 queries over 3 h ⇒ $0.040/query runtime vs ~$0.0003 tokens. Naive per-request
+  runtime estimate was ~450× too low. Always report cost against a utilization assumption.
+- **2026-05-23 — Monitoring ingestion lag ~3-5 min.** `request_count`/`cpu` read 0 immediately
+  after a run, then populate. Let metrics settle before collecting, or scope a generous window.
+- **2026-05-23 — Scope Monitoring by `reasoning_engine_id`.** Unfiltered series include other
+  engines on the project (e.g. an unrelated "Beads Issue Tracker").
 - **2026-05-23 — One query ≠ one model call.** A tool-using query emits 2+ model events, each with
   its own `usage_metadata`. Must sum across all events; reading only the last undercounts.
 - **2026-05-23 — Thinking tokens bill at output rate.** `thoughts_token_count` is separate from
@@ -84,8 +97,13 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 | remote | $0.000406 | $0.41 | 400 / 77 | 2.0 | 3.52s |
 
 - Model cost dominates (~$0.00031); runtime ~$0.00009 (prorated, upper bound).
-- Local vs remote agree within noise → cost model is consistent.
+- Local vs remote agree within noise → token cost model is consistent.
 - Reports: `data/cost_report_local.json`, `data/cost_report_remote.json`.
+
+**Actual runtime (Cloud Monitoring, 3 h window, same 5 queries):**
+- memory = 77,677 GiB-sec (~7.2 GiB continuous), vCPU = 258.6 core-sec, request_count = 5 ✓
+- Priced: memory $0.194 + vCPU $0.0062 = **$0.200 runtime over window** → **$0.040/query** amortized.
+- ⇒ Actual runtime/query is ~450× the prorated estimate; idle allocation dominates at this QPS.
 
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
