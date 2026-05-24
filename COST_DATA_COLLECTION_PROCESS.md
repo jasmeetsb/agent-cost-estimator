@@ -90,6 +90,40 @@ Fields consumed per model call:
 What usage we do **not** yet collect: tool-side compute, embedding/search calls (this agent
 has none), or any usage outside the model response stream.
 
+### Why tokens come from `usage_metadata`, not Cloud Monitoring
+Cloud Monitoring **does** expose token usage
+(`aiplatform.googleapis.com/publisher/online_serving/token_count`, split input/output), so it's
+a fair question why we don't read tokens from there too. We checked the actual series; the
+labels are the deciding factor.
+
+Observed over a 24 h window on `jsb-genai-sa`:
+```
+metric=publisher/online_serving/token_count
+  type=input,  source=us-central1, request_type=shared  -> 63,601 tokens
+  type=output, source=us-central1, request_type=shared  -> 38,949 tokens
+```
+The only dimensions are `type` (input/output), `source` (region), and `request_type`. Crucially
+there is **no `reasoning_engine_id` and no model label** — it is a **project + region aggregate**
+across *all* Gemini traffic in the project (every agent, plus local test runs, plus unrelated
+engines like "Beads Issue Tracker"). The totals above are a superset of any single agent's usage.
+
+| | Monitoring token_count | response `usage_metadata` |
+|---|---|---|
+| Input/output split | yes | yes |
+| Scoped to one agent/engine | **no** (project+region aggregate) | **yes** |
+| Scoped to one query | no | **yes** |
+| Thinking-token detail | no | **yes** (`thoughts_token_count`) |
+
+For a per-agent / per-query cost estimator, attribution is everything, so **tokens come from
+`usage_metadata`**. Monitoring's token metric is still useful as a project-wide cross-check /
+reconciliation, just not as the per-agent source. (The `..._tokens_per_minute_per_base_model`
+metric variants returned 0 series for our traffic — they track a different serving path, not
+Agent Engine.)
+
+This is the mirror image of runtime (§6a): vCPU/memory are **not** in the response and **are**
+scoped per `reasoning_engine_id` in Monitoring, so runtime comes from Monitoring. Each usage
+type is pulled from whichever source can attribute it correctly.
+
 ---
 
 ## 4. Price collection (the "what a unit costs" stream)

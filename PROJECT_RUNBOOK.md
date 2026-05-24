@@ -57,6 +57,13 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-05-24 — Monitoring HAS token usage but it's not attributable.**
+  `publisher/online_serving/token_count` is split input/output but labeled only by `type`,
+  `source` (region), `request_type` — **no `reasoning_engine_id`, no model**. It's a project+region
+  aggregate across all Gemini traffic. So tokens must come from per-query `usage_metadata`;
+  Monitoring tokens are a project-wide cross-check only. **Source-selection principle:** pull each
+  usage type from whichever source can attribute it to the agent — tokens → `usage_metadata`,
+  runtime (vCPU/mem) → Monitoring (only place it exists, and scoped per engine).
 - **2026-05-23 — Actual runtime usage lives in Cloud Monitoring, not billing.** The
   `aiplatform.googleapis.com/reasoning_engine/{cpu,memory}/allocation_time` metrics give real
   vCPU-sec / GiB-sec per `reasoning_engine_id`. Accessible with project-level monitoring read —
