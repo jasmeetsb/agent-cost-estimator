@@ -25,7 +25,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import vertexai
 
 from agent_cost_estimator import load_or_build, price_query, Aggregate
-from agent_cost_estimator.usage import collect_runtime_usage, price_runtime
+from agent_cost_estimator.usage import (
+    collect_runtime_usage, price_runtime, collect_publisher_tokens,
+)
 
 PROJECT = "jsb-genai-sa"
 LOCATION = "us-central1"
@@ -109,20 +111,44 @@ def main():
         print(f"  {k}: {v}")
 
     runtime = None
+    token_xcheck = None
     if args.mode == "remote" and engine_id:
         print(f"\nWaiting {args.settle}s for Cloud Monitoring ingestion...")
         time.sleep(args.settle)
         win_end = datetime.now(timezone.utc)
         fmt = "%Y-%m-%dT%H:%M:%SZ"
-        u = collect_runtime_usage(PROJECT, engine_id,
-                                  win_start.strftime(fmt), win_end.strftime(fmt))
+        w0, w1 = win_start.strftime(fmt), win_end.strftime(fmt)
+
+        u = collect_runtime_usage(PROJECT, engine_id, w0, w1)
         runtime = {"usage": u.to_dict(), "priced": price_runtime(u, pb)}
         print("\n=== ACTUAL RUNTIME USAGE BY SKU (Cloud Monitoring) ===")
         print(json.dumps(runtime, indent=2))
 
+        # Cross-check: per-query usage_metadata totals vs project-wide Monitoring tokens.
+        um_input = sum(c.usage.prompt_tokens + c.usage.cached_tokens for c in agg.costs)
+        um_out_with_thoughts = sum(c.usage.output_tokens for c in agg.costs)
+        um_thoughts = sum(c.usage.thoughts_tokens for c in agg.costs)
+        mon = collect_publisher_tokens(PROJECT, w0, w1)
+        token_xcheck = {
+            "window": [w0, w1],
+            "usage_metadata": {
+                "input": um_input,
+                "output_candidates_only": um_out_with_thoughts - um_thoughts,
+                "thoughts": um_thoughts,
+                "output_incl_thoughts": um_out_with_thoughts,
+            },
+            "monitoring_publisher": mon,
+            "note": "Monitoring is project+region aggregate (all Gemini traffic in window); "
+                    "usage_metadata is this agent's queries only. Match only if agent is sole "
+                    "traffic source.",
+        }
+        print("\n=== TOKEN SOURCE CROSS-CHECK (usage_metadata vs Cloud Monitoring) ===")
+        print(json.dumps(token_xcheck, indent=2))
+
     out = {
         "agent": args.agent, "model": args.model, "mode": args.mode, "target": target,
-        "token_summary": summary, "runtime": runtime, "rows": rows,
+        "token_summary": summary, "runtime": runtime, "token_xcheck": token_xcheck,
+        "rows": rows,
     }
     rpt = DATA / f"cost_report_{args.agent}_{args.mode}.json"
     rpt.write_text(json.dumps(out, indent=2))

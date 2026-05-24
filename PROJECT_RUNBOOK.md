@@ -57,6 +57,17 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-05-24 — The two token sources match EXACTLY (when measured right).** Controlled run
+  (research_agent, project otherwise idle): usage_metadata = 57,212 in / 39,334 out;
+  Monitoring `publisher/token_count` = 57,212 in / 39,334 out. Identical. Also confirms
+  **Monitoring `output` includes thinking tokens** (= candidates + thoughts, not candidates-only).
+- **2026-05-24 — BUG (fixed): Monitoring `alignmentPeriod` must be fine-grained.** We used
+  `alignmentPeriod=86400s`, which buckets ~24h into one point; the `[start,end]` interval does
+  NOT bound an oversized bucket, so sums were wrong (a quiet 30-min window returned 59k tokens —
+  a whole-day bucket). Fix: `alignmentPeriod=60s` + sum the points inside the window. This
+  affected `usage.py` token AND runtime collection. Prior EXP-001/EXP-002 runtime numbers used
+  the buggy alignment; they were only ~right because each engine was fresh and engine-scoped
+  (lifetime ≈ window). Re-measure if precision matters.
 - **2026-05-24 — Monitoring HAS token usage but it's not attributable.**
   `publisher/online_serving/token_count` is split input/output but labeled only by `type`,
   `source` (region), `request_type` — **no `reasoning_engine_id`, no model**. It's a project+region
@@ -148,6 +159,23 @@ EXP-001 used a 3 h window (idle memory accrues → memory huge); EXP-002 used a 
 (little idle → vCPU dominates). vCPU-per-query (active compute) IS comparable; memory-per-query
 is a function of window length × provisioned GiB. Fix in harness: report runtime as a provisioned
 **$/hour rate** plus marginal vCPU/query, then cost/query = idle_rate ÷ QPS + token + marginal.
+
+### EXP-003 — Token-source validation (usage_metadata vs Cloud Monitoring)
+- **Date:** 2026-05-24 | **Agent:** research_agent | **Engine:** `1677857492765245440`
+- **Goal:** confirm the two token sources agree; extract both going forward.
+- **Window:** 2026-05-24T02:29–02:39Z, project otherwise idle (verified: adjacent windows = 0 tokens).
+
+| Source | input | output |
+|--------|-------|--------|
+| usage_metadata (per-query sum) | 57,212 | 39,334 |
+| Cloud Monitoring publisher/token_count | 57,212 | 39,334 |
+| **match** | **exact** | **exact** |
+
+- Confirms Monitoring `output` = candidates + thoughts (thinking tokens included).
+- Required fixing the alignmentPeriod bug (see Learnings). Harness now emits a `token_xcheck`
+  block every remote run. Report: `data/cost_report_research_agent_remote.json`.
+- **Attribution still matters:** they match only because the project was idle. Monitoring tokens
+  are project+region aggregate; usage_metadata stays the per-agent source, Monitoring is the cross-check.
 
 <!-- Template for new experiments:
 ### EXP-NNN — <title>

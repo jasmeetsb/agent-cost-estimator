@@ -28,6 +28,11 @@ RUNTIME_METRICS = {
     "request_count": "aiplatform.googleapis.com/reasoning_engine/request_count",
 }
 
+# Project+region aggregate token counter (NOT scoped to one engine — see
+# COST_DATA_COLLECTION_PROCESS.md §3). Used only as a cross-check against the
+# per-query usage_metadata totals.
+PUBLISHER_TOKEN_METRIC = "aiplatform.googleapis.com/publisher/online_serving/token_count"
+
 
 def _access_token() -> str:
     return subprocess.run(
@@ -47,11 +52,14 @@ def _sum_timeseries(
     """
     flt = (f'metric.type="{metric_type}" AND '
            f'resource.labels.reasoning_engine_id="{engine_id}"')
+    # Use fine (60s) alignment and sum the points that fall inside [start,end].
+    # A coarse alignmentPeriod (e.g. 24h) buckets far more than the window and
+    # silently over/undercounts — the interval does not bound an oversized bucket.
     params = {
         "filter": flt,
         "interval.startTime": start,
         "interval.endTime": end,
-        "aggregation.alignmentPeriod": "86400s",
+        "aggregation.alignmentPeriod": "60s",
         "aggregation.perSeriesAligner": "ALIGN_SUM",
     }
     url = f"{MONITORING_BASE}/projects/{project}/timeSeries?" + urllib.parse.urlencode(params)
@@ -98,6 +106,40 @@ def collect_runtime_usage(
         setattr(u, field_name, val)
         u.raw[metric] = val
     return u
+
+
+def collect_publisher_tokens(
+    project: str, start: str, end: str, token: str | None = None,
+) -> dict:
+    """Sum project+region-wide Gemini token usage over a window, split in/out.
+
+    NOT engine-scoped — this aggregates every Gemini call in the project for the
+    window. Use only to cross-check usage_metadata totals when the test agent is
+    the sole source of traffic in the window.
+    """
+    token = token or _access_token()
+    params = {
+        "filter": f'metric.type="{PUBLISHER_TOKEN_METRIC}"',
+        "interval.startTime": start,
+        "interval.endTime": end,
+        "aggregation.alignmentPeriod": "60s",
+        "aggregation.perSeriesAligner": "ALIGN_SUM",
+    }
+    url = f"{MONITORING_BASE}/projects/{project}/timeSeries?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read().decode())
+    out = {"input": 0.0, "output": 0.0}
+    for series in data.get("timeSeries", []):
+        ttype = series.get("metric", {}).get("labels", {}).get("type", "")
+        s = 0.0
+        for p in series.get("points", []):
+            v = p.get("value", {})
+            s += float(v.get("doubleValue", v.get("int64Value", 0)) or 0)
+        if ttype in out:
+            out[ttype] += s
+    out["total"] = out["input"] + out["output"]
+    return out
 
 
 def price_runtime(usage: ActualRuntimeUsage, pb) -> dict:

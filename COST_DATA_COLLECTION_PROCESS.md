@@ -120,6 +120,25 @@ reconciliation, just not as the per-agent source. (The `..._tokens_per_minute_pe
 metric variants returned 0 series for our traffic — they track a different serving path, not
 Agent Engine.)
 
+**We extract both sources every remote run** (harness `token_xcheck` block) and validated they
+agree. In a controlled run with the project otherwise idle (EXP-003):
+
+| Source | input | output |
+|--------|-------|--------|
+| usage_metadata (per-query sum) | 57,212 | 39,334 |
+| Monitoring publisher/token_count | 57,212 | 39,334 |
+
+Exact match — and it confirms Monitoring `output` **includes thinking tokens** (= candidates +
+thoughts). The match holds only because nothing else used Gemini in the window; with other
+traffic present, Monitoring would read higher (it's project-wide), which is exactly why
+usage_metadata remains the attributable source.
+
+> **Gotcha — Monitoring `alignmentPeriod` must be fine-grained.** A coarse period (e.g. 86400s)
+> buckets ~24h into one aligned point, and the `[start,end]` interval does **not** bound an
+> oversized bucket — so sums silently include far more than the window (a quiet 30-min window
+> returned a whole day's 59k tokens). `usage.py` uses `alignmentPeriod=60s` and sums the points
+> inside the window. This applies to both token and runtime (§6a) collection.
+
 This is the mirror image of runtime (§6a): vCPU/memory are **not** in the response and **are**
 scoped per `reasoning_engine_id` in Monitoring, so runtime comes from Monitoring. Each usage
 type is pulled from whichever source can attribute it correctly.
