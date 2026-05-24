@@ -57,6 +57,12 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-05-24 — Memory Bank adds a HIDDEN server-side token cost.** Generating memories from a
+  session runs an LLM in Agent Engine, invisible to `stream_query`/usage_metadata. Captured only
+  via `reasoning_engine/memory_bank/generate_memories_token_count` (EXP-004: 2,451 tokens, ≈ the
+  gap between conversation usage_metadata and project-wide Monitoring). Memory-enabled agents must
+  add this metric or they undercount. Memory Bank auto-wires on deploy (ADK >=1.5.0); the remote
+  exposes only `async_add_session_to_memory(session=<full session obj>)`.
 - **2026-05-24 — The two token sources match EXACTLY (when measured right).** Controlled run
   (research_agent, project otherwise idle): usage_metadata = 57,212 in / 39,334 out;
   Monitoring `publisher/token_count` = 57,212 in / 39,334 out. Identical. Also confirms
@@ -176,6 +182,33 @@ is a function of window length × provisioned GiB. Fix in harness: report runtim
   block every remote run. Report: `data/cost_report_research_agent_remote.json`.
 - **Attribution still matters:** they match only because the project was idle. Monitoring tokens
   are project+region aggregate; usage_metadata stays the per-agent source, Monitoring is the cross-check.
+
+### EXP-004 — Memory Bank + sub-agents: personal_assistant, gemini-2.5-flash
+- **Date:** 2026-05-24 | **Engine:** `4783370910813913088`
+- **Agent:** coordinator with `preload_memory` tool + 2 sub-agents (prefs, notes). Agent Engine
+  Memory Bank auto-wired on deploy (ADK >=1.5.0).
+- **Flow:** Session A (give facts: name/job/vegetarian/metric) → `async_add_session_to_memory`
+  → Session B recall query. **Recall succeeded** — Session B correctly remembered "vegetarian"
+  with no re-telling ⇒ cross-session Memory Bank recall works.
+
+**Actual usage by SKU (Cloud Monitoring, ~7 min window):**
+| SKU dimension | actual usage |
+|---|---|
+| Gemini tokens (conversation, usage_metadata) | 3,432 in / 748 out |
+| **memory_bank generate_memories_token_count** | **2,451** |
+| memory_bank memory_mutation_count | 2 (writes) |
+| memory_bank memory_retrieval_count | 2 (reads) |
+| runtime vCPU / memory | 319.6 core-sec / 588.5 GiB-sec |
+| request_count | 9 |
+
+**Headline finding — memory generation is a HIDDEN cost.** Conversation `usage_metadata` = 3,432
+input tokens, but project-wide Monitoring = 5,773; the ~2,340 gap ≈ the 2,451 `generate_memories`
+tokens. Memory extraction runs an LLM **server-side**, invisible to `stream_query`/usage_metadata.
+⇒ For memory-enabled agents you MUST add `memory_bank/generate_memories_token_count` (priced as
+Gemini tokens) or you undercount. Report: `data/cost_report_memory_assistant.json`.
+
+**Open:** map `memory_mutation_count`/`memory_retrieval_count` to their catalog operation SKUs
+(generate-memory tokens already map to Gemini token SKUs).
 
 <!-- Template for new experiments:
 ### EXP-NNN — <title>

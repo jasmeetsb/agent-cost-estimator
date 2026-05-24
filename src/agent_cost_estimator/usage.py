@@ -33,6 +33,18 @@ RUNTIME_METRICS = {
 # per-query usage_metadata totals.
 PUBLISHER_TOKEN_METRIC = "aiplatform.googleapis.com/publisher/online_serving/token_count"
 
+# Agent Engine Memory Bank metrics (scoped per reasoning_engine_id). These
+# capture the extra cost of long-term memory: the LLM tokens spent generating
+# memories from a session, plus memory write/read operation counts.
+MEMORY_METRICS = {
+    "generate_memories_token_count":
+        "aiplatform.googleapis.com/reasoning_engine/memory_bank/generate_memories_token_count",
+    "memory_mutation_count":
+        "aiplatform.googleapis.com/reasoning_engine/memory_bank/memory_mutation_count",
+    "memory_retrieval_count":
+        "aiplatform.googleapis.com/reasoning_engine/memory_bank/memory_retrieval_count",
+}
+
 
 def _access_token() -> str:
     return subprocess.run(
@@ -106,6 +118,17 @@ def collect_runtime_usage(
         setattr(u, field_name, val)
         u.raw[metric] = val
     return u
+
+
+def collect_memory_usage(
+    project: str, engine_id: str, start: str, end: str, token: str | None = None,
+) -> dict:
+    """Pull Agent Engine Memory Bank usage over a window, scoped to one engine."""
+    token = token or _access_token()
+    out = {}
+    for name, metric in MEMORY_METRICS.items():
+        out[name] = _sum_timeseries(project, metric, engine_id, start, end, token)
+    return out
 
 
 def collect_publisher_tokens(

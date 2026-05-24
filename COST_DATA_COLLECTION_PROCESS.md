@@ -304,8 +304,23 @@ For engine `1787773471170756608` over a 3-hour window containing 5 queries:
   series includes other engines on the project (e.g. an unrelated "Beads Issue Tracker"
   engine was visible in the raw query).
 
+### Memory Bank (for memory-enabled agents, e.g. EXP-004)
+Agents that use Agent Engine Memory Bank incur an extra, **server-side** cost that is invisible
+to `usage_metadata`: generating memories from a session runs its own LLM. We capture it from
+Monitoring, scoped per engine (`usage.py:collect_memory_usage`):
+| Metric | Meaning | Cost mapping |
+|--------|---------|--------------|
+| `reasoning_engine/memory_bank/generate_memories_token_count` | LLM tokens to extract memories | Gemini token SKU |
+| `reasoning_engine/memory_bank/memory_mutation_count` | memory writes | Memory Bank op SKU (TODO map) |
+| `reasoning_engine/memory_bank/memory_retrieval_count` | memory reads | Memory Bank op SKU (TODO map) |
+
+EXP-004 reconciliation: conversation `usage_metadata` = 3,432 input tokens, project-wide
+Monitoring = 5,773; the ~2,340 gap ≈ the 2,451 `generate_memories` tokens. **Lesson: for memory
+agents, total tokens = conversation (usage_metadata) + memory-generation (Monitoring).**
+
 ### What this gives us (actual) vs still doesn't
-- **Actual:** runtime resource *quantities* (vCPU-sec, GiB-sec, requests) for our engine.
+- **Actual:** runtime resource *quantities* (vCPU-sec, GiB-sec, requests) for our engine, plus
+  Memory Bank generate-tokens / mutations / retrievals for memory-enabled agents.
 - **Still catalog-priced:** the per-unit price is list price, not the project's billed rate.
 - **Still not captured via Monitoring here:** Cloud Storage, Artifact Registry/Build,
   Logging, Trace, egress — each has its own Monitoring metrics that could be added the
