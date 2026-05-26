@@ -12,6 +12,39 @@ as representative, pull live values from the Billing Catalog API (`pricing.py`) 
 
 ---
 
+## 0. Quick reference — all components at a glance
+
+| Component | Description | Metering unit (rate) | Notes |
+|-----------|-------------|----------------------|-------|
+| **Models (Gemini)** | LLM powering the agent | Per token: input / output / cached (e.g. 2.5 Flash $0.30 / $2.50 / $0.03 per 1M) | Thinking tokens bill as output; cached ≈10% of input; long-context (>200K) & audio premiums; Priority ×1.8, Flex/Batch −50%; no charge on failed requests. Capture: `usage_metadata` |
+| **Model Garden (3rd-party)** | Claude/GPT/etc. via ADK | Per provider's own token rate | Same wiring, different rate card |
+| **Agent Runtime** (ex-Reasoning Engine) | Managed sandbox hosting/scaling the agent | vCPU-sec ($0.0864/vCPU-hr) + GiB-sec ($0.009/GiB-hr); GPU-sec if used | Free tier 180k vCPU-s + 360k GiB-s/mo; 30-sec increments; vCPU scales to zero, memory held continuously (idle-cost driver). Capture: `Monitoring` allocation_time |
+| **Sessions** | Managed multi-turn session/state | Per session event appended ($0.00025/event) | Billing began Feb 11 2026. No Monitoring metric → export-only; approximate from observed events |
+| **Memory Bank — stored** | Long-term memory persistence | Per memory per month ($0.00025) | Monthly cost shape, not per-run; export-only |
+| **Memory Bank — retrieved** | Recall memories into context | Per retrieval op ($0.0005) | Capture: `Monitoring` memory_retrieval_count |
+| **Memory Bank — generate** | LLM extracts memories from a session | Gemini tokens (server-side) | Hidden cost — invisible to `usage_metadata`; capture via `Monitoring` generate_memories_token_count |
+| **Vector Search** | Vector index backing RAG | Index serving per node-hour (~$0.094/node-hr × replicas); building $3/GiB; storage GB-mo | Large fixed cost (~$700–800/mo for 3 replicas) independent of query volume |
+| **RAG Engine** | Managed retrieval-augmented generation | Composite: corpus storage + retrieval + embeddings + Gemini tokens | Managed Search app → app query rate; custom pipeline → underlying SKUs directly |
+| **Grounding / Search** | Ground in Google Search/Maps/your data | Per grounded prompt/query: 5,000/mo free then $14/1k (Gemini 3); $35/1k (2.x); your-data $2.50/1k | Capture: `Monitoring` web_search_requests metrics |
+| **ADK** | Agent-building framework | No platform SKU | Cost = resources it consumes |
+| **Agent Studio / Agent Designer** | Low-code/visual agent authoring | No per-use SKU | Cost = model/runtime consumed |
+| **Evaluation** | Evalsets, LLM-as-judge, trajectory scoring | No platform SKU | Cost = model tokens during eval runs |
+| **A2A protocol** | Agent-to-agent wire format | No platform SKU | Cost shows up as the calls it triggers |
+| **Agent Gateway** | Secures/governs agent connectivity | No per-call agent SKU | Bills as underlying networking |
+| **Agent Registry** | Catalog of agents/tools/MCP servers | No per-use SKU | Governance layer |
+| **Gemini Enterprise (publish)** | Lists agent for discovery (ADK/A2A) | Gemini Enterprise seat/subscription | Not a per-call agent SKU |
+| **Observability — Cloud Trace** | Distributed tracing of spans | Per span ingested (Trace pricing) | `enable_tracing=True` turns this on every deploy |
+| **Observability — Logging** | Prompt/response + content logs | Per GiB ingested/stored (Logging pricing) | NO_CONTENT metadata mode by default when deployed |
+| **Observability — BQ Agent Analytics** | Structured events → BigQuery | BQ storage + query/AI-function pricing | Opt-in `--bq-analytics`; a 3rd per-agent token source |
+| **GCS (staging/content)** | Deploy package + log/content offload | GB-month (Standard $0.020) | Ancillary |
+| **Cloud Run** (alt deploy) | Container host instead of Agent Runtime | Per-request + vCPU/mem-sec | Different SKU surface |
+| **GKE** (alt deploy) | Cluster host instead of Agent Runtime | Node/cluster pricing | Different SKU surface |
+| **Security (SA, IAP, WIF, VPC-SC, PSC)** | Identity/network governance | Mostly free; IAP/PSC minor charges | — |
+
+The sections below expand each area with exact rate tables and capture details.
+
+---
+
 ## 1. Component inventory
 
 | Component | What it does | Lifecycle phase |
