@@ -57,6 +57,10 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-05-26 — Per-run cost variance is large and output-token-driven.** Identical workload over
+  4 runs: model cost CV 48% (3.1× min→max), driven by output/thinking tokens (CV 57%). Structural
+  usage (model calls, session events, input) is stable (CV 8–16%); recall reliability 100%. Report
+  cost as a distribution (mean + CV) over N runs, never a single-run point estimate (EXP-005).
 - **2026-05-24 — Memory Bank adds a HIDDEN server-side token cost.** Generating memories from a
   session runs an LLM in Agent Engine, invisible to `stream_query`/usage_metadata. Captured only
   via `reasoning_engine/memory_bank/generate_memories_token_count` (EXP-004: 2,451 tokens, ≈ the
@@ -226,6 +230,27 @@ a token-only estimate would miss most of the bill.
 retrievals priced ($0.0005/op); session events approximated from observed events (×$0.00025).
 **Still export-only / approximate:** session-event count (no Monitoring metric), memory storage
 (monthly per-memory charge), and ancillary infra (Trace/Logging/Storage/Build/egress).
+
+### EXP-005 — Variability study: memory_assistant (same deployment, 4 runs)
+- **Date:** 2026-05-26 | **Engine:** `4783370910813913088` (no redeploy) | fresh user per run.
+- **Goal:** quantify run-to-run usage variability for an identical workload.
+
+| Metric | mean | min–max | CV% | spread% |
+|---|---|---|---|---|
+| input tokens | 3,398 | 2,552–4,001 | 16% | 43% |
+| output tokens | 1,605 | 752–3,150 | **57%** | **150%** |
+| model calls | 5.75 | 5–6 | 8% | 17% |
+| session events | 11.5 | 10–12 | 8% | 17% |
+| model $/run | $0.0050 | $0.0029–$0.0091 | **48%** | 123% |
+| recall success | — | — | **100%** | — |
+
+Aggregate (Monitoring, 4 runs): runtime $0.0142 (35 reqs); memory bank 9,973 generate-tokens,
+~2.5 retrievals/run, ~3.25 memories written/run. Report: `data/cost_report_exp005_variability.json`.
+
+**Finding:** identical task, **model cost swung 3.1×**. Driver = **output/thinking tokens (CV 57%)**;
+structural usage (calls, events, input) is stable (CV 8–16%). Function is reliable (100% recall) —
+the *cost* is what's noisy. ⇒ A single run can misestimate by 2–3×; report cost as a distribution
+(mean + CV, min/max) over N runs, not a point estimate.
 
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
