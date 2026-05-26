@@ -51,6 +51,13 @@ python scripts/harness.py --mode remote --iters 5             # query deployed e
   account. The standard Cloud Billing API returns no spend amounts.
 - A deployed Agent Engine accrues idle runtime cost. Tear down unused engines (`engine.delete(force=True)`).
 
+## PROTECTED RESOURCES — DO NOT DELETE
+- **`reasoningEngines/105003910208421888` ("Beads Issue Tracker")** belongs to separate work and
+  happens to live in this same project (`jsb-genai-sa` / 436848677253). **NEVER delete it.**
+- When tearing down experiment engines, delete ONLY by explicit ID allowlist
+  (weather/research/memory_assistant from `data/deployment_*.json`). NEVER use a "list all and
+  delete" pattern against this project — it would catch Beads.
+
 ## Conventions
 - No co-authorship/AI attribution in commits.
 - Don't commit `data/` artifacts or `.venv/`.
