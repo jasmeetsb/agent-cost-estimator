@@ -113,8 +113,25 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 4. Experiment Log
 
+### Vocabulary / cost units (read first)
+Costs are reported per different units across experiments — compare like for like:
+- **query / turn** = one user message → agent response (may fan out to several model calls).
+- **interaction** = a complete task that may span multiple turns/sessions (e.g. memory flow below).
+- **run** = one execution of an experiment's workload (one interaction, or a batch of queries).
+- **model call** = one Gemini request (a turn fans out to N calls via tools/sub-agents).
+- **request** = one Agent Runtime request (Monitoring `request_count`; > model calls, incl. session ops).
+
+| Experiment | Cost unit | What one unit is |
+|------------|-----------|------------------|
+| EXP-001 weather | **$/query** | 1 user message; 5 queries/run |
+| EXP-002 research | **$/query** | 1 user message; 5 queries/run |
+| EXP-004/005 memory | **$/interaction** | 3 user messages across 2 sessions (2 facts + 1 recall) + 1 memory-generation |
+
+⇒ memory_assistant's "per interaction" cost is NOT comparable to weather/research "per query"; an
+interaction is ~3 turns. Normalize to $/turn or $/model-call when comparing agents head-to-head.
+
 ### EXP-001 — Baseline: weather_agent, gemini-2.5-flash
-- **Date:** 2026-05-23
+- **Date:** 2026-05-23 | **Unit: $/query** (1 user message)
 - **Agent:** `weather_agent` (2 tools: get_weather, get_timezone), single LlmAgent.
 - **Workload:** 5 mixed weather/timezone queries (incl. one no-data path).
 - **Engine:** `reasoningEngines/1787773471170756608`
@@ -134,7 +151,7 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 - ⇒ Actual runtime/query is ~450× the prorated estimate; idle allocation dominates at this QPS.
 
 ### EXP-002 — Complex multi-agent: research_coordinator, gemini-2.5-flash
-- **Date:** 2026-05-23
+- **Date:** 2026-05-23 | **Unit: $/query** (1 user message; 5 queries/run)
 - **Agent:** `research_agent` — coordinator delegating to 2 specialist sub-agents
   (calc_agent: add/multiply/mean; facts_agent: lookup_fact). 4 tools, multi-agent fan-out.
 - **Workload:** 5 multi-part math+fact queries (force both specialists).
@@ -188,7 +205,8 @@ is a function of window length × provisioned GiB. Fix in harness: report runtim
   are project+region aggregate; usage_metadata stays the per-agent source, Monitoring is the cross-check.
 
 ### EXP-004 — Memory Bank + sub-agents: personal_assistant, gemini-2.5-flash
-- **Date:** 2026-05-24 | **Engine:** `4783370910813913088`
+- **Date:** 2026-05-24 | **Unit: $/interaction** = 3 turns (2 facts + 1 recall) over 2 sessions
+- **Engine:** `4783370910813913088`
 - **Agent:** coordinator with `preload_memory` tool + 2 sub-agents (prefs, notes). Agent Engine
   Memory Bank auto-wired on deploy (ADK >=1.5.0).
 - **Flow:** Session A (give facts: name/job/vegetarian/metric) → `async_add_session_to_memory`
@@ -232,7 +250,8 @@ retrievals priced ($0.0005/op); session events approximated from observed events
 (monthly per-memory charge), and ancillary infra (Trace/Logging/Storage/Build/egress).
 
 ### EXP-005 — Variability study: memory_assistant (same deployment, 4 runs)
-- **Date:** 2026-05-26 | **Engine:** `4783370910813913088` (no redeploy) | fresh user per run.
+- **Date:** 2026-05-26 | **Unit: $/interaction** (3 turns over 2 sessions, as EXP-004)
+- **Engine:** `4783370910813913088` (no redeploy) | fresh user per run.
 - **Goal:** quantify run-to-run usage variability for an identical workload.
 
 | Metric | mean | min–max | CV% | spread% |

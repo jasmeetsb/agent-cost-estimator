@@ -27,8 +27,15 @@ Memory Bank (auto-wired on Agent Engine deploy, ADK >=1.5.0)
 Sessions (managed, persistent) → every turn/event persisted
 ```
 
-A typical interaction is a 2-session flow: Session A gives durable facts → memories generated →
-Session B asks a recall question (the agent answers using remembered facts, no re-telling).
+**Cost unit — "1 interaction" = 3 user messages across 2 sessions** (NOT a single query):
+1. Session A, turn 1 — give facts (name/job)
+2. Session A, turn 2 — give preferences (units/diet)
+3. `add_session_to_memory` — server-side memory generation
+4. Session B, turn 1 — recall question
+
+Those 3 turns fan out to ~5.75 model calls and ~9 Agent Runtime requests. All "per interaction"
+numbers below cover this whole flow — so they are **not comparable** to a single-query agent's
+$/query (e.g. weather/research, EXP-001/002). Normalize to $/turn or $/model-call to compare.
 
 ---
 
