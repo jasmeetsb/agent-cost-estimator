@@ -207,8 +207,25 @@ tokens. Memory extraction runs an LLM **server-side**, invisible to `stream_quer
 ⇒ For memory-enabled agents you MUST add `memory_bank/generate_memories_token_count` (priced as
 Gemini tokens) or you undercount. Report: `data/cost_report_memory_assistant.json`.
 
-**Open:** map `memory_mutation_count`/`memory_retrieval_count` to their catalog operation SKUs
-(generate-memory tokens already map to Gemini token SKUs).
+**Full priced breakdown by SKU (rerun 2026-05-26, gaps closed):**
+| Component | per-run $ | share |
+|---|---|---|
+| Runtime (vCPU + memory) | $0.0070 | 35% |
+| Memory + session ops | **$0.0083** | **42%** |
+|  — memory retrievals (9 × $0.0005) | $0.0045 | |
+|  — session events appended (~12 × $0.00025) | $0.0030 | |
+|  — memory generation (2,518 tok @ input rate) | $0.0008 | |
+| Conversation tokens | $0.0046 | 23% |
+| **Total per run** | **$0.0199** | |
+
+**Finding:** for a memory-enabled agent, **memory + session operation SKUs (42%) exceed the
+conversation token cost (23%)** — the LLM tokens are the smallest slice. Cost-by-SKU is essential;
+a token-only estimate would miss most of the bill.
+
+**Resolved gaps:** generate-memory tokens priced (input rate, no in/out split available); memory
+retrievals priced ($0.0005/op); session events approximated from observed events (×$0.00025).
+**Still export-only / approximate:** session-event count (no Monitoring metric), memory storage
+(monthly per-memory charge), and ancillary infra (Trace/Logging/Storage/Build/egress).
 
 <!-- Template for new experiments:
 ### EXP-NNN — <title>

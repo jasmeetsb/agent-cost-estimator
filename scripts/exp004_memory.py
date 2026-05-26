@@ -26,7 +26,7 @@ from vertexai import agent_engines
 from agent_cost_estimator import load_or_build, price_query, Aggregate
 from agent_cost_estimator.usage import (
     collect_runtime_usage, price_runtime, collect_publisher_tokens,
-    collect_memory_usage,
+    collect_memory_usage, price_memory_usage,
 )
 
 PROJECT, LOCATION = "jsb-genai-sa", "us-central1"
@@ -44,18 +44,21 @@ RECALL = "Based on what you know about me, suggest what I should pack for a rese
 def drive(engine, pb):
     agg = Aggregate()
     log = []
+    event_counter = {"n": 0}
 
     def run(session_id, msg):
         events = []
         t0 = time.time()
         for e in engine.stream_query(user_id=USER, session_id=session_id, message=msg):
             events.append(e)
+        # Each user turn + each yielded event is persisted as a session event.
+        event_counter["n"] += len(events) + 1
         qc = price_query(events, pb, latency_s=time.time() - t0)
         agg.add(qc)
         log.append({"session": session_id, "msg": msg, **qc.to_dict()})
         d = qc.to_dict()
         print(f"  [{session_id[:8]}] in={d['prompt_tokens']:5} out={d['output_tokens']:5} "
-              f"calls={d['model_calls']} {d['latency_s']}s")
+              f"calls={d['model_calls']} events={len(events)} {d['latency_s']}s")
         return events
 
     # --- Session A: give facts ---
@@ -88,7 +91,7 @@ def drive(engine, pb):
             if p.get("text"):
                 print("  RECALL ANSWER:", p["text"][:240])
 
-    return agg, log
+    return agg, log, event_counter["n"]
 
 
 def main():
@@ -102,7 +105,7 @@ def main():
     pb = load_or_build("gemini-2.5-flash")
 
     win_start = datetime.now(timezone.utc) - timedelta(seconds=60)
-    agg, log = drive(engine, pb)
+    agg, log, session_events = drive(engine, pb)
 
     s = agg.summary()
     print("\n=== TOKEN COST (usage_metadata) ===")
@@ -121,21 +124,30 @@ def main():
     um_in = sum(c.usage.prompt_tokens + c.usage.cached_tokens for c in agg.costs)
     um_out = sum(c.usage.output_tokens for c in agg.costs)
 
+    conv_usd = sum(c.model_usd for c in agg.costs)
+    runtime_priced = price_runtime(runtime, pb)
+    memory_priced = price_memory_usage(memory, pb, session_events=session_events)
+    total_per_run = (conv_usd + runtime_priced["runtime_total_usd"]
+                     + memory_priced["per_run_memory_usd"])
+
     report = {
         "agent": "memory_assistant", "engine": name, "window": [w0, w1],
-        "token_cost_usage_metadata": {
-            "input": um_in, "output_incl_thoughts": um_out,
-            "model_usd": sum(c.model_usd for c in agg.costs),
+        "conversation_tokens": {
+            "input": um_in, "output_incl_thoughts": um_out, "model_usd": conv_usd,
         },
-        "runtime_by_sku": {"usage": runtime.to_dict(), "priced": price_runtime(runtime, pb)},
-        "memory_bank_by_sku": memory,
+        "runtime_by_sku": {"usage": runtime.to_dict(), "priced": runtime_priced},
+        "memory_and_session_by_sku": memory_priced,
         "token_xcheck_monitoring": tokens_mon,
+        "total_per_run_usd": total_per_run,
+        "uncaptured": ["Cloud Trace (enable_tracing)", "Cloud Logging", "Cloud Storage (staging)",
+                       "Artifact Registry/Build", "network egress",
+                       "memory storage monthly charge (needs export for true stored count)"],
         "rows": log,
     }
-    print("\n=== ACTUAL USAGE BY SKU ===")
+    print("\n=== FULL PRICED BREAKDOWN BY SKU ===")
     print(json.dumps({k: report[k] for k in
-                      ("runtime_by_sku", "memory_bank_by_sku", "token_xcheck_monitoring")},
-                     indent=2))
+                      ("conversation_tokens", "runtime_by_sku", "memory_and_session_by_sku",
+                       "total_per_run_usd", "uncaptured")}, indent=2))
     out = DATA / "cost_report_memory_assistant.json"
     out.write_text(json.dumps(report, indent=2))
     print("\nReport written to", out)

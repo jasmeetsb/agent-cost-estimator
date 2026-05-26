@@ -318,6 +318,23 @@ EXP-004 reconciliation: conversation `usage_metadata` = 3,432 input tokens, proj
 Monitoring = 5,773; the ~2,340 gap ≈ the 2,451 `generate_memories` tokens. **Lesson: for memory
 agents, total tokens = conversation (usage_metadata) + memory-generation (Monitoring).**
 
+#### Full priced SKU coverage for a memory agent (EXP-004)
+`usage.py:price_memory_usage` + the new `PriceBook` fields price these. Catalog rates:
+session event $0.00025/event, memory retrieved $0.0005/op, memory stored $0.00025/memory/month.
+
+| SKU | source | priced? | note |
+|-----|--------|---------|------|
+| Gemini tokens (conversation) | usage_metadata | ✅ | exact |
+| Gemini tokens (memory generation) | Monitoring `generate_memories_token_count` | ✅ | priced at input rate (no in/out split) |
+| memory retrieved | Monitoring `memory_retrieval_count` | ✅ | per-op rate |
+| ReasoningEngine CPU + memory | Monitoring `*/allocation_time` | ✅ | per-run |
+| session events appended | **observed event count** (client-side) | ✅ approx | **no Monitoring metric**; authoritative count is export-only |
+| memory stored (monthly) | — | ❌ | monthly per-memory charge; needs export for true stored count |
+| Trace / Logging / Storage / Build / egress | — | ❌ | not captured |
+
+In EXP-004 the **memory + session ops (42%) outweighed the conversation tokens (23%)** — for
+memory agents the LLM tokens are the smallest slice, so per-SKU costing is essential.
+
 ### What this gives us (actual) vs still doesn't
 - **Actual:** runtime resource *quantities* (vCPU-sec, GiB-sec, requests) for our engine, plus
   Memory Bank generate-tokens / mutations / retrievals for memory-enabled agents.

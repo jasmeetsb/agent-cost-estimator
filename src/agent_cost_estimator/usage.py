@@ -131,6 +131,43 @@ def collect_memory_usage(
     return out
 
 
+def price_memory_usage(memory_usage: dict, pb, session_events: int = 0) -> dict:
+    """Price Memory Bank + session-persistence usage.
+
+    - generate_memories tokens: priced at the INPUT token rate. The metric gives a
+      single total (no in/out split); memory extraction is input-dominated (it reads
+      the session), so input rate is the best single-rate proxy. Flagged below.
+    - memories retrieved: per-retrieval op rate.
+    - memories stored: a MONTHLY per-memory charge — not a per-run cost. We surface
+      the write count (mutations) and the monthly rate but do not fold a monthly
+      charge into a per-run total.
+    - session events appended: per-event rate. Count is approximate (observed events;
+      no Cloud Monitoring metric exists — authoritative count is billing-export-only).
+    """
+    gen_tok = memory_usage.get("generate_memories_token_count", 0) or 0
+    retrieved = memory_usage.get("memory_retrieval_count", 0) or 0
+    mutations = memory_usage.get("memory_mutation_count", 0) or 0
+
+    gen_tok_usd = gen_tok * (pb.input_token_usd or 0)
+    retrieved_usd = retrieved * (pb.memory_retrieved_usd or 0)
+    session_usd = session_events * (pb.session_event_usd or 0)
+
+    return {
+        "generate_memories_tokens": gen_tok,
+        "generate_memories_usd": gen_tok_usd,
+        "generate_memories_priced_at": "input_token_rate (no in/out split available)",
+        "memories_retrieved": retrieved,
+        "memories_retrieved_usd": retrieved_usd,
+        "session_events_observed": session_events,
+        "session_events_usd": session_usd,
+        "session_events_note": "approximate; no Monitoring metric, authoritative count is export-only",
+        "memories_written": mutations,
+        "memory_stored_month_usd_rate": pb.memory_stored_month_usd,
+        "memory_storage_note": "monthly per-memory charge, not a per-run cost; needs export for true stored count",
+        "per_run_memory_usd": gen_tok_usd + retrieved_usd + session_usd,
+    }
+
+
 def collect_publisher_tokens(
     project: str, start: str, end: str, token: str | None = None,
 ) -> dict:

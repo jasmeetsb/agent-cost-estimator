@@ -91,6 +91,10 @@ class PriceBook:
     cached_input_token_usd: float | None = None
     runtime_mem_gib_sec_usd: float | None = None
     runtime_vcpu_core_sec_usd: float | None = None
+    # Agent Engine operation SKUs (memory bank + session persistence).
+    memory_retrieved_usd: float | None = None       # per memory retrieved
+    memory_stored_month_usd: float | None = None     # per memory stored, per month
+    session_event_usd: float | None = None           # per session event appended
     raw_matches: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -101,6 +105,9 @@ class PriceBook:
             "cached_input_token_usd": self.cached_input_token_usd,
             "runtime_mem_gib_sec_usd": self.runtime_mem_gib_sec_usd,
             "runtime_vcpu_core_sec_usd": self.runtime_vcpu_core_sec_usd,
+            "memory_retrieved_usd": self.memory_retrieved_usd,
+            "memory_stored_month_usd": self.memory_stored_month_usd,
+            "session_event_usd": self.session_event_usd,
         }
 
 
@@ -161,7 +168,23 @@ def build_pricebook(model: str, skus: list[dict] | None = None) -> PriceBook:
     pb.cached_input_token_usd = _pick(matches, kind="cache")
 
     _resolve_runtime(skus, pb)
+    _resolve_agent_ops(skus, pb)
     return pb
+
+
+def _resolve_agent_ops(skus: list[dict], pb: PriceBook) -> None:
+    """Resolve Agent Engine memory-bank + session operation SKUs."""
+    for s in skus:
+        d = s.get("description", "").lower()
+        price = _unit_price_usd(s)
+        if price is None:
+            continue
+        if "memory bank memories retrieved" in d:
+            pb.memory_retrieved_usd = price
+        elif "memory bank memories stored" in d:
+            pb.memory_stored_month_usd = price
+        elif "sessions events appended" in d:
+            pb.session_event_usd = price
 
 
 def _pick(matches: dict[str, float], kind: str) -> float | None:
