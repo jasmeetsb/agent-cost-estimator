@@ -123,6 +123,9 @@ def agent_md(pkg):
     return {"pkg": pkg, "title": m["title"], "complexity": m["complexity"],
             "pattern": m["pattern"], "calls": v["model_calls"]["mean"],
             "in_tok": v["input_tokens"]["mean"], "out_tok": v["output_tokens"]["mean"],
+            "in_range": f"{v['input_tokens']['min']}–{v['input_tokens']['max']}",
+            "out_range": f"{v['output_tokens']['min']}–{v['output_tokens']['max']}",
+            "sess": v["session_events"]["mean"], "mem_written": writ_pr,
             "model": avg["model_usd"], "runtime": avg["runtime_usd"],
             "mem": avg["memory_session_usd"], "total": avg["total_usd"],
             "model_cv": v["model_usd"]["cv_pct"],
@@ -135,8 +138,9 @@ def combined(rowdata):
     # runtime 0.0035, mem 0.0080 -> fixed 0.0115.
     ma = {"title": "memory_assistant (EXP-004/5)", "complexity": "High",
           "pattern": "Hierarchical + Memory Bank", "calls": 5.75, "in_tok": 3398,
-          "out_tok": 1605, "model": 0.0050, "runtime": 0.0035, "mem": 0.0080,
-          "total": 0.0165, "model_cv": 48, "total_min": 0.0029 + 0.0115,
+          "out_tok": 1605, "in_range": "2552–4001", "out_range": "752–3150",
+          "sess": 11.5, "mem_written": 3.25, "model": 0.0050, "runtime": 0.0035,
+          "mem": 0.0080, "total": 0.0165, "model_cv": 48, "total_min": 0.0029 + 0.0115,
           "total_max": 0.0091 + 0.0115}
     rows = rowdata + [ma]
     for r in rows:
@@ -167,7 +171,19 @@ def combined(rowdata):
           f"${widest['total_min']:.4f}–${widest['total_max']:.4f}) on the identical task.",
           "- **Planning guidance:** budget with the **high end of the range**, then multiply by your "
           "expected interactions per month.", "",
-          "## 2. Which products (SKUs) each agent uses", "",
+          "## 2. Usage per interaction (what drives the cost)", "",
+          "The raw work each agent does per interaction (averaged over 3 runs). Token counts are "
+          "the main cost driver; input-token ranges show how much this varies run-to-run.", "",
+          "| Agent | Input tokens (range) | Output tokens (range) | Model calls | Session events | Memories written |",
+          "|---|---|---|---|---|---|"]
+    for r in sorted(rows, key=lambda x: -x["total"]):
+        L.append(f"| {r['title']} | {r['in_tok']:.0f} ({r['in_range']}) | "
+                 f"{r['out_tok']:.0f} ({r['out_range']}) | {r['calls']:.1f} | "
+                 f"{r['sess']:.1f} | ~{r['mem_written']:.1f} |")
+    L += ["",
+          "**financial-advisor stands out** — it processes 4–10× more input tokens than the others "
+          "(deep multi-specialist analysis), which is why its compute cost is so high.", "",
+          "## 3. Which products (SKUs) each agent uses", "",
           "Dollar value = measured cost per interaction for that product. \"Used¹\" = the agent uses "
           "the product but we don't yet meter it (it would add to the total). \"—\" = not used.", "",
           "| Agent | Gemini model | Compute (Agent Runtime) | Sessions | Memory Bank | Web Search grounding | Image generation |",
@@ -187,7 +203,7 @@ def combined(rowdata):
           "¹ *Web Search grounding bills $14–45 per 1,000 grounded prompts; image generation "
           "(Imagen) bills per image. Both are used above but not yet metered here, so real totals "
           "run somewhat higher.*", "",
-          "## 3. Detailed SKU breakdown — the two most elaborate agents", "",
+          "## 4. Detailed SKU breakdown — the two most elaborate agents", "",
           "### financial-advisor — most expensive, compute-heavy", "",
           "Coordinator + 4 specialist sub-agents (data, trading, execution, risk). It pulls "
           "17,000–34,000 input tokens per run, so **server compute is the biggest cost, not the AI model**.", "",
@@ -205,7 +221,7 @@ def combined(rowdata):
           "| Gemini model (tokens) | $0.0050 | 30% |",
           "| Compute (Agent Runtime) | $0.0035 | 21% |",
           "| **Total (measured)** | **~$0.0165** | |", "",
-          "## 4. Key takeaways for leadership", "",
+          "## 5. Key takeaways for leadership", "",
           "1. **A simple agent and a complex one differ ~3× in cost** for the same kind of request — "
           "the agent's design (number of specialist sub-agents, depth of analysis) is the main cost lever.",
           "2. **The most expensive agent is dominated by compute, not the AI model** — financial-advisor "

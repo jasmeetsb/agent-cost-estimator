@@ -18,7 +18,21 @@ Estimated **cost per interaction** for 5 agents deployed to Vertex AI Agent Engi
 - **Same agent, run to run:** cost can swing by up to **123%** (e.g. academic-research: $0.0101–$0.0226) on the identical task.
 - **Planning guidance:** budget with the **high end of the range**, then multiply by your expected interactions per month.
 
-## 2. Which products (SKUs) each agent uses
+## 2. Usage per interaction (what drives the cost)
+
+The raw work each agent does per interaction (averaged over 3 runs). Token counts are the main cost driver; input-token ranges show how much this varies run-to-run.
+
+| Agent | Input tokens (range) | Output tokens (range) | Model calls | Session events | Memories written |
+|---|---|---|---|---|---|
+| financial-advisor | 21679 (13333–34507) | 2410 (1430–2942) | 3.3 | 6.7 | ~1.3 |
+| memory_assistant (EXP-004/5) | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 11.5 | ~3.2 |
+| blog-writer | 3027 (2543–3415) | 3039 (2527–3564) | 2.0 | 4.0 | ~1.0 |
+| academic-research | 3367 (2233–5564) | 2699 (1158–5762) | 2.0 | 4.0 | ~0.0 |
+| marketing-agency | 2991 (1965–3609) | 1345 (1152–1638) | 2.7 | 5.3 | ~0.7 |
+
+**financial-advisor stands out** — it processes 4–10× more input tokens than the others (deep multi-specialist analysis), which is why its compute cost is so high.
+
+## 3. Which products (SKUs) each agent uses
 
 Dollar value = measured cost per interaction for that product. "Used¹" = the agent uses the product but we don't yet meter it (it would add to the total). "—" = not used.
 
@@ -32,7 +46,7 @@ Dollar value = measured cost per interaction for that product. "Used¹" = the ag
 
 ¹ *Web Search grounding bills $14–45 per 1,000 grounded prompts; image generation (Imagen) bills per image. Both are used above but not yet metered here, so real totals run somewhat higher.*
 
-## 3. Detailed SKU breakdown — the two most elaborate agents
+## 4. Detailed SKU breakdown — the two most elaborate agents
 
 ### financial-advisor — most expensive, compute-heavy
 
@@ -57,7 +71,7 @@ Coordinator + 2 sub-agents + long-term Memory Bank. **Memory + session operation
 | Compute (Agent Runtime) | $0.0035 | 21% |
 | **Total (measured)** | **~$0.0165** | |
 
-## 4. Key takeaways for leadership
+## 5. Key takeaways for leadership
 
 1. **A simple agent and a complex one differ ~3× in cost** for the same kind of request — the agent's design (number of specialist sub-agents, depth of analysis) is the main cost lever.
 2. **The most expensive agent is dominated by compute, not the AI model** — financial-advisor does heavy multi-step analysis, so server time costs more than the words generated.
