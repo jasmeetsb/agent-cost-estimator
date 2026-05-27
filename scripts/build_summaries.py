@@ -66,6 +66,9 @@ def agent_md(pkg):
     r = load(pkg); m = META[pkg]; v = r["variability"]; avg = r["per_run_avg"]
     rt = r["runtime"]; mem = r["memory_and_session"]
     eng = r["engine"].split("/")[-1]
+    n_runs = max(len(r["runs"]), 1)
+    retr_pr = mem.get("memories_retrieved", 0) / n_runs
+    writ_pr = mem.get("memories_written", 0) / n_runs
     lines = [
         f"# Agent Cost Summary — `{m['title']}` ({pkg})", "",
         f"- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `{eng}`",
@@ -83,15 +86,22 @@ def agent_md(pkg):
         "add_session_to_memory; 3 runs for variability; 300s Monitoring settle; actual runtime "
         "+ memory_bank usage pulled from Cloud Monitoring and priced at catalog list rate.",
         f"Reproduce: `python scripts/exp_sample.py --package {pkg} --runs 3 --settle 300`", "",
-        "## 4. Typical usage & variability (3 runs)", "",
+        "## 4. Usage distribution (3 runs, identical workload)", "",
         "Each row shows the **typical (average)** value, the **range** seen across runs (low to "
         "high), and how **variable** that is run-to-run (Low / Medium / High / Very high). Same "
         "task each run — differences come mostly from how much the model 'thinks'.", "",
         "| Metric | Typical (avg) | Range (low–high) | Variability |", "|---|---|---|---|",
         f"| Input tokens | {v['input_tokens']['mean']:.0f} | {v['input_tokens']['min']}–{v['input_tokens']['max']} | {var_word(v['input_tokens']['cv_pct'])} |",
-        f"| Output tokens | {v['output_tokens']['mean']:.0f} | {v['output_tokens']['min']}–{v['output_tokens']['max']} | {var_word(v['output_tokens']['cv_pct'])} |",
+        f"| Output tokens (incl. thinking) | {v['output_tokens']['mean']:.0f} | {v['output_tokens']['min']}–{v['output_tokens']['max']} | {var_word(v['output_tokens']['cv_pct'])} |",
         f"| Model calls | {v['model_calls']['mean']:.1f} | {v['model_calls']['min']}–{v['model_calls']['max']} | {var_word(v['model_calls']['cv_pct'])} |",
+        f"| Session events | {v['session_events']['mean']:.1f} | {v['session_events']['min']}–{v['session_events']['max']} | {var_word(v['session_events']['cv_pct'])} |",
+        f"| Memories written / run | ~{writ_pr:.1f} | — | — |",
+        f"| Memory retrievals / run | ~{retr_pr:.1f} | — | — |",
         f"| Model cost ($) | {v['model_usd']['mean']:.4f} | {v['model_usd']['min']:.4f}–{v['model_usd']['max']:.4f} | {var_word(v['model_usd']['cv_pct'])} |",
+        "",
+        ("_Note: memory retrievals = 0 because this agent has no preload_memory tool — it generates "
+         "memories from the session but doesn't read them back. Sessions + memory generation still "
+         "incur cost._" if retr_pr == 0 else ""),
         "",
         "## 5. Cost per interaction, by SKU (catalog list price)", "",
         "| SKU | per-run $ | note |", "|---|---|---|",

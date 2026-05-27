@@ -21,16 +21,21 @@ Gemini tokens, Agent Runtime (vCPU/mem), Sessions, Memory Bank, Google Search gr
 Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; 3 runs for variability; 300s Monitoring settle; actual runtime + memory_bank usage pulled from Cloud Monitoring and priced at catalog list rate.
 Reproduce: `python scripts/exp_sample.py --package financial_advisor --runs 3 --settle 300`
 
-## 4. Typical usage & variability (3 runs)
+## 4. Usage distribution (3 runs, identical workload)
 
 Each row shows the **typical (average)** value, the **range** seen across runs (low to high), and how **variable** that is run-to-run (Low / Medium / High / Very high). Same task each run — differences come mostly from how much the model 'thinks'.
 
 | Metric | Typical (avg) | Range (low–high) | Variability |
 |---|---|---|---|
 | Input tokens | 21679 | 13333–34507 | High |
-| Output tokens | 2410 | 1430–2942 | Medium |
+| Output tokens (incl. thinking) | 2410 | 1430–2942 | Medium |
 | Model calls | 3.3 | 3–4 | Low |
+| Session events | 6.7 | 6–8 | Low |
+| Memories written / run | ~1.3 | — | — |
+| Memory retrievals / run | ~0.0 | — | — |
 | Model cost ($) | 0.0125 | 0.0087–0.0175 | Medium |
+
+_Note: memory retrievals = 0 because this agent has no preload_memory tool — it generates memories from the session but doesn't read them back. Sessions + memory generation still incur cost._
 
 ## 5. Cost per interaction, by SKU (catalog list price)
 
