@@ -1,18 +1,18 @@
 # Combined Cost Estimation Report — ADK Agents on Gemini Enterprise Agent Platform
 
-Cost-per-interaction estimates for 5 agents deployed to Vertex AI Agent Engine, measured via the harness (usage_metadata + Cloud Monitoring SKU extraction, priced at Billing Catalog list rates). **Costs are list-price estimates of actual measured usage, not billed dollars.** Unit = one interaction (2-turn conversation + memory generation; memory_assistant = 3-turn). All gemini-2.5-flash.
+Cost-per-interaction estimates for 5 agents deployed to Vertex AI Agent Engine, measured via the harness (usage_metadata + Cloud Monitoring SKU extraction, priced at Billing Catalog list rates). **Costs are list-price estimates of actual measured usage, not billed dollars.** Unit = one interaction (2-turn conversation + memory generation; memory_assistant = 3-turn). All gemini-2.5-flash. **Total is mean over 3 runs; the min–max range reflects run-to-run model-cost variance (the variable component) with amortized runtime/memory held fixed.**
 
 ## Per-agent comparison
 
-| Agent | Complexity | Pattern | Calls | In/Out tok | Model $ | Runtime $ | Mem+Sess $ | **Total $/interaction** | Model-cost CV |
+| Agent | Complexity | Pattern | Calls | Model $ | Runtime $ | Mem+Sess $ | **Total $/interaction (mean)** | **Total range (min–max)** | Model-cost CV |
 |---|---|---|---|---|---|---|---|---|---|
-| financial-advisor | High | Hierarchical (coordinator + 4 AgentTool specialists) | 3.3 | 21679/2410 | 0.0125 | 0.0196 | 0.0015 | **0.0336** | 29% |
-| blog-writer | High | Hierarchical + Sequential (4 sub-agents) + HITL | 2.0 | 3027/3039 | 0.0085 | 0.0055 | 0.0015 | **0.0156** | 14% |
-| academic-research | Medium-High | Hierarchical (coordinator + AgentTool sub-agents) | 2.0 | 3367/2699 | 0.0078 | 0.0054 | 0.0012 | **0.0144** | 76% |
-| memory_assistant (EXP-004/5) | High | Hierarchical + Memory Bank | 5.8 | 3398/1605 | 0.0050 | 0.0035 | 0.0080 | **0.0134** | 48% |
-| marketing-agency | Medium-High | Hierarchical (coordinator + AgentTool creators) | 2.7 | 2991/1345 | 0.0043 | 0.0055 | 0.0012 | **0.0111** | 16% |
+| financial-advisor | High | Hierarchical (coordinator + 4 AgentTool specialists) | 3.3 | 0.0125 | 0.0196 | 0.0015 | **0.0336** | 0.0298–0.0385 | 29% |
+| memory_assistant (EXP-004/5) | High | Hierarchical + Memory Bank | 5.8 | 0.0050 | 0.0035 | 0.0080 | **0.0165** | 0.0144–0.0206 | 48% |
+| blog-writer | High | Hierarchical + Sequential (4 sub-agents) + HITL | 2.0 | 0.0085 | 0.0055 | 0.0015 | **0.0156** | 0.0141–0.0170 | 14% |
+| academic-research | Medium-High | Hierarchical (coordinator + AgentTool sub-agents) | 2.0 | 0.0078 | 0.0054 | 0.0012 | **0.0144** | 0.0101–0.0226 | 76% |
+| marketing-agency | Medium-High | Hierarchical (coordinator + AgentTool creators) | 2.7 | 0.0043 | 0.0055 | 0.0012 | **0.0111** | 0.0102–0.0119 | 16% |
 
-**Range:** $0.0111–$0.0336 per interaction (3.0× spread across agents).
+**Across agents:** $0.0111–$0.0336 per interaction (3.0× spread on the means). **Within a single agent**, the identical task varies up to 2.2× run-to-run (see Total range) — driven by output/thinking-token swings.
 
 ## Key findings
 

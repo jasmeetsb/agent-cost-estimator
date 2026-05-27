@@ -95,38 +95,47 @@ def agent_md(pkg):
         "- Cloud Trace (enable_tracing), Logging, Storage, and (marketing) Imagen not captured.",
     ]
     (OUT / f"{pkg}.md").write_text("\n".join(lines))
+    fixed = avg["runtime_usd"] + avg["memory_session_usd"]  # non-model components (amortized)
     return {"pkg": pkg, "title": m["title"], "complexity": m["complexity"],
             "pattern": m["pattern"], "calls": v["model_calls"]["mean"],
             "in_tok": v["input_tokens"]["mean"], "out_tok": v["output_tokens"]["mean"],
             "model": avg["model_usd"], "runtime": avg["runtime_usd"],
             "mem": avg["memory_session_usd"], "total": avg["total_usd"],
-            "model_cv": v["model_usd"]["cv_pct"]}
+            "model_cv": v["model_usd"]["cv_pct"],
+            "total_min": v["model_usd"]["min"] + fixed,
+            "total_max": v["model_usd"]["max"] + fixed}
 
 
 def combined(rowdata):
-    # memory_assistant from EXP-005 (known figures).
+    # memory_assistant from EXP-005 (known figures): model 0.0050 (0.0029–0.0091),
+    # runtime 0.0035, mem 0.0080 -> fixed 0.0115.
     ma = {"title": "memory_assistant (EXP-004/5)", "complexity": "High",
           "pattern": "Hierarchical + Memory Bank", "calls": 5.75, "in_tok": 3398,
           "out_tok": 1605, "model": 0.0050, "runtime": 0.0035, "mem": 0.0080,
-          "total": 0.0134, "model_cv": 48}
+          "total": 0.0165, "model_cv": 48, "total_min": 0.0029 + 0.0115,
+          "total_max": 0.0091 + 0.0115}
     rows = rowdata + [ma]
     L = ["# Combined Cost Estimation Report — ADK Agents on Gemini Enterprise Agent Platform", "",
          "Cost-per-interaction estimates for 5 agents deployed to Vertex AI Agent Engine, measured "
          "via the harness (usage_metadata + Cloud Monitoring SKU extraction, priced at Billing "
          "Catalog list rates). **Costs are list-price estimates of actual measured usage, not billed "
          "dollars.** Unit = one interaction (2-turn conversation + memory generation; "
-         "memory_assistant = 3-turn). All gemini-2.5-flash.", "",
+         "memory_assistant = 3-turn). All gemini-2.5-flash. **Total is mean over 3 runs; the "
+         "min–max range reflects run-to-run model-cost variance (the variable component) with "
+         "amortized runtime/memory held fixed.**", "",
          "## Per-agent comparison", "",
-         "| Agent | Complexity | Pattern | Calls | In/Out tok | Model $ | Runtime $ | Mem+Sess $ | **Total $/interaction** | Model-cost CV |",
+         "| Agent | Complexity | Pattern | Calls | Model $ | Runtime $ | Mem+Sess $ | **Total $/interaction (mean)** | **Total range (min–max)** | Model-cost CV |",
          "|---|---|---|---|---|---|---|---|---|---|"]
     for r in sorted(rows, key=lambda x: -x["total"]):
         L.append(f"| {r['title']} | {r['complexity']} | {r['pattern']} | {r['calls']:.1f} | "
-                 f"{r['in_tok']:.0f}/{r['out_tok']:.0f} | {r['model']:.4f} | {r['runtime']:.4f} | "
-                 f"{r['mem']:.4f} | **{r['total']:.4f}** | {r['model_cv']:.0f}% |")
+                 f"{r['model']:.4f} | {r['runtime']:.4f} | {r['mem']:.4f} | "
+                 f"**{r['total']:.4f}** | {r['total_min']:.4f}–{r['total_max']:.4f} | {r['model_cv']:.0f}% |")
     totals = [r["total"] for r in rows]
     L += ["",
-          f"**Range:** ${min(totals):.4f}–${max(totals):.4f} per interaction "
-          f"({max(totals)/min(totals):.1f}× spread across agents).", "",
+          f"**Across agents:** ${min(totals):.4f}–${max(totals):.4f} per interaction "
+          f"({max(totals)/min(totals):.1f}× spread on the means). **Within a single agent**, the "
+          f"identical task varies up to {max((r['total_max']/r['total_min']) for r in rows):.1f}× "
+          f"run-to-run (see Total range) — driven by output/thinking-token swings.", "",
           "## Key findings", "",
           "1. **Cost spans ~3× across agents** for similar 2-turn interactions — architecture "
           "complexity (sub-agent fan-out, analysis depth) drives it more than the workload.",
