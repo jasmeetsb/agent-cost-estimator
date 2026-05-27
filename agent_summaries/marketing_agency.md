@@ -1,8 +1,9 @@
-# Agent Cost Summary — `marketing-agency` (marketing_agency)
+# SKU Usage Summary — `marketing-agency` (marketing_agency)
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6855475340148473856`
 - **Use case:** End-to-end website/branding launch suite · **Complexity:** Medium-High
-- **Cost unit:** 1 interaction = 2-turn conversation + memory generation (2 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.7 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
 
@@ -10,47 +11,49 @@ marketing_coordinator delegates to domain, website, marketing & logo creators; l
 
 **Pattern:** Hierarchical (coordinator + AgentTool creators)
 
-## 2. Components / SKUs used
+## 2. SKUs (products) consumed
 
 Gemini tokens, Agent Runtime, Sessions, Memory Bank, Imagen (genmedia), Google Search grounding
 
-(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding used by the agent but not yet metered here — see caveats.)
+(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
 
-## 3. How the experiment was run
+## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; 3 runs for variability; 300s Monitoring settle; actual runtime + memory_bank usage pulled from Cloud Monitoring and priced at catalog list rate.
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; 3 runs for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
 Reproduce: `python scripts/exp_sample.py --package marketing_agency --runs 3 --settle 300`
 
-## 4. Usage distribution (3 runs, identical workload)
+## 4. SKU usage per interaction (PRIMARY)
 
-Each row shows the **typical (average)** value, the **range** seen across runs (low to high), and how **variable** that is run-to-run (Low / Medium / High / Very high). Same task each run — differences come mostly from how much the model 'thinks'.
+Measured usage quantities per interaction (avg over 3 runs), with run-to-run range and variability.
 
-| Metric | Typical (avg) | Range (low–high) | Variability |
-|---|---|---|---|
-| Input tokens | 2991 | 1965–3609 | Medium |
-| Output tokens (incl. thinking) | 1345 | 1152–1638 | Medium |
-| Model calls | 2.7 | 2–3 | Medium |
-| Session events | 5.3 | 4–6 | Medium |
-| Memories written / run | ~0.7 | — | — |
-| Memory retrievals / run | ~0.0 | — | — |
-| Model cost ($) | 0.0043 | 0.0035–0.0052 | Medium |
+| SKU dimension | Unit | Typical | Range | Variability |
+|---|---|---|---|---|
+| Gemini input tokens | tokens | 2991 | 1965–3609 | Medium |
+| Gemini output tokens (incl. thinking) | tokens | 1345 | 1152–1638 | Medium |
+| Model calls | calls | 2.7 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 164.0 | — | — |
+| Agent Runtime — memory | GiB-seconds | 640.3 | — | — |
+| Sessions | events appended | 5.3 | — | Medium |
+| Memory Bank — generation | tokens | 2661 | — | — |
+| Memory Bank — memories written | memories | 0.7 | — | — |
+| Memory Bank — retrievals | reads | 0.0 | — | — |
 
-_Note: memory retrievals = 0 because this agent has no preload_memory tool — it generates memories from the session but doesn't read them back. Sessions + memory generation still incur cost._
+_Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
-## 5. Cost per interaction, by SKU (catalog list price)
+## 5. Caveats on usage capture
 
-| SKU | per-run $ | note |
-|---|---|---|
-| Conversation tokens | 0.0043 | input+output |
-| Agent Runtime (vCPU+mem) | 0.0055 | amortized; utilization-dependent |
-| Memory generation tokens | 0.0024 | 7982 tok @ input rate |
-| Session events | 0.0013 | ~5 events |
-| **Total per interaction** | **0.0111** | excl. Search grounding + Trace/Logging |
+- **Google Search grounding** usage (grounded-prompt count) NOT captured — agent grounds on Search.
+- **Imagen / genmedia** image count not captured (marketing-agency only).
+- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).
+- Memory storage (stored-memory count over time) is export-only.
 
-## 6. Caveats
+## 6. Secondary: derived cost (usage × catalog list price)
 
-- Catalog **list price**, not actual billed (internal project; true $ needs BigQuery export).
-- **Google Search grounding** is used by this agent but NOT yet metered (per-grounded-prompt SKU); add via Monitoring web_search metrics or export.
-- Memory *retrieval* = 0 (agent has no preload_memory tool); only memory *generation* is exercised.
-- Runtime cost is utilization-dependent; idle memory allocation dominates at low QPS.
-- Cloud Trace (enable_tracing), Logging, Storage, and (marketing) Imagen not captured.
+Provided for reference only. List price, not actual billed; **usage above is the primary output.**
+
+| SKU | $/interaction |
+|---|---|
+| Gemini tokens | 0.0043 |
+| Agent Runtime | 0.0055 |
+| Memory Bank + Sessions | 0.0012 |
+| **Total (measured SKUs)** | **0.0111** (range 0.0102–0.0119) |

@@ -1,0 +1,63 @@
+# Combined SKU-Usage Report — ADK Agents on Gemini Enterprise Agent Platform
+
+**Purpose:** estimate **usage per SKU** across different agent architectures deployed to Vertex AI Agent Engine. Usage quantities are the primary output; dollar cost is a secondary derived view (usage × catalog list price). This is **not** an expense report or a cost-optimization exercise — it characterizes what each agent *consumes*, by SKU.
+
+Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3-turn). All gemini-2.5-flash. 3 runs/agent; usage from model responses + Cloud Monitoring (per-engine).
+
+## 1. SKU usage per interaction — model & compute (PRIMARY)
+
+| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
+|---|---|---|---|---|---|
+| financial-advisor | 21679 (13333–34507) | 2410 (1430–2942) | 3.3 | 720.8 | 919 |
+| memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
+| academic-research | 3367 (2233–5564) | 2699 (1158–5762) | 2.0 | 166.8 | 560 |
+| blog-writer | 3027 (2543–3415) | 3039 (2527–3564) | 2.0 | 164.0 | 640 |
+| marketing-agency | 2991 (1965–3609) | 1345 (1152–1638) | 2.7 | 164.0 | 640 |
+
+## 2. SKU usage per interaction — Agent Platform features (PRIMARY)
+
+| Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |
+|---|---|---|---|---|
+| financial-advisor | 6.7 | 3177 | 1.3 | 0.0 |
+| memory_assistant | 11.5 | 2493 | 3.2 | 2.5 |
+| academic-research | 4.0 | 2732 | 0.0 | 0.0 |
+| blog-writer | 4.0 | 3959 | 1.0 | 0.0 |
+| marketing-agency | 5.3 | 2661 | 0.7 | 0.0 |
+
+_Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant retrieves because cross-session recall is its purpose. Search-grounding and Imagen usage are not yet captured (see §5)._
+
+## 3. SKU presence matrix (which agents touch which SKUs)
+
+| Agent | Gemini tokens | Agent Runtime | Sessions | Memory Bank | Search grounding | Image gen |
+|---|---|---|---|---|---|---|
+| financial-advisor | ✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | — |
+| memory_assistant | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
+| academic-research | ✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | — |
+| blog-writer | ✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | — |
+| marketing-agency | ✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | used (unmetered) |
+
+## 4. Secondary: derived cost per interaction (usage × catalog list price)
+
+Reference only — list price, not actual billed. The usage tables above are the deliverable.
+
+| Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
+|---|---|---|---|---|---|
+| financial-advisor | 0.0125 | 0.0196 | 0.0015 | 0.0336 (0.0298–0.0385) | Medium |
+| memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
+| blog-writer | 0.0085 | 0.0055 | 0.0015 | 0.0156 (0.0141–0.0170) | Low |
+| academic-research | 0.0078 | 0.0054 | 0.0012 | 0.0144 (0.0101–0.0226) | Very high |
+| marketing-agency | 0.0043 | 0.0055 | 0.0012 | 0.0111 (0.0102–0.0119) | Medium |
+
+## 5. Usage-pattern observations
+
+1. **Input-token usage is the biggest differentiator** — financial-advisor consumes ~21679 input tokens/interaction vs ~2991 for the lightest, a 7× spread driven by depth of multi-specialist analysis.
+2. **vCPU-seconds track analysis depth**, not just call count — the heaviest agent burns far more compute per interaction.
+3. **Output-token usage is the most variable SKU** run-to-run (the model varies how much it reasons), so token usage should be reported as a range, not a single number.
+4. **Memory generation + session events are consumed even when memories are never read back** — a real SKU footprint for any session-persisted agent.
+5. **Search-grounding and Imagen usage are not yet captured** — adding those collectors is the main gap to a complete per-SKU usage picture.
+
+## Method & reproducibility
+
+Per agent: `python scripts/exp_sample.py --package <pkg> --runs 3 --settle 300`. Token usage from model responses (exact); vCPU/GiB-seconds + Memory Bank usage from Cloud Monitoring (per-engine), back-derived to quantities. Per-agent detail in `agent_summaries/`.
+
+_Engines: financial_advisor, academic_research, blogger_agent, marketing_agency (+ memory_assistant)._

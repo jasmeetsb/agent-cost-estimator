@@ -1,19 +1,30 @@
-"""Generate per-agent cost summaries (markdown) + a combined cost report.
+"""Generate per-agent SKU-usage summaries (markdown) + a combined report.
 
-Reads data/cost_report_<package>.json for the 4 deployed adk-sample agents and
-writes agent_summaries/<package>.md each (memory_assistant-style), then a
-COMBINED_COST_REPORT.md comparing all agents (incl. memory_assistant).
+PURPOSE: estimate **usage per SKU** for different agent deployments. Usage
+quantities (tokens, vCPU-seconds, GiB-seconds, session events, memory ops) are
+the primary output. Dollar cost is a SECONDARY, derived view (usage x catalog
+list price) — this is NOT an expense report or a cost-optimization deck.
+
+Reads data/cost_report_<package>.json for the deployed agents and writes
+agent_summaries/<package>.md each, then COMBINED_SKU_USAGE_REPORT.md.
 """
 
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from agent_cost_estimator import load_or_build
 
 REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "data"
 OUT = REPO / "agent_summaries"
 OUT.mkdir(exist_ok=True)
 
-# Static descriptors per agent (from adk-samples analysis).
+PB = load_or_build("gemini-2.5-flash")
+VCPU_RATE = PB.runtime_vcpu_core_sec_usd or 2.4e-5
+MEM_RATE = PB.runtime_mem_gib_sec_usd or 2.5e-6
+
 META = {
     "financial_advisor": {
         "title": "financial-advisor", "use_case": "Stock analysis & trading strategy advisor",
@@ -31,24 +42,21 @@ META = {
     "blogger_agent": {
         "title": "blog-writer", "use_case": "Multi-agent technical blog authoring",
         "complexity": "High", "pattern": "Hierarchical + Sequential (4 sub-agents) + HITL",
-        "arch": "interactive_blogger_agent orchestrates 4 sub-agents (outline, draft, "
-                "edit, social) + tools; human-in-the-loop refinement.",
+        "arch": "interactive_blogger_agent orchestrates 4 sub-agents + tools.",
         "skus": "Gemini tokens, Agent Runtime, Sessions, Memory Bank, Google Search grounding",
     },
     "marketing_agency": {
         "title": "marketing-agency", "use_case": "End-to-end website/branding launch suite",
         "complexity": "Medium-High", "pattern": "Hierarchical (coordinator + AgentTool creators)",
-        "arch": "marketing_coordinator delegates to domain, website, marketing & logo "
-                "creators; logo creation uses Imagen (genmedia).",
+        "arch": "marketing_coordinator delegates to domain, website, marketing & logo creators; "
+                "logo creation uses Imagen (genmedia).",
         "skus": "Gemini tokens, Agent Runtime, Sessions, Memory Bank, Imagen (genmedia), Google Search grounding",
     },
 }
-
 PACKAGES = ["financial_advisor", "academic_research", "blogger_agent", "marketing_agency"]
 
 
 def var_word(cv: float) -> str:
-    """Plain-language variability label from a coefficient of variation %."""
     if cv < 15:
         return "Low"
     if cv < 40:
@@ -62,190 +70,165 @@ def load(pkg):
     return json.loads((DATA / f"cost_report_{pkg}.json").read_text())
 
 
-def agent_md(pkg):
-    r = load(pkg); m = META[pkg]; v = r["variability"]; avg = r["per_run_avg"]
-    rt = r["runtime"]; mem = r["memory_and_session"]
-    eng = r["engine"].split("/")[-1]
-    n_runs = max(len(r["runs"]), 1)
-    retr_pr = mem.get("memories_retrieved", 0) / n_runs
-    writ_pr = mem.get("memories_written", 0) / n_runs
-    lines = [
-        f"# Agent Cost Summary — `{m['title']}` ({pkg})", "",
-        f"- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `{eng}`",
-        f"- **Use case:** {m['use_case']} · **Complexity:** {m['complexity']}",
-        f"- **Cost unit:** 1 interaction = 2-turn conversation + memory generation "
-        f"({int(v['model_calls']['mean'])} model calls avg). Deployed on Vertex AI Agent Engine (GEAP).",
-        "",
-        "## 1. Architecture", "", m["arch"], f"\n**Pattern:** {m['pattern']}", "",
-        "## 2. Components / SKUs used", "", m["skus"],
-        "\n(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation "
-        "exercised via add_session_to_memory. Search grounding used by the agent but not yet "
-        "metered here — see caveats.)", "",
-        "## 3. How the experiment was run", "",
-        "Deployed to Agent Engine; per run = 2-turn conversation in one session + "
-        "add_session_to_memory; 3 runs for variability; 300s Monitoring settle; actual runtime "
-        "+ memory_bank usage pulled from Cloud Monitoring and priced at catalog list rate.",
-        f"Reproduce: `python scripts/exp_sample.py --package {pkg} --runs 3 --settle 300`", "",
-        "## 4. Usage distribution (3 runs, identical workload)", "",
-        "Each row shows the **typical (average)** value, the **range** seen across runs (low to "
-        "high), and how **variable** that is run-to-run (Low / Medium / High / Very high). Same "
-        "task each run — differences come mostly from how much the model 'thinks'.", "",
-        "| Metric | Typical (avg) | Range (low–high) | Variability |", "|---|---|---|---|",
-        f"| Input tokens | {v['input_tokens']['mean']:.0f} | {v['input_tokens']['min']}–{v['input_tokens']['max']} | {var_word(v['input_tokens']['cv_pct'])} |",
-        f"| Output tokens (incl. thinking) | {v['output_tokens']['mean']:.0f} | {v['output_tokens']['min']}–{v['output_tokens']['max']} | {var_word(v['output_tokens']['cv_pct'])} |",
-        f"| Model calls | {v['model_calls']['mean']:.1f} | {v['model_calls']['min']}–{v['model_calls']['max']} | {var_word(v['model_calls']['cv_pct'])} |",
-        f"| Session events | {v['session_events']['mean']:.1f} | {v['session_events']['min']}–{v['session_events']['max']} | {var_word(v['session_events']['cv_pct'])} |",
-        f"| Memories written / run | ~{writ_pr:.1f} | — | — |",
-        f"| Memory retrievals / run | ~{retr_pr:.1f} | — | — |",
-        f"| Model cost ($) | {v['model_usd']['mean']:.4f} | {v['model_usd']['min']:.4f}–{v['model_usd']['max']:.4f} | {var_word(v['model_usd']['cv_pct'])} |",
-        "",
-        ("_Note: memory retrievals = 0 because this agent has no preload_memory tool — it generates "
-         "memories from the session but doesn't read them back. Sessions + memory generation still "
-         "incur cost._" if retr_pr == 0 else ""),
-        "",
-        "## 5. Cost per interaction, by SKU (catalog list price)", "",
-        "| SKU | per-run $ | note |", "|---|---|---|",
-        f"| Conversation tokens | {avg['model_usd']:.4f} | input+output |",
-        f"| Agent Runtime (vCPU+mem) | {avg['runtime_usd']:.4f} | amortized; utilization-dependent |",
-        f"| Memory generation tokens | {mem['generate_memories_usd']:.4f} | {int(mem['generate_memories_tokens'])} tok @ input rate |",
-        f"| Session events | {mem['session_events_usd']:.4f} | ~{mem['session_events_observed']} events |",
-        f"| **Total per interaction** | **{avg['total_usd']:.4f}** | excl. Search grounding + Trace/Logging |",
-        "",
-        "## 6. Caveats", "",
-        "- Catalog **list price**, not actual billed (internal project; true $ needs BigQuery export).",
-        "- **Google Search grounding** is used by this agent but NOT yet metered (per-grounded-prompt SKU); add via Monitoring web_search metrics or export.",
-        "- Memory *retrieval* = 0 (agent has no preload_memory tool); only memory *generation* is exercised.",
-        "- Runtime cost is utilization-dependent; idle memory allocation dominates at low QPS.",
-        "- Cloud Trace (enable_tracing), Logging, Storage, and (marketing) Imagen not captured.",
-    ]
-    (OUT / f"{pkg}.md").write_text("\n".join(lines))
-    fixed = avg["runtime_usd"] + avg["memory_session_usd"]  # non-model components (amortized)
-    return {"pkg": pkg, "title": m["title"], "complexity": m["complexity"],
-            "pattern": m["pattern"], "calls": v["model_calls"]["mean"],
-            "in_tok": v["input_tokens"]["mean"], "out_tok": v["output_tokens"]["mean"],
-            "in_range": f"{v['input_tokens']['min']}–{v['input_tokens']['max']}",
-            "out_range": f"{v['output_tokens']['min']}–{v['output_tokens']['max']}",
-            "sess": v["session_events"]["mean"], "mem_written": writ_pr,
-            "model": avg["model_usd"], "runtime": avg["runtime_usd"],
-            "mem": avg["memory_session_usd"], "total": avg["total_usd"],
-            "model_cv": v["model_usd"]["cv_pct"],
-            "total_min": v["model_usd"]["min"] + fixed,
-            "total_max": v["model_usd"]["max"] + fixed}
-
-
-def combined(rowdata):
-    # memory_assistant from EXP-005 (known figures): model 0.0050 (0.0029–0.0091),
-    # runtime 0.0035, mem 0.0080 -> fixed 0.0115.
-    ma = {"title": "memory_assistant (EXP-004/5)", "complexity": "High",
-          "pattern": "Hierarchical + Memory Bank", "calls": 5.75, "in_tok": 3398,
-          "out_tok": 1605, "in_range": "2552–4001", "out_range": "752–3150",
-          "sess": 11.5, "mem_written": 3.25, "model": 0.0050, "runtime": 0.0035,
-          "mem": 0.0080, "total": 0.0165, "model_cv": 48, "total_min": 0.0029 + 0.0115,
-          "total_max": 0.0091 + 0.0115}
-    rows = rowdata + [ma]
-    for r in rows:
-        r["predict"] = {"Low": "Very predictable", "Medium": "Fairly predictable",
-                        "High": "Variable", "Very high": "Highly variable"}[var_word(r["model_cv"])]
-    L = ["# Combined Cost Estimation Report — ADK Agents on Gemini Enterprise Agent Platform", "",
-         "Estimated **cost per interaction** for 5 agents deployed to Vertex AI Agent Engine. "
-         "Measured from real usage (model token counts + Cloud Monitoring) and priced at Google's "
-         "public list rates. **These are list-price estimates of actual measured usage — not the "
-         "final invoice.** One *interaction* = a 2-turn conversation plus a memory-write "
-         "(memory_assistant = 3-turn). All run on gemini-2.5-flash.", "",
-         "**How to read variability:** we ran each agent 3 times on the *same* task. **Typical** is "
-         "the average cost; **Range** is the cheapest-to-most-expensive run. A wide range means cost "
-         "is hard to predict run-to-run (the model decides how much to \"think\" each time).", "",
-         "## 1. Cost comparison (per interaction)", "",
-         "| Agent | Complexity | Architecture | Typical cost | Range (low–high) | Predictability |",
-         "|---|---|---|---|---|---|"]
-    for r in sorted(rows, key=lambda x: -x["total"]):
-        L.append(f"| {r['title']} | {r['complexity']} | {r['pattern']} | "
-                 f"**${r['total']:.4f}** | ${r['total_min']:.4f} – ${r['total_max']:.4f} | {r['predict']} |")
-    totals = [r["total"] for r in rows]
-    widest = max(rows, key=lambda r: r["total_max"] / r["total_min"])
-    L += ["",
-          f"- **Cheapest vs priciest agent:** ${min(totals):.4f} → ${max(totals):.4f} per "
-          f"interaction — about a **{max(totals)/min(totals):.0f}× difference**, driven by the agent's design.",
-          f"- **Same agent, run to run:** cost can swing by up to "
-          f"**{(widest['total_max']/widest['total_min']-1)*100:.0f}%** (e.g. {widest['title']}: "
-          f"${widest['total_min']:.4f}–${widest['total_max']:.4f}) on the identical task.",
-          "- **Planning guidance:** budget with the **high end of the range**, then multiply by your "
-          "expected interactions per month.", "",
-          "## 2. Usage per interaction (what drives the cost)", "",
-          "The raw work each agent does per interaction (averaged over 3 runs). Token counts are "
-          "the main cost driver; input-token ranges show how much this varies run-to-run.", "",
-          "| Agent | Input tokens (range) | Output tokens (range) | Model calls | Session events | Memories written |",
-          "|---|---|---|---|---|---|"]
-    for r in sorted(rows, key=lambda x: -x["total"]):
-        L.append(f"| {r['title']} | {r['in_tok']:.0f} ({r['in_range']}) | "
-                 f"{r['out_tok']:.0f} ({r['out_range']}) | {r['calls']:.1f} | "
-                 f"{r['sess']:.1f} | ~{r['mem_written']:.1f} |")
-    L += ["",
-          "**financial-advisor stands out** — it processes 4–10× more input tokens than the others "
-          "(deep multi-specialist analysis), which is why its compute cost is so high.", "",
-          "## 3. Which products (SKUs) each agent uses", "",
-          "Dollar value = measured cost per interaction for that product. \"Used¹\" = the agent uses "
-          "the product but we don't yet meter it (it would add to the total). \"—\" = not used.", "",
-          "| Agent | Gemini model | Compute (Agent Runtime) | Sessions | Memory Bank | Web Search grounding | Image generation |",
-          "|---|---|---|---|---|---|---|"]
-    sku = {
-        "financial-advisor": ("$0.0125", "$0.0196", "$0.0015", "$0.0029", "Used¹", "—"),
-        "academic-research": ("$0.0078", "$0.0054", "$0.0010", "$0.0025", "Used¹", "—"),
-        "blog-writer": ("$0.0085", "$0.0055", "$0.0010", "$0.0036", "Used¹", "—"),
-        "marketing-agency": ("$0.0043", "$0.0055", "$0.0013", "$0.0024", "Used¹", "Used¹"),
-        "memory_assistant (EXP-004/5)": ("$0.0050", "$0.0035", "$0.0029", "$0.0050", "—", "—"),
+def derive(pkg):
+    """Per-interaction SKU usage quantities (+ secondary derived cost) for an agent."""
+    r = load(pkg); v = r["variability"]; rt = r["runtime"]; mem = r["memory_and_session"]
+    avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
+    return {
+        "pkg": pkg, "title": META[pkg]["title"], "complexity": META[pkg]["complexity"],
+        "pattern": META[pkg]["pattern"], "engine": r["engine"].split("/")[-1], "n": n,
+        # usage quantities per interaction
+        "in_tok": v["input_tokens"]["mean"], "in_rng": f"{v['input_tokens']['min']}–{v['input_tokens']['max']}",
+        "in_var": var_word(v["input_tokens"]["cv_pct"]),
+        "out_tok": v["output_tokens"]["mean"], "out_rng": f"{v['output_tokens']['min']}–{v['output_tokens']['max']}",
+        "out_var": var_word(v["output_tokens"]["cv_pct"]),
+        "calls": v["model_calls"]["mean"], "calls_var": var_word(v["model_calls"]["cv_pct"]),
+        "vcpu_sec": (rt["cpu_usd"] / VCPU_RATE) / n,
+        "gib_sec": (rt["memory_usd"] / MEM_RATE) / n,
+        "sess": v["session_events"]["mean"], "sess_var": var_word(v["session_events"]["cv_pct"]),
+        "gen_tok": mem["generate_memories_tokens"] / n,
+        "mem_written": mem.get("memories_written", 0) / n,
+        "mem_retrieved": mem.get("memories_retrieved", 0) / n,
+        # secondary derived cost ($/interaction)
+        "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
+        "c_total": avg["total_usd"], "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"],
+        "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"],
+        "cost_var": var_word(v["model_usd"]["cv_pct"]),
     }
-    for r in sorted(rows, key=lambda x: -x["total"]):
-        c = sku.get(r["title"])
-        if c:
-            L.append(f"| {r['title']} | {c[0]} | {c[1]} | {c[2]} | {c[3]} | {c[4]} | {c[5]} |")
+
+
+def agent_md(d):
+    m = META[d["pkg"]]
+    retr_note = ("\n_Memory retrievals = 0: this agent has no preload_memory tool — it writes "
+                 "memories from the session but doesn't read them back._" if d["mem_retrieved"] == 0 else "")
+    lines = [
+        f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",
+        f"- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `{d['engine']}`",
+        f"- **Use case:** {m['use_case']} · **Complexity:** {d['complexity']}",
+        f"- **Unit:** 1 interaction = 2-turn conversation + memory-write ({d['calls']:.1f} model calls avg). "
+        "Deployed on Vertex AI Agent Engine (GEAP).",
+        "- **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).", "",
+        "## 1. Architecture", "", m["arch"], f"\n**Pattern:** {m['pattern']}", "",
+        "## 2. SKUs (products) consumed", "", m["skus"],
+        "\n(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised "
+        "via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet "
+        "metered here — see §7.)", "",
+        "## 3. How usage was measured", "",
+        "Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; "
+        "3 runs for variability; 300s Monitoring settle; token usage from the model response "
+        "(`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).",
+        f"Reproduce: `python scripts/exp_sample.py --package {d['pkg']} --runs 3 --settle 300`", "",
+        "## 4. SKU usage per interaction (PRIMARY)", "",
+        "Measured usage quantities per interaction (avg over 3 runs), with run-to-run range and variability.", "",
+        "| SKU dimension | Unit | Typical | Range | Variability |", "|---|---|---|---|---|",
+        f"| Gemini input tokens | tokens | {d['in_tok']:.0f} | {d['in_rng']} | {d['in_var']} |",
+        f"| Gemini output tokens (incl. thinking) | tokens | {d['out_tok']:.0f} | {d['out_rng']} | {d['out_var']} |",
+        f"| Model calls | calls | {d['calls']:.1f} | — | {d['calls_var']} |",
+        f"| Agent Runtime — vCPU | vCPU-seconds | {d['vcpu_sec']:.1f} | — | — |",
+        f"| Agent Runtime — memory | GiB-seconds | {d['gib_sec']:.1f} | — | — |",
+        f"| Sessions | events appended | {d['sess']:.1f} | — | {d['sess_var']} |",
+        f"| Memory Bank — generation | tokens | {d['gen_tok']:.0f} | — | — |",
+        f"| Memory Bank — memories written | memories | {d['mem_written']:.1f} | — | — |",
+        f"| Memory Bank — retrievals | reads | {d['mem_retrieved']:.1f} | — | — |",
+        retr_note, "",
+        "## 5. Caveats on usage capture", "",
+        "- **Google Search grounding** usage (grounded-prompt count) NOT captured — agent grounds on Search.",
+        "- **Imagen / genmedia** image count not captured (marketing-agency only).",
+        "- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).",
+        "- Memory storage (stored-memory count over time) is export-only.", "",
+        "## 6. Secondary: derived cost (usage × catalog list price)", "",
+        "Provided for reference only. List price, not actual billed; **usage above is the primary output.**", "",
+        "| SKU | $/interaction |", "|---|---|",
+        f"| Gemini tokens | {d['c_model']:.4f} |",
+        f"| Agent Runtime | {d['c_runtime']:.4f} |",
+        f"| Memory Bank + Sessions | {d['c_memsess']:.4f} |",
+        f"| **Total (measured SKUs)** | **{d['c_total']:.4f}** (range {d['c_total_min']:.4f}–{d['c_total_max']:.4f}) |",
+    ]
+    (OUT / f"{d['pkg']}.md").write_text("\n".join(x for x in lines if x is not None))
+
+
+def combined(ds):
+    ma = {"title": "memory_assistant", "complexity": "High", "pattern": "Hierarchical + Memory Bank",
+          "in_tok": 3398, "in_rng": "2552–4001", "out_tok": 1605, "out_rng": "752–3150",
+          "calls": 5.75, "vcpu_sec": 39.0, "gib_sec": 560.0, "sess": 11.5, "gen_tok": 2493,
+          "mem_written": 3.25, "mem_retrieved": 2.5, "c_model": 0.0050, "c_runtime": 0.0035,
+          "c_memsess": 0.0080, "c_total": 0.0165, "c_total_min": 0.0144, "c_total_max": 0.0206,
+          "cost_var": "High"}
+    rows = ds + [ma]
+    sortk = lambda r: -r["in_tok"]
+    L = ["# Combined SKU-Usage Report — ADK Agents on Gemini Enterprise Agent Platform", "",
+         "**Purpose:** estimate **usage per SKU** across different agent architectures deployed to "
+         "Vertex AI Agent Engine. Usage quantities are the primary output; dollar cost is a secondary "
+         "derived view (usage × catalog list price). This is **not** an expense report or a "
+         "cost-optimization exercise — it characterizes what each agent *consumes*, by SKU.", "",
+         "Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3-turn). "
+         "All gemini-2.5-flash. 3 runs/agent; usage from model responses + Cloud Monitoring (per-engine).", "",
+         "## 1. SKU usage per interaction — model & compute (PRIMARY)", "",
+         "| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |",
+         "|---|---|---|---|---|---|"]
+    for r in sorted(rows, key=sortk):
+        L.append(f"| {r['title']} | {r['in_tok']:.0f} ({r['in_rng']}) | {r['out_tok']:.0f} ({r['out_rng']}) "
+                 f"| {r['calls']:.1f} | {r['vcpu_sec']:.1f} | {r['gib_sec']:.0f} |")
     L += ["",
-          "¹ *Web Search grounding bills $14–45 per 1,000 grounded prompts; image generation "
-          "(Imagen) bills per image. Both are used above but not yet metered here, so real totals "
-          "run somewhat higher.*", "",
-          "## 4. Detailed SKU breakdown — the two most elaborate agents", "",
-          "### financial-advisor — most expensive, compute-heavy", "",
-          "Coordinator + 4 specialist sub-agents (data, trading, execution, risk). It pulls "
-          "17,000–34,000 input tokens per run, so **server compute is the biggest cost, not the AI model**.", "",
-          "| Product | Cost per interaction | Share |", "|---|---|---|",
-          "| Compute (Agent Runtime) | $0.0196 | 58% |",
-          "| Gemini model (tokens) | $0.0125 | 37% |",
-          "| Memory Bank + Sessions | $0.0015 | 5% |",
-          "| **Total (measured)** | **~$0.0336** | 100% |",
-          "| Web Search grounding | not yet metered | would add |", "",
-          "### memory_assistant — most Agent Platform features", "",
-          "Coordinator + 2 sub-agents + long-term Memory Bank. **Memory + session operations are the "
-          "single biggest slice — larger than the AI model itself.**", "",
-          "| Product | Cost per interaction | Share |", "|---|---|---|",
-          "| Memory Bank + Sessions | $0.0080 | 48% |",
-          "| Gemini model (tokens) | $0.0050 | 30% |",
-          "| Compute (Agent Runtime) | $0.0035 | 21% |",
-          "| **Total (measured)** | **~$0.0165** | |", "",
-          "## 5. Key takeaways for leadership", "",
-          "1. **A simple agent and a complex one differ ~3× in cost** for the same kind of request — "
-          "the agent's design (number of specialist sub-agents, depth of analysis) is the main cost lever.",
-          "2. **The most expensive agent is dominated by compute, not the AI model** — financial-advisor "
-          "does heavy multi-step analysis, so server time costs more than the words generated.",
-          "3. **Cost is not fixed per request** — the same task can cost up to ~2× more on one run than "
-          "another because the model varies how much it reasons. Budget for the high end of the range.",
-          "4. **The newer Agent Platform features (Memory Bank, Sessions) carry real cost** — for a "
-          "memory-enabled agent they were the single biggest line item, bigger than the AI model.",
-          "5. **A few costs aren't counted yet** (web Search grounding, image generation, logging/tracing), "
-          "so real bills will run somewhat higher than the figures here.", "",
+          "## 2. SKU usage per interaction — Agent Platform features (PRIMARY)", "",
+          "| Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |",
+          "|---|---|---|---|---|"]
+    for r in sorted(rows, key=sortk):
+        L.append(f"| {r['title']} | {r['sess']:.1f} | {r['gen_tok']:.0f} | {r['mem_written']:.1f} | {r['mem_retrieved']:.1f} |")
+    L += ["",
+          "_Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant "
+          "retrieves because cross-session recall is its purpose. Search-grounding and Imagen usage are "
+          "not yet captured (see §5)._", "",
+          "## 3. SKU presence matrix (which agents touch which SKUs)", "",
+          "| Agent | Gemini tokens | Agent Runtime | Sessions | Memory Bank | Search grounding | Image gen |",
+          "|---|---|---|---|---|---|---|"]
+    pres = {
+        "financial-advisor": "✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | —",
+        "academic-research": "✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | —",
+        "blog-writer": "✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | —",
+        "marketing-agency": "✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | used (unmetered)",
+        "memory_assistant": "✓ | ✓ | ✓ | ✓ (write+read) | — | —",
+    }
+    for r in sorted(rows, key=sortk):
+        if r["title"] in pres:
+            L.append(f"| {r['title']} | {pres[r['title']]} |")
+    L += ["",
+          "## 4. Secondary: derived cost per interaction (usage × catalog list price)", "",
+          "Reference only — list price, not actual billed. The usage tables above are the deliverable.", "",
+          "| Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |",
+          "|---|---|---|---|---|---|"]
+    for r in sorted(rows, key=lambda x: -x["c_total"]):
+        L.append(f"| {r['title']} | {r['c_model']:.4f} | {r['c_runtime']:.4f} | {r['c_memsess']:.4f} | "
+                 f"{r['c_total']:.4f} ({r['c_total_min']:.4f}–{r['c_total_max']:.4f}) | {r['cost_var']} |")
+    L += ["",
+          "## 5. Usage-pattern observations", "",
+          "1. **Input-token usage is the biggest differentiator** — financial-advisor consumes "
+          f"~{max(r['in_tok'] for r in rows):.0f} input tokens/interaction vs "
+          f"~{min(r['in_tok'] for r in rows):.0f} for the lightest, a "
+          f"{max(r['in_tok'] for r in rows)/min(r['in_tok'] for r in rows):.0f}× spread driven by "
+          "depth of multi-specialist analysis.",
+          "2. **vCPU-seconds track analysis depth**, not just call count — the heaviest agent burns far "
+          "more compute per interaction.",
+          "3. **Output-token usage is the most variable SKU** run-to-run (the model varies how much it "
+          "reasons), so token usage should be reported as a range, not a single number.",
+          "4. **Memory generation + session events are consumed even when memories are never read back** "
+          "— a real SKU footprint for any session-persisted agent.",
+          "5. **Search-grounding and Imagen usage are not yet captured** — adding those collectors is the "
+          "main gap to a complete per-SKU usage picture.", "",
           "## Method & reproducibility", "",
           "Per agent: `python scripts/exp_sample.py --package <pkg> --runs 3 --settle 300`. Token usage "
-          "from the model response (exact); compute + Memory Bank usage from Cloud Monitoring (per-agent); "
-          "prices from Google's live Billing Catalog. Per-agent detail in `agent_summaries/`.", "",
-          "_Engines deployed: financial_advisor, academic_research, blogger_agent, marketing_agency "
-          "(+ memory_assistant). Each accrues idle compute (~$25/mo) until torn down._"]
-    (REPO / "COMBINED_COST_REPORT.md").write_text("\n".join(L))
+          "from model responses (exact); vCPU/GiB-seconds + Memory Bank usage from Cloud Monitoring "
+          "(per-engine), back-derived to quantities. Per-agent detail in `agent_summaries/`.", "",
+          "_Engines: financial_advisor, academic_research, blogger_agent, marketing_agency (+ memory_assistant)._"]
+    (REPO / "COMBINED_SKU_USAGE_REPORT.md").write_text("\n".join(L))
 
 
 def main():
-    rowdata = [agent_md(p) for p in PACKAGES]
-    combined(rowdata)
-    print("Wrote summaries:", [f"agent_summaries/{p}.md" for p in PACKAGES])
-    print("Wrote COMBINED_COST_REPORT.md")
+    ds = [derive(p) for p in PACKAGES]
+    for d in ds:
+        agent_md(d)
+    combined(ds)
+    print("Wrote per-agent summaries + COMBINED_SKU_USAGE_REPORT.md")
 
 
 if __name__ == "__main__":
