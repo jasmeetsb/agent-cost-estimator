@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import vertexai
 
-from agent_cost_estimator import load_or_build, price_query, Aggregate
+from agent_cost_estimator import load_or_build, price_query, Aggregate, build_turn, write_transcript
 from agent_cost_estimator.usage import (
     collect_runtime_usage, price_runtime, collect_publisher_tokens,
 )
@@ -93,12 +93,14 @@ def main():
 
     agg = Aggregate()
     rows = []
+    transcripts = []
     win_start = datetime.now(timezone.utc) - timedelta(seconds=60)
     for i in range(args.iters):
         msg = workload[i % len(workload)]
         events, latency = run_query(agent, f"harness-{i}", msg)
         qc = price_query(events, pb, latency_s=latency)
         agg.add(qc)
+        transcripts.append(build_turn(msg, events, session_id=f"harness-{i}"))
         d = qc.to_dict()
         rows.append({"query": msg, **d})
         print(f"[{i+1}/{args.iters}] {msg[:40]:40} in={d['prompt_tokens']:6} "
@@ -152,7 +154,10 @@ def main():
     }
     rpt = DATA / f"cost_report_{args.agent}_{args.mode}.json"
     rpt.write_text(json.dumps(out, indent=2))
+    tpath = DATA / f"transcript_{args.agent}_{args.mode}.jsonl"
+    write_transcript(tpath, transcripts)
     print(f"\nReport written to {rpt}")
+    print(f"Transcript ({len(transcripts)} turns) written to {tpath}")
 
 
 if __name__ == "__main__":

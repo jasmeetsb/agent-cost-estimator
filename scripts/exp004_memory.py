@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import vertexai
 from vertexai import agent_engines
 
-from agent_cost_estimator import load_or_build, price_query, Aggregate
+from agent_cost_estimator import load_or_build, price_query, Aggregate, build_turn, write_transcript
 from agent_cost_estimator.usage import (
     collect_runtime_usage, price_runtime, collect_publisher_tokens,
     collect_memory_usage, price_memory_usage,
@@ -41,7 +41,7 @@ FACTS = [
 RECALL = "Based on what you know about me, suggest what I should pack for a research trip, and note my dietary preference."
 
 
-def drive(engine, pb):
+def drive(engine, pb, transcripts):
     agg = Aggregate()
     log = []
     event_counter = {"n": 0}
@@ -55,6 +55,7 @@ def drive(engine, pb):
         event_counter["n"] += len(events) + 1
         qc = price_query(events, pb, latency_s=time.time() - t0)
         agg.add(qc)
+        transcripts.append(build_turn(msg, events, session_id=session_id))
         log.append({"session": session_id, "msg": msg, **qc.to_dict()})
         d = qc.to_dict()
         print(f"  [{session_id[:8]}] in={d['prompt_tokens']:5} out={d['output_tokens']:5} "
@@ -105,7 +106,8 @@ def main():
     pb = load_or_build("gemini-2.5-flash")
 
     win_start = datetime.now(timezone.utc) - timedelta(seconds=60)
-    agg, log, session_events = drive(engine, pb)
+    transcripts = []
+    agg, log, session_events = drive(engine, pb, transcripts)
 
     s = agg.summary()
     print("\n=== TOKEN COST (usage_metadata) ===")
@@ -150,7 +152,10 @@ def main():
                        "total_per_run_usd", "uncaptured")}, indent=2))
     out = DATA / "cost_report_memory_assistant.json"
     out.write_text(json.dumps(report, indent=2))
+    tpath = DATA / "transcript_memory_assistant.jsonl"
+    write_transcript(tpath, transcripts)
     print("\nReport written to", out)
+    print(f"Transcript ({len(transcripts)} turns) written to", tpath)
 
 
 if __name__ == "__main__":
