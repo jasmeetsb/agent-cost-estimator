@@ -271,6 +271,24 @@ structural usage (calls, events, input) is stable (CV 8–16%). Function is reli
 the *cost* is what's noisy. ⇒ A single run can misestimate by 2–3×; report cost as a distribution
 (mean + CV, min/max) over N runs, not a point estimate.
 
+### EXP-006 — 4 complex adk-sample agents (financial-advisor, academic-research, blog-writer, marketing-agency)
+- **Date:** 2026-05-27 | **Unit: $/interaction** (2-turn conversation + memory generation, 3 runs each)
+- **Goal:** deploy real complex multi-agent adk-samples (GCP-only, no external keys) and run full
+  SKU cost extraction. Engines: financial_advisor `343270278970736640`, academic_research
+  `4540625131680038912`, blogger_agent `3729977198753349632`, marketing_agency `6855475340148473856`.
+
+| Agent | Total $/interaction | Model $ | Runtime $ | notable |
+|-------|--------------------|---------|-----------|---------|
+| financial-advisor | $0.0336 | $0.0125 | $0.0196 | runtime-dominated; 17k–34k input tok/run |
+| blog-writer | $0.0156 | $0.0085 | $0.0055 | balanced |
+| academic-research | $0.0144 | $0.0078 | $0.0054 | model CV 76% |
+| marketing-agency | $0.0111 | $0.0043 | $0.0055 | cheapest |
+
+**Findings:** ~3× cost spread across agents; financial-advisor is the only runtime-dominated one
+(deep multi-specialist analysis). Search grounding + Imagen NOT yet metered (uncaptured). Per-agent
+summaries in `agent_summaries/`; cross-agent comparison in `COMBINED_COST_REPORT.md`. Tooling:
+`scripts/deploy_sample.py`, `scripts/exp_sample.py`, `scripts/build_summaries.py`.
+
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
 - Date / Agent / Workload / Engine id
