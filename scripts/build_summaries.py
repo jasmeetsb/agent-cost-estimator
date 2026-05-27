@@ -74,6 +74,12 @@ def derive(pkg):
     """Per-interaction SKU usage quantities (+ secondary derived cost) for an agent."""
     r = load(pkg); v = r["variability"]; rt = r["runtime"]; mem = r["memory_and_session"]
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
+    # Prefer raw measured seconds (newer reports); else back-derive from priced $ / rate.
+    ru = r.get("runtime_usage")
+    if ru:
+        vcpu_total, gib_total = ru["cpu_core_seconds"], ru["memory_gib_seconds"]
+    else:
+        vcpu_total, gib_total = rt["cpu_usd"] / VCPU_RATE, rt["memory_usd"] / MEM_RATE
     return {
         "pkg": pkg, "title": META[pkg]["title"], "complexity": META[pkg]["complexity"],
         "pattern": META[pkg]["pattern"], "engine": r["engine"].split("/")[-1], "n": n,
@@ -83,8 +89,8 @@ def derive(pkg):
         "out_tok": v["output_tokens"]["mean"], "out_rng": f"{v['output_tokens']['min']}–{v['output_tokens']['max']}",
         "out_var": var_word(v["output_tokens"]["cv_pct"]),
         "calls": v["model_calls"]["mean"], "calls_var": var_word(v["model_calls"]["cv_pct"]),
-        "vcpu_sec": (rt["cpu_usd"] / VCPU_RATE) / n,
-        "gib_sec": (rt["memory_usd"] / MEM_RATE) / n,
+        "vcpu_sec": vcpu_total / n,
+        "gib_sec": gib_total / n,
         "sess": v["session_events"]["mean"], "sess_var": var_word(v["session_events"]["cv_pct"]),
         "gen_tok": mem["generate_memories_tokens"] / n,
         "mem_written": mem.get("memories_written", 0) / n,

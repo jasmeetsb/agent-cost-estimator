@@ -146,6 +146,8 @@ def main():
     report = {
         "agent": args.package, "engine": name, "runs": rows, "variability": var,
         "window": [w0, w1],
+        # Raw measured runtime usage (vCPU-sec, GiB-sec) from Cloud Monitoring, alongside priced.
+        "runtime_usage": runtime.to_dict(),
         "runtime": rt_priced, "memory_and_session": mem_priced, "token_xcheck_monitoring": tok_mon,
         "per_run_avg": {
             "model_usd": var["model_usd"]["mean"],
