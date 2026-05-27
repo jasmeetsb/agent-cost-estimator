@@ -120,6 +120,90 @@ def collect_runtime_usage(
     return u
 
 
+# Google Search grounding — billed per grounded request. Project+region aggregate
+# (per publisher/model), not engine-scoped — same attribution caveat as tokens.
+GROUNDING_METRICS = [
+    "aiplatform.googleapis.com/online_prediction_web_search_requests_per_publisher",
+    "aiplatform.googleapis.com/us_multi_region_online_prediction_web_search_requests_per_publisher",
+    "aiplatform.googleapis.com/eu_multi_region_online_prediction_web_search_requests_per_publisher",
+]
+
+
+def _sum_metric_anylabel(project, metric_type, start, end, token):
+    """Sum a metric over the window with no resource-label filter (project-wide)."""
+    params = {
+        "filter": f'metric.type="{metric_type}"',
+        "interval.startTime": start, "interval.endTime": end,
+        "aggregation.alignmentPeriod": "60s", "aggregation.perSeriesAligner": "ALIGN_SUM",
+    }
+    url = f"{MONITORING_BASE}/projects/{project}/timeSeries?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception:
+        return 0.0
+    total = 0.0
+    for s in data.get("timeSeries", []):
+        for p in s.get("points", []):
+            v = p.get("value", {})
+            total += float(v.get("doubleValue", v.get("int64Value", 0)) or 0)
+    return total
+
+
+def collect_grounding_usage(project, start, end, token=None) -> dict:
+    """Sum Google Search grounded-request usage over a window (project+region-wide).
+
+    NOTE: not engine-scoped (no reasoning_engine_id label on these metrics), so with
+    concurrent traffic this is an upper bound. Returns the billable grounded-request count.
+    """
+    token = token or _access_token()
+    total = sum(_sum_metric_anylabel(project, m, start, end, token) for m in GROUNDING_METRICS)
+    return {"web_search_requests": total}
+
+
+def extract_grounding_from_events(events: list) -> int:
+    """Count grounded model responses (events carrying grounding_metadata) in a query.
+
+    Per-interaction and attributable, but Agent Engine does not always surface
+    grounding_metadata in streamed events — use the Monitoring collector as the
+    authoritative source and this as a best-effort per-query cross-check.
+    """
+    n = 0
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        gm = ev.get("grounding_metadata") or (ev.get("content") or {}).get("grounding_metadata")
+        if gm and (gm.get("web_search_queries") or gm.get("grounding_chunks")):
+            n += 1
+    return n
+
+
+def extract_image_count(events: list) -> int:
+    """Count generated images in a query's events (best-effort, per-interaction).
+
+    Detects (a) inline image data parts and (b) function responses from image-gen
+    tools that return image URIs/bytes. Imagen has no dedicated Monitoring metric,
+    so this event-based count is the available usage signal.
+    """
+    n = 0
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        for p in (ev.get("content") or {}).get("parts") or []:
+            blob = p.get("inline_data") or p.get("inlineData")
+            if blob and "image" in str(blob.get("mime_type") or blob.get("mimeType") or "").lower():
+                n += 1
+            fr = p.get("function_response")
+            if fr:
+                name = (fr.get("name") or "").lower()
+                resp = json.dumps(fr.get("response") or {}).lower()
+                if any(k in name for k in ("image", "imagen", "logo", "generate_image")) and \
+                   any(k in resp for k in ("gcs", ".png", ".jpg", "image", "uri")):
+                    n += 1
+    return n
+
+
 def collect_memory_usage(
     project: str, engine_id: str, start: str, end: str, token: str | None = None,
 ) -> dict:
@@ -165,6 +249,28 @@ def price_memory_usage(memory_usage: dict, pb, session_events: int = 0) -> dict:
         "memory_stored_month_usd_rate": pb.memory_stored_month_usd,
         "memory_storage_note": "monthly per-memory charge, not a per-run cost; needs export for true stored count",
         "per_run_memory_usd": gen_tok_usd + retrieved_usd + session_usd,
+    }
+
+
+# Published list rates (catalog SKU names for these are regional/inconsistent, so
+# we use documented rates and flag them). Update if pricing changes.
+SEARCH_GROUNDING_USD_PER_REQUEST = 0.035   # Gemini 2.x: $35 / 1,000 grounded prompts
+IMAGEN_USD_PER_IMAGE = 0.04                # Imagen standard, approx (varies by model/res)
+
+
+def price_grounding_and_media(web_search_requests: float, image_count: int) -> dict:
+    """Price Search-grounding requests and generated images at documented list rates."""
+    g = web_search_requests * SEARCH_GROUNDING_USD_PER_REQUEST
+    im = image_count * IMAGEN_USD_PER_IMAGE
+    return {
+        "web_search_requests": web_search_requests,
+        "search_grounding_usd": g,
+        "search_grounding_rate": f"${SEARCH_GROUNDING_USD_PER_REQUEST}/request ($35/1k, Gemini 2.x)",
+        "images_generated": image_count,
+        "image_gen_usd": im,
+        "image_gen_rate": f"${IMAGEN_USD_PER_IMAGE}/image (Imagen std, approx)",
+        "total_usd": g + im,
+        "note": "Grounding count is project-wide (Monitoring); image count is event-based (per-interaction).",
     }
 
 

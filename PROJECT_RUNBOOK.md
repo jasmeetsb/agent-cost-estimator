@@ -57,6 +57,13 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-05-27 — Grounding usage comes from Monitoring, not events; Imagen from events.** Agent Engine
+  does NOT surface `grounding_metadata` in streamed `stream_query` events (checked), so grounded-request
+  count is read from Cloud Monitoring `*web_search_requests_per_publisher` (project-wide, attribution
+  caveat). Imagen has no Monitoring metric → counted from response events. For EXP-006 workloads both
+  measured **0** (agents capable but 2-turn tasks didn't trigger Search/image-gen). Collectors:
+  `usage.py:collect_grounding_usage` / `extract_image_count` / `price_grounding_and_media`.
+
 - **2026-05-26 — Per-run cost variance is large and output-token-driven.** Identical workload over
   4 runs: model cost CV 48% (3.1× min→max), driven by output/thinking tokens (CV 57%). Structural
   usage (model calls, session events, input) is stable (CV 8–16%); recall reliability 100%. Report

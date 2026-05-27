@@ -40,12 +40,17 @@ Measured usage quantities per interaction (avg over 3 runs), with run-to-run ran
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
-## 5. Caveats on usage capture
+## 5. Grounding & media usage (now collected)
 
-- **Google Search grounding** usage (grounded-prompt count) NOT captured — agent grounds on Search.
-- **Imagen / genmedia** image count not captured (marketing-agency only).
+- **Google Search grounding:** 0 grounded web-search requests measured (Cloud Monitoring, project-wide). The agent *can* ground on Search but this workload did not trigger it; would bill ~$0.035/request if used.
+- **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
+
+## 5b. Caveats on usage capture
+
 - vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).
 - Memory storage (stored-memory count over time) is export-only.
+- Grounding count is project-wide (no per-engine label); image count is event-based.
+- Still uncaptured: Cloud Trace, Logging, Storage.
 
 ## 6. Secondary: derived cost (usage × catalog list price)
 

@@ -27,7 +27,8 @@ from vertexai import agent_engines
 from agent_cost_estimator import load_or_build, price_query, build_turn, write_transcript
 from agent_cost_estimator.usage import (
     collect_runtime_usage, price_runtime, collect_memory_usage,
-    price_memory_usage, collect_publisher_tokens,
+    price_memory_usage, collect_publisher_tokens, collect_grounding_usage,
+    extract_grounding_from_events, extract_image_count, price_grounding_and_media,
 )
 
 PROJECT, LOCATION = "jsb-genai-sa", "us-central1"
@@ -61,17 +62,19 @@ WORKLOADS = {
 
 
 def one_run(engine, pb, user, transcripts):
-    in_tok = out_tok = calls = events_total = 0
+    in_tok = out_tok = calls = events_total = grounded = images = 0
     prompts = WORKLOADS.get(_AGENT, WORKLOADS["financial_advisor"])
 
     def turn(session_id, msg):
-        nonlocal in_tok, out_tok, calls, events_total
+        nonlocal in_tok, out_tok, calls, events_total, grounded, images
         evs = list(engine.stream_query(user_id=user, session_id=session_id, message=msg))
         events_total += len(evs) + 1
         qc = price_query(evs, pb)
         in_tok += qc.usage.prompt_tokens + qc.usage.cached_tokens
         out_tok += qc.usage.output_tokens
         calls += qc.usage.model_calls
+        grounded += extract_grounding_from_events(evs)
+        images += extract_image_count(evs)
         rec = build_turn(msg, evs, session_id=session_id); rec["user"] = user
         transcripts.append(rec)
 
@@ -86,7 +89,8 @@ def one_run(engine, pb, user, transcripts):
         print("   memory add skipped:", repr(ex)[:80])
     model_usd = in_tok * (pb.input_token_usd or 0) + out_tok * (pb.output_token_usd or 0)
     return {"user": user, "input_tokens": in_tok, "output_tokens": out_tok,
-            "model_calls": calls, "session_events": events_total, "model_usd": model_usd}
+            "model_calls": calls, "session_events": events_total, "model_usd": model_usd,
+            "grounded_responses": grounded, "images_generated": images}
 
 
 def variability(rows, key):
@@ -142,6 +146,11 @@ def main():
     mem_priced = price_memory_usage(memory, pb, session_events=int(var["session_events"]["mean"]))
     rt_priced = price_runtime(runtime, pb)
     tok_mon = collect_publisher_tokens(PROJECT, w0, w1)
+    grounding = collect_grounding_usage(PROJECT, w0, w1)  # project-wide web-search requests
+    images_total = sum(r.get("images_generated", 0) for r in rows)
+    grounded_events_total = sum(r.get("grounded_responses", 0) for r in rows)
+    media = price_grounding_and_media(grounding["web_search_requests"], images_total)
+    media["grounded_responses_in_events"] = grounded_events_total
 
     report = {
         "agent": args.package, "engine": name, "runs": rows, "variability": var,
@@ -149,18 +158,19 @@ def main():
         # Raw measured runtime usage (vCPU-sec, GiB-sec) from Cloud Monitoring, alongside priced.
         "runtime_usage": runtime.to_dict(),
         "runtime": rt_priced, "memory_and_session": mem_priced, "token_xcheck_monitoring": tok_mon,
+        "grounding_and_media": media,
         "per_run_avg": {
             "model_usd": var["model_usd"]["mean"],
             "runtime_usd": rt_priced["runtime_total_usd"] / len(rows),
             "memory_session_usd": mem_priced["per_run_memory_usd"] / max(len(rows), 1),
         },
-        "uncaptured_skus": ["Google Search grounding (these agents ground on Search)",
-                            "Cloud Trace", "Cloud Logging", "Cloud Storage", "Imagen/genmedia (if used)"],
+        "uncaptured_skus": ["Cloud Trace", "Cloud Logging", "Cloud Storage",
+                            "memory storage (monthly)"],
     }
     report["per_run_avg"]["total_usd"] = sum(report["per_run_avg"].values())
     print("\n=== ACTUAL SKU USAGE (per agent, over window) ===")
     print(json.dumps({"runtime": rt_priced, "memory_and_session": mem_priced,
-                      "per_run_avg": report["per_run_avg"]}, indent=2))
+                      "grounding_and_media": media, "per_run_avg": report["per_run_avg"]}, indent=2))
 
     (DATA / f"cost_report_{args.package}.json").write_text(json.dumps(report, indent=2))
     write_transcript(DATA / f"transcript_{args.package}.jsonl", transcripts)

@@ -74,6 +74,7 @@ def derive(pkg):
     """Per-interaction SKU usage quantities (+ secondary derived cost) for an agent."""
     r = load(pkg); v = r["variability"]; rt = r["runtime"]; mem = r["memory_and_session"]
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
+    gm = r.get("grounding_and_media") or {}
     # Prefer raw measured seconds (newer reports); else back-derive from priced $ / rate.
     ru = r.get("runtime_usage")
     if ru:
@@ -95,6 +96,7 @@ def derive(pkg):
         "gen_tok": mem["generate_memories_tokens"] / n,
         "mem_written": mem.get("memories_written", 0) / n,
         "mem_retrieved": mem.get("memories_retrieved", 0) / n,
+        "web_searches": gm.get("web_search_requests", 0), "images": gm.get("images_generated", 0),
         # secondary derived cost ($/interaction)
         "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
         "c_total": avg["total_usd"], "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"],
@@ -137,11 +139,17 @@ def agent_md(d):
         f"| Memory Bank — memories written | memories | {d['mem_written']:.1f} | — | — |",
         f"| Memory Bank — retrievals | reads | {d['mem_retrieved']:.1f} | — | — |",
         retr_note, "",
-        "## 5. Caveats on usage capture", "",
-        "- **Google Search grounding** usage (grounded-prompt count) NOT captured — agent grounds on Search.",
-        "- **Imagen / genmedia** image count not captured (marketing-agency only).",
+        "## 5. Grounding & media usage (now collected)", "",
+        f"- **Google Search grounding:** {d['web_searches']:.0f} grounded web-search requests measured "
+        "(Cloud Monitoring, project-wide). The agent *can* ground on Search but this workload did not "
+        "trigger it; would bill ~$0.035/request if used.",
+        f"- **Image generation (Imagen):** {d['images']:.0f} images measured (from response events). "
+        "Would bill ~$0.04/image if used.", "",
+        "## 5b. Caveats on usage capture", "",
         "- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).",
-        "- Memory storage (stored-memory count over time) is export-only.", "",
+        "- Memory storage (stored-memory count over time) is export-only.",
+        "- Grounding count is project-wide (no per-engine label); image count is event-based.",
+        "- Still uncaptured: Cloud Trace, Logging, Storage.", "",
         "## 6. Secondary: derived cost (usage × catalog list price)", "",
         "Provided for reference only. List price, not actual billed; **usage above is the primary output.**", "",
         "| SKU | $/interaction |", "|---|---|",
@@ -157,9 +165,9 @@ def combined(ds):
     ma = {"title": "memory_assistant", "complexity": "High", "pattern": "Hierarchical + Memory Bank",
           "in_tok": 3398, "in_rng": "2552–4001", "out_tok": 1605, "out_rng": "752–3150",
           "calls": 5.75, "vcpu_sec": 39.0, "gib_sec": 560.0, "sess": 11.5, "gen_tok": 2493,
-          "mem_written": 3.25, "mem_retrieved": 2.5, "c_model": 0.0050, "c_runtime": 0.0035,
-          "c_memsess": 0.0080, "c_total": 0.0165, "c_total_min": 0.0144, "c_total_max": 0.0206,
-          "cost_var": "High"}
+          "mem_written": 3.25, "mem_retrieved": 2.5, "web_searches": 0, "images": 0,
+          "c_model": 0.0050, "c_runtime": 0.0035, "c_memsess": 0.0080, "c_total": 0.0165,
+          "c_total_min": 0.0144, "c_total_max": 0.0206, "cost_var": "High"}
     rows = ds + [ma]
     sortk = lambda r: -r["in_tok"]
     L = ["# Combined SKU-Usage Report — ADK Agents on Gemini Enterprise Agent Platform", "",
@@ -183,16 +191,25 @@ def combined(ds):
         L.append(f"| {r['title']} | {r['sess']:.1f} | {r['gen_tok']:.0f} | {r['mem_written']:.1f} | {r['mem_retrieved']:.1f} |")
     L += ["",
           "_Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant "
-          "retrieves because cross-session recall is its purpose. Search-grounding and Imagen usage are "
-          "not yet captured (see §5)._", "",
+          "retrieves because cross-session recall is its purpose._", "",
+          "## 2b. Grounding & media usage (now collected)", "",
+          "Collectors added for Google Search grounding (Cloud Monitoring) and image generation "
+          "(response events). **Measured 0 for all agents in these runs** — the agents have the "
+          "capability but the short 2-turn workloads did not trigger Search or image generation.", "",
+          "| Agent | Web-search grounded requests | Images generated |",
+          "|---|---|---|"]
+    for r in sorted(rows, key=sortk):
+        L.append(f"| {r['title']} | {r.get('web_searches', 0):.0f} | {r.get('images', 0):.0f} |")
+    L += ["",
+          "_Would bill ~$0.035 per grounded request (Gemini 2.x) and ~$0.04 per image (Imagen) if triggered._", "",
           "## 3. SKU presence matrix (which agents touch which SKUs)", "",
           "| Agent | Gemini tokens | Agent Runtime | Sessions | Memory Bank | Search grounding | Image gen |",
           "|---|---|---|---|---|---|---|"]
     pres = {
-        "financial-advisor": "✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | —",
-        "academic-research": "✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | —",
-        "blog-writer": "✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | —",
-        "marketing-agency": "✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | used (unmetered)",
+        "financial-advisor": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | —",
+        "academic-research": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | —",
+        "blog-writer": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | —",
+        "marketing-agency": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured",
         "memory_assistant": "✓ | ✓ | ✓ | ✓ (write+read) | — | —",
     }
     for r in sorted(rows, key=sortk):
@@ -219,8 +236,10 @@ def combined(ds):
           "reasons), so token usage should be reported as a range, not a single number.",
           "4. **Memory generation + session events are consumed even when memories are never read back** "
           "— a real SKU footprint for any session-persisted agent.",
-          "5. **Search-grounding and Imagen usage are not yet captured** — adding those collectors is the "
-          "main gap to a complete per-SKU usage picture.", "",
+          "5. **Search-grounding and image-generation collectors are now in place** (grounding from "
+          "Cloud Monitoring, images from response events). They measured **0** for these workloads — "
+          "the agents are capable but the short 2-turn tasks didn't trigger them. Remaining uncaptured "
+          "SKUs: Cloud Trace, Logging, Storage.", "",
           "## Method & reproducibility", "",
           "Per agent: `python scripts/exp_sample.py --package <pkg> --runs 3 --settle 300`. Token usage "
           "from model responses (exact); vCPU/GiB-seconds + Memory Bank usage from Cloud Monitoring "

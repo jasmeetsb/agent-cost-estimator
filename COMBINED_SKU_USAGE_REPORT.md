@@ -24,17 +24,31 @@ Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3
 | blog-writer | 4.0 | 3959 | 1.0 | 0.0 |
 | marketing-agency | 5.3 | 2661 | 0.7 | 0.0 |
 
-_Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant retrieves because cross-session recall is its purpose. Search-grounding and Imagen usage are not yet captured (see §5)._
+_Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant retrieves because cross-session recall is its purpose._
+
+## 2b. Grounding & media usage (now collected)
+
+Collectors added for Google Search grounding (Cloud Monitoring) and image generation (response events). **Measured 0 for all agents in these runs** — the agents have the capability but the short 2-turn workloads did not trigger Search or image generation.
+
+| Agent | Web-search grounded requests | Images generated |
+|---|---|---|
+| financial-advisor | 0 | 0 |
+| memory_assistant | 0 | 0 |
+| academic-research | 0 | 0 |
+| blog-writer | 0 | 0 |
+| marketing-agency | 0 | 0 |
+
+_Would bill ~$0.035 per grounded request (Gemini 2.x) and ~$0.04 per image (Imagen) if triggered._
 
 ## 3. SKU presence matrix (which agents touch which SKUs)
 
 | Agent | Gemini tokens | Agent Runtime | Sessions | Memory Bank | Search grounding | Image gen |
 |---|---|---|---|---|---|---|
-| financial-advisor | ✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | — |
+| financial-advisor | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | memory_assistant | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
-| academic-research | ✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | — |
-| blog-writer | ✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | — |
-| marketing-agency | ✓ | ✓ | ✓ | ✓ (write) | used (unmetered) | used (unmetered) |
+| academic-research | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
+| blog-writer | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
+| marketing-agency | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured |
 
 ## 4. Secondary: derived cost per interaction (usage × catalog list price)
 
@@ -54,7 +68,7 @@ Reference only — list price, not actual billed. The usage tables above are the
 2. **vCPU-seconds track analysis depth**, not just call count — the heaviest agent burns far more compute per interaction.
 3. **Output-token usage is the most variable SKU** run-to-run (the model varies how much it reasons), so token usage should be reported as a range, not a single number.
 4. **Memory generation + session events are consumed even when memories are never read back** — a real SKU footprint for any session-persisted agent.
-5. **Search-grounding and Imagen usage are not yet captured** — adding those collectors is the main gap to a complete per-SKU usage picture.
+5. **Search-grounding and image-generation collectors are now in place** (grounding from Cloud Monitoring, images from response events). They measured **0** for these workloads — the agents are capable but the short 2-turn tasks didn't trigger them. Remaining uncaptured SKUs: Cloud Trace, Logging, Storage.
 
 ## Method & reproducibility
 
