@@ -65,7 +65,7 @@ All prices are catalog list prices pulled live via `pricing.py`.
 3. **Settle ~300s** for Cloud Monitoring ingestion (metrics lag ~3–5 min), then pull runtime +
    memory_bank metrics scoped to the engine over the run window (60s alignment, sum-in-window).
 4. **Repeat N times** (EXP-005: 4 runs, fresh user each to isolate per-run noise) and compute
-   mean / CV% / min–max for each usage dimension.
+   typical (average), range (low–high), and variability for each usage dimension.
 5. **Price** every captured quantity × catalog rate; report per-SKU and total per run.
 
 Reproduce: `python scripts/exp005_variability.py --runs 4 --settle 300`.
@@ -76,12 +76,12 @@ Reproduce: `python scripts/exp005_variability.py --runs 4 --settle 300`.
 
 ### Usage distribution (EXP-005, 4 runs, identical workload)
 
-| Metric | mean | min–max | CV% |
-|--------|------|---------|-----|
-| input tokens | 3,398 | 2,552–4,001 | 16% |
-| output tokens (incl. thinking) | 1,605 | 752–3,150 | **57%** |
-| model calls | 5.75 | 5–6 | 8% |
-| session events | 11.5 | 10–12 | 8% |
+| Metric | Typical (avg) | Range (low–high) | Variability |
+|--------|---------------|------------------|-------------|
+| input tokens | 3,398 | 2,552–4,001 | Medium |
+| output tokens (incl. thinking) | 1,605 | 752–3,150 | **High** |
+| model calls | 5.75 | 5–6 | Low |
+| session events | 11.5 | 10–12 | Low |
 | memory retrievals / run | ~2.5 | — | — |
 | memories written / run | ~3.25 | — | — |
 | recall success | 100% | — | — |
@@ -90,7 +90,7 @@ Reproduce: `python scripts/exp005_variability.py --runs 4 --settle 300`.
 
 | SKU | typical / run | notes |
 |-----|---------------|-------|
-| Conversation tokens | **$0.0050** | CV 48%, range $0.0029–$0.0091 (the variance driver) |
+| Conversation tokens | **$0.0050** | range $0.0029–$0.0091 — the main cost swing |
 | Memory generation tokens | ~$0.0008 | ~2,500 tok @ input rate |
 | Memory retrievals | ~$0.0013 | ~2.5 × $0.0005 |
 | Session events | ~$0.0029 | ~11.5 × $0.00025 |
@@ -99,9 +99,9 @@ Reproduce: `python scripts/exp005_variability.py --runs 4 --settle 300`.
 
 ### Variance summary
 
-- **Model cost swings ~3.1× run-to-run** for the identical task (CV 48%), driven almost entirely by
-  **output/thinking tokens (CV 57%)** — the model "thinks" variable amounts.
-- **Structural usage is stable** (model calls, session events, input tokens: CV 8–16%).
+- **Model cost swings ~3.1× run-to-run** for the identical task (high variability), driven almost
+  entirely by **output/thinking tokens** — the model "thinks" a variable amount each run.
+- **Structural usage is stable** (model calls, session events, input tokens vary little run-to-run).
 - **Function is reliable** (100% recall), so the variability is in *cost*, not correctness.
 - **Runtime cost is utilization-dependent**, not a fixed per-run number: idle memory allocation
   dominates at low QPS (see EXP-001), so always state a queries/hour assumption.

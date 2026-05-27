@@ -21,14 +21,16 @@ Gemini tokens, Agent Runtime, Sessions, Memory Bank, Google Search grounding
 Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; 3 runs for variability; 300s Monitoring settle; actual runtime + memory_bank usage pulled from Cloud Monitoring and priced at catalog list rate.
 Reproduce: `python scripts/exp_sample.py --package blogger_agent --runs 3 --settle 300`
 
-## 4. Typical usage & variance (3 runs)
+## 4. Typical usage & variability (3 runs)
 
-| Metric | mean | min–max | CV% |
+Each row shows the **typical (average)** value, the **range** seen across runs (low to high), and how **variable** that is run-to-run (Low / Medium / High / Very high). Same task each run — differences come mostly from how much the model 'thinks'.
+
+| Metric | Typical (avg) | Range (low–high) | Variability |
 |---|---|---|---|
-| input tokens | 3027 | 2543–3415 | 12.0% |
-| output tokens | 3039 | 2527–3564 | 13.9% |
-| model calls | 2.0 | 2–2 | 0.0% |
-| model cost ($) | 0.0085 | 0.0071–0.0099 | 13.7% |
+| Input tokens | 3027 | 2543–3415 | Low |
+| Output tokens | 3039 | 2527–3564 | Low |
+| Model calls | 2.0 | 2–2 | Low |
+| Model cost ($) | 0.0085 | 0.0071–0.0099 | Low |
 
 ## 5. Cost per interaction, by SKU (catalog list price)
 
