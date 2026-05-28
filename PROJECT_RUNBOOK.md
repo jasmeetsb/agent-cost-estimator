@@ -57,6 +57,17 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-05-28 — Validated grounding collector; native Search grounding comes from events, NOT Monitoring.**
+  Built a minimal `grounded_news` agent (single ADK `google_search` tool) and queried it with current-info
+  prompts. Result: 2 of 2 responses were grounded (fresh web info; e.g. "Kimi Antonelli won the 2026
+  Canadian GP on May 24"), `grounding_metadata` was present in the stream events, and
+  `extract_grounding_from_events` correctly returned 2. **But Monitoring
+  `web_search_requests_per_publisher` stayed 0** — that metric tracks a different path (likely "Web
+  Grounding for Enterprise"), NOT native Gemini Search grounding via the ADK `google_search` tool.
+  Corrects the 2026-05-27 entry (financial-advisor just wasn't grounding). Pivoted: events-based
+  `extract_grounding_from_events` is the primary, attributable signal; `collect_grounding_usage` is now
+  a secondary cross-check with a clear docstring caveat. price_grounding_and_media now takes the events
+  count. Validation engine: `reasoningEngines/8904366879997427712` (grounded_news).
 - **2026-05-28 — Validated media collectors; Imagen comes from Monitoring, not events.** Triggering
   workloads: marketing-agency generated **7 images** (`imagen-3.0-generate-002`) — captured via Cloud
   Monitoring `model_invocation_count` (model_user_id contains 'imagen'), priced $0.28. Event-based image

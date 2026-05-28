@@ -145,11 +145,15 @@ def main():
     mem_priced = price_memory_usage(memory, pb, session_events=int(var["session_events"]["mean"]))
     rt_priced = price_runtime(runtime, pb)
     tok_mon = collect_publisher_tokens(PROJECT, w0, w1)
-    grounding = collect_grounding_usage(PROJECT, w0, w1)   # project-wide web-search requests
-    imagen = collect_imagen_usage(PROJECT, w0, w1)         # project-wide Imagen invocations
+    # PRIMARY grounding signal = per-interaction events (validated 2026-05-28):
+    # the project-wide web_search_requests metric does NOT fire for native Gemini
+    # Search grounding, but grounding_metadata appears in events when it occurs.
     grounded_events_total = sum(r.get("grounded_responses", 0) for r in rows)
-    media = price_grounding_and_media(grounding["web_search_requests"], int(imagen["images_generated"]))
-    media["grounded_responses_in_events"] = grounded_events_total
+    grounding_xcheck = collect_grounding_usage(PROJECT, w0, w1)  # secondary x-check ("Web Grounding for Enterprise")
+    imagen = collect_imagen_usage(PROJECT, w0, w1)               # project-wide Imagen invocations
+    media = price_grounding_and_media(grounded_events_total, int(imagen["images_generated"]))
+    media["grounded_responses_source"] = "response events (grounding_metadata)"
+    media["web_grounding_enterprise_xcheck"] = grounding_xcheck["web_search_requests"]
     media["imagen_by_model"] = imagen["by_model"]
 
     report = {

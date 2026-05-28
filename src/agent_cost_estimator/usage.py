@@ -152,10 +152,13 @@ def _sum_metric_anylabel(project, metric_type, start, end, token):
 
 
 def collect_grounding_usage(project, start, end, token=None) -> dict:
-    """Sum Google Search grounded-request usage over a window (project+region-wide).
+    """Sum web_search_requests_per_publisher over a window (project+region-wide).
 
-    NOTE: not engine-scoped (no reasoning_engine_id label on these metrics), so with
-    concurrent traffic this is an upper bound. Returns the billable grounded-request count.
+    EMPIRICALLY VALIDATED (2026-05-28): this metric does NOT fire for native Gemini
+    Search grounding via the ADK `google_search` tool — `grounding_metadata` appears
+    in response events but this metric stays 0. It appears to track a different
+    "Web Grounding for Enterprise" path. **For native grounding, use
+    `extract_grounding_from_events` (per-interaction, attributable)**.
     """
     token = token or _access_token()
     total = sum(_sum_metric_anylabel(project, m, start, end, token) for m in GROUNDING_METRICS)
@@ -299,8 +302,9 @@ def price_grounding_and_media(web_search_requests: float, image_count: int) -> d
         "image_gen_usd": im,
         "image_gen_rate": f"${IMAGEN_USD_PER_IMAGE}/image (Imagen std, approx)",
         "total_usd": g + im,
-        "note": "Both grounding (web_search) and image (Imagen invocations) counts are from Cloud "
-                "Monitoring, project+region-wide (attribution caveat applies).",
+        "note": "Grounded prompts are counted per-interaction from response events "
+                "(grounding_metadata, attributable); Imagen invocations are from Cloud "
+                "Monitoring model_invocation_count (project+region-wide, attribution caveat).",
     }
 
 
