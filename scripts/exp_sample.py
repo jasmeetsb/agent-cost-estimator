@@ -28,7 +28,7 @@ from agent_cost_estimator import load_or_build, price_query, build_turn, write_t
 from agent_cost_estimator.usage import (
     collect_runtime_usage, price_runtime, collect_memory_usage,
     price_memory_usage, collect_publisher_tokens, collect_grounding_usage,
-    extract_grounding_from_events, extract_image_count, price_grounding_and_media,
+    collect_imagen_usage, extract_grounding_from_events, price_grounding_and_media,
 )
 
 PROJECT, LOCATION = "jsb-genai-sa", "us-central1"
@@ -62,11 +62,11 @@ WORKLOADS = {
 
 
 def one_run(engine, pb, user, transcripts):
-    in_tok = out_tok = calls = events_total = grounded = images = 0
+    in_tok = out_tok = calls = events_total = grounded = 0
     prompts = WORKLOADS.get(_AGENT, WORKLOADS["financial_advisor"])
 
     def turn(session_id, msg):
-        nonlocal in_tok, out_tok, calls, events_total, grounded, images
+        nonlocal in_tok, out_tok, calls, events_total, grounded
         evs = list(engine.stream_query(user_id=user, session_id=session_id, message=msg))
         events_total += len(evs) + 1
         qc = price_query(evs, pb)
@@ -74,7 +74,6 @@ def one_run(engine, pb, user, transcripts):
         out_tok += qc.usage.output_tokens
         calls += qc.usage.model_calls
         grounded += extract_grounding_from_events(evs)
-        images += extract_image_count(evs)
         rec = build_turn(msg, evs, session_id=session_id); rec["user"] = user
         transcripts.append(rec)
 
@@ -90,7 +89,7 @@ def one_run(engine, pb, user, transcripts):
     model_usd = in_tok * (pb.input_token_usd or 0) + out_tok * (pb.output_token_usd or 0)
     return {"user": user, "input_tokens": in_tok, "output_tokens": out_tok,
             "model_calls": calls, "session_events": events_total, "model_usd": model_usd,
-            "grounded_responses": grounded, "images_generated": images}
+            "grounded_responses": grounded}
 
 
 def variability(rows, key):
@@ -146,11 +145,12 @@ def main():
     mem_priced = price_memory_usage(memory, pb, session_events=int(var["session_events"]["mean"]))
     rt_priced = price_runtime(runtime, pb)
     tok_mon = collect_publisher_tokens(PROJECT, w0, w1)
-    grounding = collect_grounding_usage(PROJECT, w0, w1)  # project-wide web-search requests
-    images_total = sum(r.get("images_generated", 0) for r in rows)
+    grounding = collect_grounding_usage(PROJECT, w0, w1)   # project-wide web-search requests
+    imagen = collect_imagen_usage(PROJECT, w0, w1)         # project-wide Imagen invocations
     grounded_events_total = sum(r.get("grounded_responses", 0) for r in rows)
-    media = price_grounding_and_media(grounding["web_search_requests"], images_total)
+    media = price_grounding_and_media(grounding["web_search_requests"], int(imagen["images_generated"]))
     media["grounded_responses_in_events"] = grounded_events_total
+    media["imagen_by_model"] = imagen["by_model"]
 
     report = {
         "agent": args.package, "engine": name, "runs": rows, "variability": var,

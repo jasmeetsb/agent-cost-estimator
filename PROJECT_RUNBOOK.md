@@ -57,6 +57,14 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-05-28 — Validated media collectors; Imagen comes from Monitoring, not events.** Triggering
+  workloads: marketing-agency generated **7 images** (`imagen-3.0-generate-002`) — captured via Cloud
+  Monitoring `model_invocation_count` (model_user_id contains 'imagen'), priced $0.28. Event-based image
+  detection was unreliable (free-text tool messages → false positives like "cannot generate the image"),
+  so `extract_image_count` is now conservative (inline image bytes only) and `collect_imagen_usage`
+  (Monitoring) is the authoritative signal. Grounding stayed 0: financial-advisor answers from model
+  knowledge and never invokes native Search, so there was nothing to capture (collector source correct).
+
 - **2026-05-27 — Grounding usage comes from Monitoring, not events; Imagen from events.** Agent Engine
   does NOT surface `grounding_metadata` in streamed `stream_query` events (checked), so grounded-request
   count is read from Cloud Monitoring `*web_search_requests_per_publisher` (project-wide, attribution

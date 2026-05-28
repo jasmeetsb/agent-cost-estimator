@@ -179,12 +179,48 @@ def extract_grounding_from_events(events: list) -> int:
     return n
 
 
-def extract_image_count(events: list) -> int:
-    """Count generated images in a query's events (best-effort, per-interaction).
+# Imagen image generation — counted from Monitoring model invocations (reliable),
+# since these agents save images as artifacts and report only in free text.
+MODEL_INVOCATION_METRIC = "aiplatform.googleapis.com/publisher/online_serving/model_invocation_count"
 
-    Detects (a) inline image data parts and (b) function responses from image-gen
-    tools that return image URIs/bytes. Imagen has no dedicated Monitoring metric,
-    so this event-based count is the available usage signal.
+
+def collect_imagen_usage(project, start, end, token=None) -> dict:
+    """Count Imagen image-generation invocations over a window (Cloud Monitoring).
+
+    Sums `model_invocation_count` for any publisher model whose id contains 'imagen'
+    (e.g. imagen-3.0-generate-002). Project+region-wide (attribution caveat), but the
+    authoritative signal — image saves are not reliably visible in stream events.
+    """
+    token = token or _access_token()
+    params = {
+        "filter": f'metric.type="{MODEL_INVOCATION_METRIC}"',
+        "interval.startTime": start, "interval.endTime": end,
+        "aggregation.alignmentPeriod": "60s", "aggregation.perSeriesAligner": "ALIGN_SUM",
+    }
+    url = f"{MONITORING_BASE}/projects/{project}/timeSeries?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception:
+        return {"images_generated": 0.0, "by_model": {}}
+    by_model = {}
+    for s in data.get("timeSeries", []):
+        mid = s.get("resource", {}).get("labels", {}).get("model_user_id", "")
+        if "imagen" not in mid.lower():
+            continue
+        tot = sum(float(p["value"].get("int64Value", p["value"].get("doubleValue", 0)) or 0)
+                  for p in s.get("points", []))
+        by_model[mid] = by_model.get(mid, 0.0) + tot
+    return {"images_generated": sum(by_model.values()), "by_model": by_model}
+
+
+def extract_image_count(events: list) -> int:
+    """Count genuine inline image-data parts in a query's events (conservative).
+
+    Only counts structured image bytes returned inline — NOT free-text tool messages
+    (those produced false positives, e.g. "I cannot generate the image" matched).
+    For agents that save images as artifacts, use collect_imagen_usage (Monitoring).
     """
     n = 0
     for ev in events:
@@ -194,13 +230,6 @@ def extract_image_count(events: list) -> int:
             blob = p.get("inline_data") or p.get("inlineData")
             if blob and "image" in str(blob.get("mime_type") or blob.get("mimeType") or "").lower():
                 n += 1
-            fr = p.get("function_response")
-            if fr:
-                name = (fr.get("name") or "").lower()
-                resp = json.dumps(fr.get("response") or {}).lower()
-                if any(k in name for k in ("image", "imagen", "logo", "generate_image")) and \
-                   any(k in resp for k in ("gcs", ".png", ".jpg", "image", "uri")):
-                    n += 1
     return n
 
 
@@ -270,7 +299,8 @@ def price_grounding_and_media(web_search_requests: float, image_count: int) -> d
         "image_gen_usd": im,
         "image_gen_rate": f"${IMAGEN_USD_PER_IMAGE}/image (Imagen std, approx)",
         "total_usd": g + im,
-        "note": "Grounding count is project-wide (Monitoring); image count is event-based (per-interaction).",
+        "note": "Both grounding (web_search) and image (Imagen invocations) counts are from Cloud "
+                "Monitoring, project+region-wide (attribution caveat applies).",
     }
 
 
