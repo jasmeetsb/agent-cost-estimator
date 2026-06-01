@@ -25,3 +25,24 @@ glue is local to this repo.
 | `plumber_agent` | `plumber-data-engineering-assistant` |
 
 Upstream sources retain their original `LICENSE`/`README.md` files where copied.
+
+## Security note on upstream sample code
+
+The copied agents are **verbatim sample/template code**; they have not been
+hardened for adversarial inputs. An automated review flagged genuine issues
+upstream — SSRF in `fomc_research/tools/fetch_page.py` and `fetch_transcript.py`
+(unvalidated URLs), arbitrary GCS overwrite via user-controlled paths in
+`plumber_agent/sub_agents/dbt_agent/tools/dbt_model_sql_generator.py`, and git
+argument injection / path traversal in
+`plumber_agent/sub_agents/github_agent/tools/git_ops.py`.
+
+These findings are real but are **NOT patched here** by design:
+- The purpose of including upstream agents is to characterize their actual
+  SKU/cost surface; modifying them would diverge from upstream and defeat that.
+- The agents are deployed as private Vertex AI Agent Engines in the project's
+  internal account, invoked only by this repo's harness with my own test
+  prompts — no untrusted callers and no broad IAM write grants.
+- The right fix is upstream in `google/adk-samples`, not in this fork.
+
+If any of these agents is ever taken beyond a contained cost-experiment
+deployment, the listed files MUST be reviewed and hardened before use.
