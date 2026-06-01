@@ -12,8 +12,8 @@ import argparse
 import importlib
 import json
 import os
-import re
 import sys
+import tomllib
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -29,17 +29,16 @@ _DEV = ("pytest", "ruff", "mypy", "codespell", "types-", "agent-starter-pack",
 
 
 def runtime_requirements(sample_dir: Path) -> list[str]:
+    """Parse [project].dependencies via tomllib (regex broke on brackets like
+    google-cloud-aiplatform[adk,agent-engines])."""
     pyproj = sample_dir / "pyproject.toml"
     reqs = []
     if pyproj.exists():
-        txt = pyproj.read_text()
-        m = re.search(r"dependencies\s*=\s*\[(.*?)\]", txt, re.S)
-        if m:
-            for q in re.findall(r'"([^"]+)"', m.group(1)):
-                low = q.lower()
-                if not any(d in low for d in _DEV):
-                    reqs.append(q)
-    # Ensure the agent-engines extra is present.
+        with pyproj.open("rb") as f:
+            data = tomllib.load(f)
+        for q in (data.get("project", {}) or {}).get("dependencies", []) or []:
+            if not any(d in q.lower() for d in _DEV):
+                reqs.append(q)
     if not any("agent" in r and "aiplatform" in r for r in reqs):
         reqs.append("google-cloud-aiplatform[adk,agent-engines]>=1.93.0")
     return reqs

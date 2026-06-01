@@ -58,6 +58,22 @@ WORKLOADS = {
         "Create a brand concept for a new oat-milk startup called OatJoy.",
         "Suggest a tagline and a simple landing-page hero section.",
     ],
+    "nexshift_agent": [
+        "Generate a 1-week nurse roster for 5 nurses across 3 daily shifts; minimum 2 nurses per shift.",
+        "Now adjust the roster if 1 nurse is unavailable Tuesday morning and another wants Friday off.",
+    ],
+    "fomc_research": [
+        "Summarize the key economic themes from the most recent FOMC meeting.",
+        "What was the FOMC's stance on inflation outlook and interest-rate trajectory?",
+    ],
+    "on_brand_genmedia": [
+        "Generate a brand-aligned hero image for a coffee shop's grand opening promotion.",
+        "Now create a variation sized for an Instagram banner.",
+    ],
+    "plumber_agent": [
+        "Design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery.",
+        "What would the dbt model look like to aggregate the daily data into weekly summaries?",
+    ],
 }
 
 
