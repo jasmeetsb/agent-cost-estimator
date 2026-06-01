@@ -1,0 +1,70 @@
+# SKU Usage Summary — `fomc-research` (fomc_research)
+
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `4056822423272554496`
+- **Use case:** FOMC meeting financial-analysis report · **Complexity:** High
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.3 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
+
+## 1. Architecture
+
+Hierarchical multi-stage research pipeline. Root agent coordinates 4 sub-agents in sequence:
+- `retrieve_meeting_data_agent` — fetches FOMC meeting metadata from **BigQuery**
+- `extract_page_data_agent` — downloads + parses official PDF transcripts (pdfplumber + Cloud Storage), then runs **multimodal Gemini** on the PDFs
+- `research_agent` — gathers contextual web background
+- `analysis_agent` — synthesizes the final report on rates / inflation outlook
+
+Multimodal: passes raw PDF documents to Gemini as inputs (not just text).
+
+**Pattern:** Hierarchical + Sequential, multimodal pipeline
+
+## 2. SKUs (products) consumed
+
+Gemini tokens (text + multimodal); Agent Runtime (vCPU + memory); Sessions; Memory Bank; **BigQuery** (FOMC dataset queries); **Cloud Storage** (PDF downloads); Google Search grounding (research_agent, capable but didn't trigger in our prompts).
+
+(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
+
+## 3. How usage was measured
+
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package fomc_research --runs 35 --settle 300`
+
+## 4. SKU usage per interaction (PRIMARY)
+
+Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
+
+| SKU dimension | Unit | Typical | Range | Variability |
+|---|---|---|---|---|
+| Gemini input tokens | tokens | 1838 | 1306–2800 | Medium |
+| Gemini output tokens (incl. thinking) | tokens | 479 | 188–949 | Medium |
+| Model calls | calls | 2.3 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 30.1 | — | — |
+| Agent Runtime — memory | GiB-seconds | 54.6 | — | — |
+| Sessions | events appended | 4.8 | — | Medium |
+| Memory Bank — generation | tokens | 2358 | — | — |
+| Memory Bank — memories written | memories | 0.0 | — | — |
+| Memory Bank — retrievals | reads | 0.0 | — | — |
+
+_Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
+
+## 5. Grounding & media usage (now collected)
+
+- **Google Search grounding:** 0 grounded web-search requests measured (Cloud Monitoring, project-wide). The agent *can* ground on Search but this workload did not trigger it; would bill ~$0.035/request if used.
+- **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
+
+## 5b. Caveats on usage capture
+
+- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).
+- Memory storage (stored-memory count over time) is export-only.
+- Grounding count is project-wide (no per-engine label); image count is event-based.
+- Still uncaptured: Cloud Trace, Logging, Storage.
+
+## 6. Secondary: derived cost (usage × catalog list price)
+
+Provided for reference only. List price, not actual billed; **usage above is the primary output.**
+
+| SKU | $/interaction |
+|---|---|
+| Gemini tokens | 0.0017 |
+| Agent Runtime | 0.0009 |
+| Memory Bank + Sessions | 0.0007 |
+| **Total (measured SKUs)** | **0.0033** (range 0.0025–0.0048) |

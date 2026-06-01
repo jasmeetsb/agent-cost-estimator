@@ -7,19 +7,25 @@
 
 ## 1. Architecture
 
-marketing_coordinator delegates to domain, website, marketing & logo creators; logo creation uses Imagen (genmedia).
+`marketing_coordinator` (root) delegates to 4 specialist creators wrapped as AgentTools:
+- `domain_create_agent` — suggests/validates domain names
+- `website_create_agent` — drafts website hero + content
+- `marketing_create_agent` — develops the marketing plan
+- `logo_create_agent` — generates the brand logo via Imagen (gemini-2.5-flash-image)
+
+Logo generation is the only sub-agent that exercises the genmedia SKU surface.
 
 **Pattern:** Hierarchical (coordinator + AgentTool creators)
 
 ## 2. SKUs (products) consumed
 
-Gemini tokens, Agent Runtime, Sessions, Memory Bank, Imagen (genmedia), Google Search grounding
+Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; Imagen / gemini-2.5-flash-image (genmedia, billed per image); Google Search grounding (capable, not triggered in our 2-turn workloads).
 
 (Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; 3 runs for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **3 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
 Reproduce: `python scripts/exp_sample.py --package marketing_agency --runs 3 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)

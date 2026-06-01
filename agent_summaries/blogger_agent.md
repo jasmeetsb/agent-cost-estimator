@@ -7,19 +7,25 @@
 
 ## 1. Architecture
 
-interactive_blogger_agent orchestrates 4 sub-agents + tools.
+`interactive_blogger_agent` orchestrates a 4-stage pipeline of sub-agents:
+1. `blog_planner` — outlines structure from the topic
+2. `blog_writer` — drafts the post
+3. `blog_editor` — refines tone, clarity, structure
+4. `social_media_writer` — creates social posts from the blog
+
+Human-in-the-loop: the user can request changes mid-flow and the root re-invokes the relevant sub-agent.
 
 **Pattern:** Hierarchical + Sequential (4 sub-agents) + HITL
 
 ## 2. SKUs (products) consumed
 
-Gemini tokens, Agent Runtime, Sessions, Memory Bank, Google Search grounding
+Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; Google Search grounding (capable, not triggered).
 
 (Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; 3 runs for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **3 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
 Reproduce: `python scripts/exp_sample.py --package blogger_agent --runs 3 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)

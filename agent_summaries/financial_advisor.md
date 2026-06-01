@@ -1,25 +1,31 @@
 # SKU Usage Summary — `financial-advisor` (financial_advisor)
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `343270278970736640`
-- **Use case:** Stock analysis & trading strategy advisor · **Complexity:** High
+- **Use case:** Stock analysis & trading-strategy advisor · **Complexity:** High
 - **Unit:** 1 interaction = 2-turn conversation + memory-write (3.3 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
 
-financial_coordinator delegates to data_analyst, trading_analyst, execution_analyst, risk_analyst (each wrapped as an AgentTool).
+`financial_coordinator` (root) delegates to 4 specialist sub-agents wrapped as AgentTools, each its own LlmAgent:
+- `data_analyst` — fetches and analyzes market/ticker data
+- `trading_analyst` — proposes a trading strategy from the data
+- `execution_analyst` — defines an execution plan (timing, sizing)
+- `risk_analyst` — assesses risks of the proposed strategy
+
+A single user query fans out to multiple model calls; in EXP-006 it consumed 17k–34k input tokens per interaction (heaviest input-token consumer in the corpus).
 
 **Pattern:** Hierarchical (coordinator + 4 AgentTool specialists)
 
 ## 2. SKUs (products) consumed
 
-Gemini tokens, Agent Runtime (vCPU/mem), Sessions, Memory Bank, Google Search grounding
+Gemini tokens (input/output/cached); Agent Runtime (vCPU + memory); Sessions; Memory Bank (generation + writes); Google Search grounding (capable but not triggered).
 
 (Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; 3 runs for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **3 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
 Reproduce: `python scripts/exp_sample.py --package financial_advisor --runs 3 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)

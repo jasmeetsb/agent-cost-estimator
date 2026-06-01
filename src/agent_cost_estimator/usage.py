@@ -210,7 +210,10 @@ def collect_imagen_usage(project, start, end, token=None) -> dict:
     by_model = {}
     for s in data.get("timeSeries", []):
         mid = s.get("resource", {}).get("labels", {}).get("model_user_id", "")
-        if "imagen" not in mid.lower():
+        ml = mid.lower()
+        # Match both classic Imagen models (imagen-3.0-*) AND Gemini image-gen
+        # models (e.g. gemini-2.5-flash-image) which on-brand-genmedia uses.
+        if "imagen" not in ml and not ml.endswith("-image"):
             continue
         tot = sum(float(p["value"].get("int64Value", p["value"].get("doubleValue", 0)) or 0)
                   for p in s.get("points", []))

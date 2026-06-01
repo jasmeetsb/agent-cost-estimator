@@ -27,33 +27,127 @@ MEM_RATE = PB.runtime_mem_gib_sec_usd or 2.5e-6
 
 META = {
     "financial_advisor": {
-        "title": "financial-advisor", "use_case": "Stock analysis & trading strategy advisor",
+        "title": "financial-advisor", "use_case": "Stock analysis & trading-strategy advisor",
         "complexity": "High", "pattern": "Hierarchical (coordinator + 4 AgentTool specialists)",
-        "arch": "financial_coordinator delegates to data_analyst, trading_analyst, "
-                "execution_analyst, risk_analyst (each wrapped as an AgentTool).",
-        "skus": "Gemini tokens, Agent Runtime (vCPU/mem), Sessions, Memory Bank, Google Search grounding",
+        "arch": ("`financial_coordinator` (root) delegates to 4 specialist sub-agents wrapped as "
+                 "AgentTools, each its own LlmAgent:\n"
+                 "- `data_analyst` — fetches and analyzes market/ticker data\n"
+                 "- `trading_analyst` — proposes a trading strategy from the data\n"
+                 "- `execution_analyst` — defines an execution plan (timing, sizing)\n"
+                 "- `risk_analyst` — assesses risks of the proposed strategy\n\n"
+                 "A single user query fans out to multiple model calls; in EXP-006 it consumed "
+                 "17k–34k input tokens per interaction (heaviest input-token consumer in the corpus)."),
+        "skus": "Gemini tokens (input/output/cached); Agent Runtime (vCPU + memory); Sessions; "
+                "Memory Bank (generation + writes); Google Search grounding (capable but not triggered).",
     },
     "academic_research": {
         "title": "academic-research", "use_case": "Academic literature analysis & discovery",
         "complexity": "Medium-High", "pattern": "Hierarchical (coordinator + AgentTool sub-agents)",
-        "arch": "academic_coordinator routes to websearch + new-research specialists.",
-        "skus": "Gemini tokens, Agent Runtime, Sessions, Memory Bank, Google Search grounding",
+        "arch": ("`academic_coordinator` (root) routes between 2 specialist AgentTools:\n"
+                 "- `academic_websearch_agent` — searches the web for relevant papers\n"
+                 "- `academic_newresearch_agent` — proposes new research directions from findings\n\n"
+                 "Sequential flow: search → analyze → synthesize. Lightweight architecture; cost "
+                 "variability is high (model decides how much to reason)."),
+        "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; "
+                "Google Search grounding (capable but not triggered in our workloads).",
     },
     "blogger_agent": {
         "title": "blog-writer", "use_case": "Multi-agent technical blog authoring",
         "complexity": "High", "pattern": "Hierarchical + Sequential (4 sub-agents) + HITL",
-        "arch": "interactive_blogger_agent orchestrates 4 sub-agents + tools.",
-        "skus": "Gemini tokens, Agent Runtime, Sessions, Memory Bank, Google Search grounding",
+        "arch": ("`interactive_blogger_agent` orchestrates a 4-stage pipeline of sub-agents:\n"
+                 "1. `blog_planner` — outlines structure from the topic\n"
+                 "2. `blog_writer` — drafts the post\n"
+                 "3. `blog_editor` — refines tone, clarity, structure\n"
+                 "4. `social_media_writer` — creates social posts from the blog\n\n"
+                 "Human-in-the-loop: the user can request changes mid-flow and the root re-invokes "
+                 "the relevant sub-agent."),
+        "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; "
+                "Google Search grounding (capable, not triggered).",
     },
     "marketing_agency": {
         "title": "marketing-agency", "use_case": "End-to-end website/branding launch suite",
         "complexity": "Medium-High", "pattern": "Hierarchical (coordinator + AgentTool creators)",
-        "arch": "marketing_coordinator delegates to domain, website, marketing & logo creators; "
-                "logo creation uses Imagen (genmedia).",
-        "skus": "Gemini tokens, Agent Runtime, Sessions, Memory Bank, Imagen (genmedia), Google Search grounding",
+        "arch": ("`marketing_coordinator` (root) delegates to 4 specialist creators wrapped as AgentTools:\n"
+                 "- `domain_create_agent` — suggests/validates domain names\n"
+                 "- `website_create_agent` — drafts website hero + content\n"
+                 "- `marketing_create_agent` — develops the marketing plan\n"
+                 "- `logo_create_agent` — generates the brand logo via Imagen (gemini-2.5-flash-image)\n\n"
+                 "Logo generation is the only sub-agent that exercises the genmedia SKU surface."),
+        "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; "
+                "Imagen / gemini-2.5-flash-image (genmedia, billed per image); Google Search grounding "
+                "(capable, not triggered in our 2-turn workloads).",
+    },
+    "nexshift_agent": {
+        "title": "nexshift-agent", "use_case": "AI nurse rostering & scheduling optimizer",
+        "complexity": "High", "pattern": "Hierarchical + Sequential + Parallel + HITL (4 patterns)",
+        "arch": ("`RosteringCoordinator` (root) orchestrates **7 specialist sub-agents** across the "
+                 "rostering flow:\n"
+                 "- `context_gatherer` — collects shift requirements + constraints\n"
+                 "- `config` — validates roster configuration\n"
+                 "- `compliance` — checks labor-law & policy constraints\n"
+                 "- `solver_agent` — runs the OR-Tools CP-SAT constraint solver (compute-heavy)\n"
+                 "- `empathy` — surfaces employee concerns / exceptions\n"
+                 "- `presenter` — formats the final roster for output\n\n"
+                 "**31 tools** total across sub-agents — the broadest tool surface in this corpus. "
+                 "The OR-Tools constraint solve runs inside Agent Runtime, so vCPU cost can spike "
+                 "for harder rosters. Our experimental prompts were too free-form to trigger the "
+                 "full solver pipeline (returned mostly empty responses)."),
+        "skus": "Gemini tokens; Agent Runtime (vCPU/memory, **compute-heavy from CP-SAT solver**); "
+                "Sessions; Memory Bank.",
+    },
+    "fomc_research": {
+        "title": "fomc-research", "use_case": "FOMC meeting financial-analysis report",
+        "complexity": "High", "pattern": "Hierarchical + Sequential, multimodal pipeline",
+        "arch": ("Hierarchical multi-stage research pipeline. Root agent coordinates 4 sub-agents in "
+                 "sequence:\n"
+                 "- `retrieve_meeting_data_agent` — fetches FOMC meeting metadata from **BigQuery**\n"
+                 "- `extract_page_data_agent` — downloads + parses official PDF transcripts "
+                 "(pdfplumber + Cloud Storage), then runs **multimodal Gemini** on the PDFs\n"
+                 "- `research_agent` — gathers contextual web background\n"
+                 "- `analysis_agent` — synthesizes the final report on rates / inflation outlook\n\n"
+                 "Multimodal: passes raw PDF documents to Gemini as inputs (not just text)."),
+        "skus": "Gemini tokens (text + multimodal); Agent Runtime (vCPU + memory); Sessions; Memory Bank; "
+                "**BigQuery** (FOMC dataset queries); **Cloud Storage** (PDF downloads); Google Search "
+                "grounding (research_agent, capable but didn't trigger in our prompts).",
+    },
+    "plumber_agent": {
+        "title": "plumber-data-engineering-assistant", "use_case": "Build/deploy data pipelines "
+                                                                    "(Dataflow / Dataproc / dbt / GCS)",
+        "complexity": "High", "pattern": "Hierarchical (deepest in corpus: coordinator + 6 specialists)",
+        "arch": ("`plumber_agent` (root) routes data-engineering requests to **6 specialist sub-agents** "
+                 "— the deepest hierarchy in this corpus. Each sub-agent owns a distinct GCP data product:\n"
+                 "- `dataflow_agent` — Dataflow pipeline design + job submission\n"
+                 "- `dataproc_agent` — Dataproc cluster operations\n"
+                 "- `dataproc_template_agent` — Dataproc template management\n"
+                 "- `dbt_agent` — dbt model generation; writes SQL to **GCS** + executes against **BigQuery**\n"
+                 "- `github_agent` — repo operations via GitPython (clone, branch, commit)\n"
+                 "- `monitoring_agent` — reads Cloud Monitoring metrics for pipeline observability\n\n"
+                 "By **intent**, this agent touches ~10–11 distinct GCP product SKUs (the broadest in our "
+                 "corpus). In practice, whether each SKU bills depends on whether the user prompt invokes "
+                 "that sub-agent against real resources."),
+        "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; **BigQuery** (dbt "
+                "execution); **Cloud Storage** (SQL artifacts, GCS data IO); **Dataflow**, **Dataproc**, "
+                "**Dataform** (sub-agent intent, only billed when actually invoked); **Cloud Monitoring** "
+                "API reads.",
     },
 }
-PACKAGES = ["financial_advisor", "academic_research", "blogger_agent", "marketing_agency"]
+META["on_brand_genmedia"] = {
+    "title": "on-brand-genmedia", "use_case": "Brand-compliant image generation with quality gate",
+    "complexity": "High", "pattern": "Loop + Hierarchical (iterate-until-on-brand)",
+    "arch": ("Iterative image generation with a scoring gate. Sub-agents:\n"
+             "- `prompt_agent` — refines the image-generation prompt from user intent\n"
+             "- `image_agent` — generates the image via `gemini-2.5-flash-image` (Imagen-family genmedia)\n"
+             "- `scoring_agent` — scores the image against brand guidelines (0–100)\n"
+             "- `checker_agent` — gate: if score < `SCORE_THRESHOLD` (default 45), loop back to "
+             "prompt refinement; up to `MAX_ITERATIONS` (default 2)\n\n"
+             "Multiple Imagen calls per interaction make this the costliest agent in our corpus by "
+             "image-gen SKU + model tokens combined."),
+    "skus": "Gemini tokens (heavy fan-out across iterations); Agent Runtime (vCPU + memory); "
+            "Sessions; Memory Bank; **Imagen / gemini-2.5-flash-image** (per-image SKU, multiple per "
+            "interaction); Cloud Storage (image artifacts).",
+}
+PACKAGES = ["financial_advisor", "academic_research", "blogger_agent", "marketing_agency",
+            "nexshift_agent", "fomc_research", "plumber_agent", "on_brand_genmedia"]
 
 
 def var_word(cv: float) -> str:
@@ -75,6 +169,8 @@ def derive(pkg):
     r = load(pkg); v = r["variability"]; rt = r["runtime"]; mem = r["memory_and_session"]
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
     gm = r.get("grounding_and_media") or {}
+    image_per_run = (gm.get("image_gen_usd", 0) or 0) / n
+    grounding_per_run = (gm.get("search_grounding_usd", 0) or 0) / n
     # Prefer raw measured seconds (newer reports); else back-derive from priced $ / rate.
     ru = r.get("runtime_usage")
     if ru:
@@ -99,8 +195,10 @@ def derive(pkg):
         "web_searches": gm.get("web_search_requests", 0), "images": gm.get("images_generated", 0),
         # secondary derived cost ($/interaction)
         "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
-        "c_total": avg["total_usd"], "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"],
-        "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"],
+        "c_image": image_per_run, "c_grounding": grounding_per_run,
+        "c_total": avg["total_usd"] + image_per_run + grounding_per_run,
+        "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
+        "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "cost_var": var_word(v["model_usd"]["cv_pct"]),
     }
 
@@ -122,12 +220,12 @@ def agent_md(d):
         "via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet "
         "metered here — see §7.)", "",
         "## 3. How usage was measured", "",
-        "Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; "
-        "3 runs for variability; 300s Monitoring settle; token usage from the model response "
-        "(`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).",
-        f"Reproduce: `python scripts/exp_sample.py --package {d['pkg']} --runs 3 --settle 300`", "",
-        "## 4. SKU usage per interaction (PRIMARY)", "",
-        "Measured usage quantities per interaction (avg over 3 runs), with run-to-run range and variability.", "",
+        f"Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; "
+        f"**{d['n']} runs** for variability; 300s Monitoring settle; token usage from the model response "
+        f"(`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).",
+        f"Reproduce: `python scripts/exp_sample.py --package {d['pkg']} --runs {d['n']} --settle 300`", "",
+        f"## 4. SKU usage per interaction (PRIMARY)", "",
+        f"Measured usage quantities per interaction (avg over {d['n']} runs), with run-to-run range and variability.", "",
         "| SKU dimension | Unit | Typical | Range | Variability |", "|---|---|---|---|---|",
         f"| Gemini input tokens | tokens | {d['in_tok']:.0f} | {d['in_rng']} | {d['in_var']} |",
         f"| Gemini output tokens (incl. thinking) | tokens | {d['out_tok']:.0f} | {d['out_rng']} | {d['out_var']} |",
@@ -156,6 +254,8 @@ def agent_md(d):
         f"| Gemini tokens | {d['c_model']:.4f} |",
         f"| Agent Runtime | {d['c_runtime']:.4f} |",
         f"| Memory Bank + Sessions | {d['c_memsess']:.4f} |",
+        (f"| Imagen (image generation) | {d['c_image']:.4f} |" if d['c_image'] else None),
+        (f"| Search grounding | {d['c_grounding']:.4f} |" if d['c_grounding'] else None),
         f"| **Total (measured SKUs)** | **{d['c_total']:.4f}** (range {d['c_total_min']:.4f}–{d['c_total_max']:.4f}) |",
     ]
     (OUT / f"{d['pkg']}.md").write_text("\n".join(x for x in lines if x is not None))
@@ -211,6 +311,10 @@ def combined(ds):
         "blog-writer": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | —",
         "marketing-agency": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured",
         "memory_assistant": "✓ | ✓ | ✓ | ✓ (write+read) | — | —",
+        "nexshift-agent": "✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | —",
+        "fomc-research": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended)",
+        "plumber-data-engineering-assistant": "✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent)",
+        "on-brand-genmedia": "✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)**",
     }
     for r in sorted(rows, key=sortk):
         if r["title"] in pres:
@@ -228,7 +332,7 @@ def combined(ds):
           "1. **Input-token usage is the biggest differentiator** — financial-advisor consumes "
           f"~{max(r['in_tok'] for r in rows):.0f} input tokens/interaction vs "
           f"~{min(r['in_tok'] for r in rows):.0f} for the lightest, a "
-          f"{max(r['in_tok'] for r in rows)/min(r['in_tok'] for r in rows):.0f}× spread driven by "
+          f"{max(r['in_tok'] for r in rows)/max(min(r['in_tok'] for r in rows), 1):.0f}× spread driven by "
           "depth of multi-specialist analysis.",
           "2. **vCPU-seconds track analysis depth**, not just call count — the heaviest agent burns far "
           "more compute per interaction.",
@@ -255,6 +359,10 @@ LINKS = {
     "blog-writer": "blogger_agent.md",
     "marketing-agency": "marketing_agency.md",
     "memory_assistant": "memory_assistant.md",
+    "nexshift-agent": "nexshift_agent.md",
+    "fomc-research": "fomc_research.md",
+    "plumber-data-engineering-assistant": "plumber_agent.md",
+    "on-brand-genmedia": "on_brand_genmedia.md",
 }
 
 # Brief descriptions for the "Agents at a glance" header section.
@@ -271,6 +379,18 @@ DESCRIPTIONS = {
                           "websearch + new-research specialists."),
     "marketing-agency": ("End-to-end branding suite: domain, website, marketing, logo (Imagen) "
                          "creators wrapped as AgentTools under one coordinator."),
+    "nexshift-agent": ("AI nurse rostering optimizer. Coordinator + 7 sub-agents + OR-Tools CP-SAT "
+                       "solver. 4 orchestration patterns (Hierarchical + Sequential + Parallel + HITL), "
+                       "31 tools — broadest tool surface in the corpus."),
+    "fomc-research": ("FOMC meeting financial-analysis report. Hierarchical + Sequential multimodal "
+                      "pipeline (BigQuery metadata + PDF transcripts via pdfplumber + multimodal Gemini)."),
+    "plumber-data-engineering-assistant": ("Build/deploy data pipelines. Deepest hierarchy in the corpus: "
+                                            "root + 6 specialist sub-agents (Dataflow / Dataproc / "
+                                            "Dataproc-templates / dbt / GitHub / Cloud Monitoring). Touches "
+                                            "~10–11 distinct GCP product SKUs by intent."),
+    "on-brand-genmedia": ("Brand-compliant iterative image generation. Loop + Hierarchical: prompt → "
+                          "image (gemini-2.5-flash-image) → score → re-prompt if below threshold. "
+                          "Heaviest image-gen SKU usage in the corpus."),
 }
 
 
@@ -367,6 +487,10 @@ def master(ds):
         "blog-writer": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | —",
         "marketing-agency": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured",
         "memory_assistant": "✓ | ✓ | ✓ | ✓ (write+read) | — | —",
+        "nexshift-agent": "✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | —",
+        "fomc-research": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended)",
+        "plumber-data-engineering-assistant": "✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent)",
+        "on-brand-genmedia": "✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)**",
     }
     for r in sorted(rows, key=sortk):
         if r["title"] in pres:
@@ -384,7 +508,7 @@ def master(ds):
           "1. **Input-token usage is the biggest differentiator** — financial-advisor consumes "
           f"~{max(r['in_tok'] for r in rows):.0f} input tokens/interaction vs "
           f"~{min(r['in_tok'] for r in rows):.0f} for the lightest, a "
-          f"{max(r['in_tok'] for r in rows)/min(r['in_tok'] for r in rows):.0f}× spread driven by "
+          f"{max(r['in_tok'] for r in rows)/max(min(r['in_tok'] for r in rows), 1):.0f}× spread driven by "
           "depth of multi-specialist analysis.",
           "2. **vCPU-seconds track analysis depth**, not just call count — the heaviest agent burns far "
           "more compute per interaction.",

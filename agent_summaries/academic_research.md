@@ -7,19 +7,23 @@
 
 ## 1. Architecture
 
-academic_coordinator routes to websearch + new-research specialists.
+`academic_coordinator` (root) routes between 2 specialist AgentTools:
+- `academic_websearch_agent` — searches the web for relevant papers
+- `academic_newresearch_agent` — proposes new research directions from findings
+
+Sequential flow: search → analyze → synthesize. Lightweight architecture; cost variability is high (model decides how much to reason).
 
 **Pattern:** Hierarchical (coordinator + AgentTool sub-agents)
 
 ## 2. SKUs (products) consumed
 
-Gemini tokens, Agent Runtime, Sessions, Memory Bank, Google Search grounding
+Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; Google Search grounding (capable but not triggered in our workloads).
 
 (Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; 3 runs for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **3 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
 Reproduce: `python scripts/exp_sample.py --package academic_research --runs 3 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
