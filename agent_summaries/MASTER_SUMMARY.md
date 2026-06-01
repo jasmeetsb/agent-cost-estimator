@@ -11,6 +11,17 @@
 - **Memory + session SKUs are a meaningful slice** even when memories are never read back — always present for any session-persisted agent.
 - **Collectors built and validated** for tokens, vCPU/memory, sessions, Memory Bank, Search grounding, and Imagen. Still uncaptured: Cloud Trace, Logging, Storage.
 
+## What "per interaction" means
+
+All usage and cost figures below are **per interaction** — the unit of work the cost harness measures. One interaction =
+
+- **For the 4 ADK sample agents (financial-advisor, academic-research, blog-writer, marketing-agency):** a **2-turn conversation in one session** + an `add_session_to_memory` call that triggers Memory Bank generation. Typically fans out to 2–6 model calls and ~4–7 session events depending on sub-agent delegation.
+- **For `memory_assistant`:** a **3-turn flow across 2 sessions** — Session A receives 2 user facts → `add_session_to_memory` → Session B issues 1 recall query. ~5.75 model calls and ~11.5 session events.
+
+**Caveat:** because `memory_assistant`'s interaction has more turns, its raw $/interaction is not strictly apples-to-apples with the 2-turn samples — normalize to **$/turn or $/model-call** for head-to-head comparison. Variability stats (low/high range) are over 3 runs per agent.
+
+All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reproduce: `python scripts/exp_sample.py --package <pkg> --runs 3 --settle 300`.
+
 ## Agents at a glance
 
 - **financial-advisor** — Stock analysis & trading-strategy advisor. Hierarchical: coordinator + 4 AgentTool specialists (data, trading, execution, risk). Heaviest input-token consumer; runtime-dominated. → [details](financial_advisor.md)
