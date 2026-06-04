@@ -7,6 +7,31 @@
 
 ## 1. Architecture
 
+```mermaid
+graph TB
+    User([User]) --> Coord
+    subgraph Engine["Vertex AI Agent Engine — plumber-agent"]
+        Coord[plumber_agent]
+        Coord --> DA[dataflow_agent]
+        Coord --> DPA[dataproc_agent]
+        Coord --> DPT[dataproc_template_agent]
+        Coord --> DBT[dbt_agent]
+        Coord --> GH[github_agent]
+        Coord --> Mon[monitoring_agent]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    DBT -.->|SQL artifact| GCS[(Cloud Storage)]
+    DBT -.->|execute| BQ[(BigQuery)]
+    DA -.->|capable| DF[(Dataflow)]
+    DPA -.->|capable| DP[(Dataproc)]
+    DPT -.->|capable| DFT[(Dataform)]
+    Mon -.->|read metrics| CM[(Cloud Monitoring)]
+    GH -.->|external| GHE[GitHub repo]
+```
+
 `plumber_agent` (root) routes data-engineering requests to **6 specialist sub-agents** — the deepest hierarchy in this corpus. Each sub-agent owns a distinct GCP data product:
 - `dataflow_agent` — Dataflow pipeline design + job submission
 - `dataproc_agent` — Dataproc cluster operations

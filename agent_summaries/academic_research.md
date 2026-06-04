@@ -7,6 +7,21 @@
 
 ## 1. Architecture
 
+```mermaid
+graph TB
+    User([User]) --> Coord
+    subgraph Engine["Vertex AI Agent Engine — academic_research"]
+        Coord[academic_coordinator]
+        Coord -->|AgentTool| WS[academic_websearch]
+        Coord -->|AgentTool| NR[academic_newresearch]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    WS -.->|capable, 0 measured| Search[(Google Search grounding)]
+```
+
 `academic_coordinator` (root) routes between 2 specialist AgentTools:
 - `academic_websearch_agent` — searches the web for relevant papers
 - `academic_newresearch_agent` — proposes new research directions from findings

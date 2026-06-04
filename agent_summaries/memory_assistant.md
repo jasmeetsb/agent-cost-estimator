@@ -27,6 +27,20 @@ Memory Bank (auto-wired on Agent Engine deploy, ADK >=1.5.0)
 Sessions (managed, persistent) → every turn/event persisted
 ```
 
+```mermaid
+graph TB
+    User([User]) <-->|2 sessions across days| Coord
+    subgraph Engine["Vertex AI Agent Engine — memory_assistant"]
+        Coord["personal_assistant<br/>(preload_memory tool)"]
+        Coord --> P[prefs_agent]
+        Coord --> N[notes_agent]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine <-.->|events appended| Sess[(Sessions SKU)]
+    Engine <-.->|read + write + gen tokens| MB[(Memory Bank SKU<br/>cross-session)]
+```
+
 **Cost unit — "1 interaction" = 3 user messages across 2 sessions** (NOT a single query):
 1. Session A, turn 1 — give facts (name/job)
 2. Session A, turn 2 — give preferences (units/diet)

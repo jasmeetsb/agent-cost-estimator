@@ -29,6 +29,20 @@ META = {
     "financial_advisor": {
         "title": "financial-advisor", "use_case": "Stock analysis & trading-strategy advisor",
         "complexity": "High", "pattern": "Hierarchical (coordinator + 4 AgentTool specialists)",
+        "diagram": """graph TB
+    User([User]) --> Coord
+    subgraph Engine["Vertex AI Agent Engine — financial_advisor"]
+        Coord[financial_coordinator]
+        Coord -->|AgentTool| DA[data_analyst]
+        Coord -->|AgentTool| TA[trading_analyst]
+        Coord -->|AgentTool| EA[execution_analyst]
+        Coord -->|AgentTool| RA[risk_analyst]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    DA -.->|capable, 0 measured| Search[(Google Search grounding)]""",
         "arch": ("`financial_coordinator` (root) delegates to 4 specialist sub-agents wrapped as "
                  "AgentTools, each its own LlmAgent:\n"
                  "- `data_analyst` — fetches and analyzes market/ticker data\n"
@@ -43,6 +57,18 @@ META = {
     "academic_research": {
         "title": "academic-research", "use_case": "Academic literature analysis & discovery",
         "complexity": "Medium-High", "pattern": "Hierarchical (coordinator + AgentTool sub-agents)",
+        "diagram": """graph TB
+    User([User]) --> Coord
+    subgraph Engine["Vertex AI Agent Engine — academic_research"]
+        Coord[academic_coordinator]
+        Coord -->|AgentTool| WS[academic_websearch]
+        Coord -->|AgentTool| NR[academic_newresearch]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    WS -.->|capable, 0 measured| Search[(Google Search grounding)]""",
         "arch": ("`academic_coordinator` (root) routes between 2 specialist AgentTools:\n"
                  "- `academic_websearch_agent` — searches the web for relevant papers\n"
                  "- `academic_newresearch_agent` — proposes new research directions from findings\n\n"
@@ -54,6 +80,19 @@ META = {
     "blogger_agent": {
         "title": "blog-writer", "use_case": "Multi-agent technical blog authoring",
         "complexity": "High", "pattern": "Hierarchical + Sequential (4 sub-agents) + HITL",
+        "diagram": """graph TB
+    User([User]) <-->|HITL refine| Coord
+    subgraph Engine["Vertex AI Agent Engine — blog-writer"]
+        Coord[interactive_blogger_agent]
+        Coord --> P1[blog_planner]
+        P1 --> P2[blog_writer]
+        P2 --> P3[blog_editor]
+        P3 --> P4[social_media_writer]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]""",
         "arch": ("`interactive_blogger_agent` orchestrates a 4-stage pipeline of sub-agents:\n"
                  "1. `blog_planner` — outlines structure from the topic\n"
                  "2. `blog_writer` — drafts the post\n"
@@ -67,6 +106,21 @@ META = {
     "marketing_agency": {
         "title": "marketing-agency", "use_case": "End-to-end website/branding launch suite",
         "complexity": "Medium-High", "pattern": "Hierarchical (coordinator + AgentTool creators)",
+        "diagram": """graph TB
+    User([User]) --> Coord
+    subgraph Engine["Vertex AI Agent Engine — marketing-agency"]
+        Coord[marketing_coordinator]
+        Coord -->|AgentTool| DC[domain_create_agent]
+        Coord -->|AgentTool| WC[website_create_agent]
+        Coord -->|AgentTool| MC[marketing_create_agent]
+        Coord -->|AgentTool| LC[logo_create_agent]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    LC -.->|per image| Imagen[(gemini-2.5-flash-image SKU)]
+    LC -.->|image artifact| GCS[(Cloud Storage)]""",
         "arch": ("`marketing_coordinator` (root) delegates to 4 specialist creators wrapped as AgentTools:\n"
                  "- `domain_create_agent` — suggests/validates domain names\n"
                  "- `website_create_agent` — drafts website hero + content\n"
@@ -80,6 +134,21 @@ META = {
     "nexshift_agent": {
         "title": "nexshift-agent", "use_case": "AI nurse rostering & scheduling optimizer",
         "complexity": "High", "pattern": "Hierarchical + Sequential + Parallel + HITL (4 patterns)",
+        "diagram": """graph TB
+    User([User]) <-->|HITL| Coord
+    subgraph Engine["Vertex AI Agent Engine — nexshift-agent"]
+        Coord[RosteringCoordinator]
+        Coord --> CG[context_gatherer]
+        Coord --> Cfg[config]
+        Coord --> Cmp[compliance]
+        Coord --> SV["solver_agent<br/>(OR-Tools CP-SAT)"]
+        Coord --> Emp[empathy]
+        Coord --> Prs[presenter]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    SV -.->|heavy vCPU on hard solves| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]""",
         "arch": ("`RosteringCoordinator` (root) orchestrates **7 specialist sub-agents** across the "
                  "rostering flow:\n"
                  "- `context_gatherer` — collects shift requirements + constraints\n"
@@ -98,6 +167,22 @@ META = {
     "fomc_research": {
         "title": "fomc-research", "use_case": "FOMC meeting financial-analysis report",
         "complexity": "High", "pattern": "Hierarchical + Sequential, multimodal pipeline",
+        "diagram": """graph TB
+    User([User]) --> Root
+    subgraph Engine["Vertex AI Agent Engine — fomc-research"]
+        Root[root_agent]
+        Root -->|1| R1[retrieve_meeting_data]
+        Root -->|2| R2["extract_page_data<br/>(multimodal Gemini)"]
+        Root -->|3| R3[research_agent]
+        Root -->|4| R4[analysis_agent]
+    end
+    Engine -.->|tokens text + multimodal| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    R1 -.->|FOMC dataset query| BQ[(BigQuery)]
+    R2 -.->|PDF transcript download| GCS[(Cloud Storage)]
+    R3 -.->|capable, 0 measured| Search[(Google Search grounding)]""",
         "arch": ("Hierarchical multi-stage research pipeline. Root agent coordinates 4 sub-agents in "
                  "sequence:\n"
                  "- `retrieve_meeting_data_agent` — fetches FOMC meeting metadata from **BigQuery**\n"
@@ -114,6 +199,28 @@ META = {
         "title": "plumber-data-engineering-assistant", "use_case": "Build/deploy data pipelines "
                                                                     "(Dataflow / Dataproc / dbt / GCS)",
         "complexity": "High", "pattern": "Hierarchical (deepest in corpus: coordinator + 6 specialists)",
+        "diagram": """graph TB
+    User([User]) --> Coord
+    subgraph Engine["Vertex AI Agent Engine — plumber-agent"]
+        Coord[plumber_agent]
+        Coord --> DA[dataflow_agent]
+        Coord --> DPA[dataproc_agent]
+        Coord --> DPT[dataproc_template_agent]
+        Coord --> DBT[dbt_agent]
+        Coord --> GH[github_agent]
+        Coord --> Mon[monitoring_agent]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    DBT -.->|SQL artifact| GCS[(Cloud Storage)]
+    DBT -.->|execute| BQ[(BigQuery)]
+    DA -.->|capable| DF[(Dataflow)]
+    DPA -.->|capable| DP[(Dataproc)]
+    DPT -.->|capable| DFT[(Dataform)]
+    Mon -.->|read metrics| CM[(Cloud Monitoring)]
+    GH -.->|external| GHE[GitHub repo]""",
         "arch": ("`plumber_agent` (root) routes data-engineering requests to **6 specialist sub-agents** "
                  "— the deepest hierarchy in this corpus. Each sub-agent owns a distinct GCP data product:\n"
                  "- `dataflow_agent` — Dataflow pipeline design + job submission\n"
@@ -134,6 +241,23 @@ META = {
 META["on_brand_genmedia"] = {
     "title": "on-brand-genmedia", "use_case": "Brand-compliant image generation with quality gate",
     "complexity": "High", "pattern": "Loop + Hierarchical (iterate-until-on-brand)",
+    "diagram": """graph TB
+    User([User]) --> Prompt
+    subgraph Engine["Vertex AI Agent Engine — on-brand-genmedia"]
+        Prompt[prompt_agent]
+        Img[image_agent]
+        Score[scoring_agent]
+        Check{"checker_agent<br/>score >= 45?"}
+        Prompt --> Img --> Score --> Check
+        Check -->|no, loop up to 2x| Prompt
+        Check -->|yes| Out([final image])
+    end
+    Engine -.->|tokens, heavy fan-out| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    Img -.->|per image $0.04| Imagen[(gemini-2.5-flash-image SKU)]
+    Img -.->|image artifact| GCS[(Cloud Storage)]""",
     "arch": ("Iterative image generation with a scoring gate. Sub-agents:\n"
              "- `prompt_agent` — refines the image-generation prompt from user intent\n"
              "- `image_agent` — generates the image via `gemini-2.5-flash-image` (Imagen-family genmedia)\n"
@@ -214,7 +338,9 @@ def agent_md(d):
         f"- **Unit:** 1 interaction = 2-turn conversation + memory-write ({d['calls']:.1f} model calls avg). "
         "Deployed on Vertex AI Agent Engine (GEAP).",
         "- **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).", "",
-        "## 1. Architecture", "", m["arch"], f"\n**Pattern:** {m['pattern']}", "",
+        "## 1. Architecture", "",
+        "```mermaid", m["diagram"], "```", "",
+        m["arch"], f"\n**Pattern:** {m['pattern']}", "",
         "## 2. SKUs (products) consumed", "", m["skus"],
         "\n(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised "
         "via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet "

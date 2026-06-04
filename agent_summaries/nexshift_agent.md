@@ -7,6 +7,24 @@
 
 ## 1. Architecture
 
+```mermaid
+graph TB
+    User([User]) <-->|HITL| Coord
+    subgraph Engine["Vertex AI Agent Engine — nexshift-agent"]
+        Coord[RosteringCoordinator]
+        Coord --> CG[context_gatherer]
+        Coord --> Cfg[config]
+        Coord --> Cmp[compliance]
+        Coord --> SV["solver_agent<br/>(OR-Tools CP-SAT)"]
+        Coord --> Emp[empathy]
+        Coord --> Prs[presenter]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    SV -.->|heavy vCPU on hard solves| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+```
+
 `RosteringCoordinator` (root) orchestrates **7 specialist sub-agents** across the rostering flow:
 - `context_gatherer` — collects shift requirements + constraints
 - `config` — validates roster configuration

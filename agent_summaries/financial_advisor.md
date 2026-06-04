@@ -7,6 +7,23 @@
 
 ## 1. Architecture
 
+```mermaid
+graph TB
+    User([User]) --> Coord
+    subgraph Engine["Vertex AI Agent Engine — financial_advisor"]
+        Coord[financial_coordinator]
+        Coord -->|AgentTool| DA[data_analyst]
+        Coord -->|AgentTool| TA[trading_analyst]
+        Coord -->|AgentTool| EA[execution_analyst]
+        Coord -->|AgentTool| RA[risk_analyst]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    DA -.->|capable, 0 measured| Search[(Google Search grounding)]
+```
+
 `financial_coordinator` (root) delegates to 4 specialist sub-agents wrapped as AgentTools, each its own LlmAgent:
 - `data_analyst` — fetches and analyzes market/ticker data
 - `trading_analyst` — proposes a trading strategy from the data

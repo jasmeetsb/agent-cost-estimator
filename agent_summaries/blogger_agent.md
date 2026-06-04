@@ -7,6 +7,22 @@
 
 ## 1. Architecture
 
+```mermaid
+graph TB
+    User([User]) <-->|HITL refine| Coord
+    subgraph Engine["Vertex AI Agent Engine — blog-writer"]
+        Coord[interactive_blogger_agent]
+        Coord --> P1[blog_planner]
+        P1 --> P2[blog_writer]
+        P2 --> P3[blog_editor]
+        P3 --> P4[social_media_writer]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+```
+
 `interactive_blogger_agent` orchestrates a 4-stage pipeline of sub-agents:
 1. `blog_planner` — outlines structure from the topic
 2. `blog_writer` — drafts the post

@@ -7,6 +7,24 @@
 
 ## 1. Architecture
 
+```mermaid
+graph TB
+    User([User]) --> Coord
+    subgraph Engine["Vertex AI Agent Engine — marketing-agency"]
+        Coord[marketing_coordinator]
+        Coord -->|AgentTool| DC[domain_create_agent]
+        Coord -->|AgentTool| WC[website_create_agent]
+        Coord -->|AgentTool| MC[marketing_create_agent]
+        Coord -->|AgentTool| LC[logo_create_agent]
+    end
+    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    LC -.->|per image| Imagen[(gemini-2.5-flash-image SKU)]
+    LC -.->|image artifact| GCS[(Cloud Storage)]
+```
+
 `marketing_coordinator` (root) delegates to 4 specialist creators wrapped as AgentTools:
 - `domain_create_agent` — suggests/validates domain names
 - `website_create_agent` — drafts website hero + content

@@ -7,6 +7,25 @@
 
 ## 1. Architecture
 
+```mermaid
+graph TB
+    User([User]) --> Root
+    subgraph Engine["Vertex AI Agent Engine — fomc-research"]
+        Root[root_agent]
+        Root -->|1| R1[retrieve_meeting_data]
+        Root -->|2| R2["extract_page_data<br/>(multimodal Gemini)"]
+        Root -->|3| R3[research_agent]
+        Root -->|4| R4[analysis_agent]
+    end
+    Engine -.->|tokens text + multimodal| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    R1 -.->|FOMC dataset query| BQ[(BigQuery)]
+    R2 -.->|PDF transcript download| GCS[(Cloud Storage)]
+    R3 -.->|capable, 0 measured| Search[(Google Search grounding)]
+```
+
 Hierarchical multi-stage research pipeline. Root agent coordinates 4 sub-agents in sequence:
 - `retrieve_meeting_data_agent` — fetches FOMC meeting metadata from **BigQuery**
 - `extract_page_data_agent` — downloads + parses official PDF transcripts (pdfplumber + Cloud Storage), then runs **multimodal Gemini** on the PDFs

@@ -7,6 +7,26 @@
 
 ## 1. Architecture
 
+```mermaid
+graph TB
+    User([User]) --> Prompt
+    subgraph Engine["Vertex AI Agent Engine — on-brand-genmedia"]
+        Prompt[prompt_agent]
+        Img[image_agent]
+        Score[scoring_agent]
+        Check{"checker_agent<br/>score >= 45?"}
+        Prompt --> Img --> Score --> Check
+        Check -->|no, loop up to 2x| Prompt
+        Check -->|yes| Out([final image])
+    end
+    Engine -.->|tokens, heavy fan-out| Gemini[(Gemini 2.5 Flash)]
+    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
+    Engine -.->|events appended| Sess[(Sessions SKU)]
+    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    Img -.->|per image $0.04| Imagen[(gemini-2.5-flash-image SKU)]
+    Img -.->|image artifact| GCS[(Cloud Storage)]
+```
+
 Iterative image generation with a scoring gate. Sub-agents:
 - `prompt_agent` — refines the image-generation prompt from user intent
 - `image_agent` — generates the image via `gemini-2.5-flash-image` (Imagen-family genmedia)
