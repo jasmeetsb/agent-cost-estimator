@@ -89,3 +89,23 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Agent Runtime | 0.0054 |
 | Memory Bank + Sessions | 0.0012 |
 | **Total (measured SKUs)** | **0.0144** (range 0.0101–0.0226) |
+
+## 7. Test workload & sample interaction
+
+Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+
+**Repeated workload (turn-by-turn):**
+
+| Turn | User query |
+|---|---|
+| 1 | Summarize recent research directions in efficient transformer architectures. |
+| 2 | Which of those directions looks most promising for edge deployment, and why? |
+
+**Sample interaction (the first run):**
+
+- **Turn 1** (819 in / 652 out tokens) — user: *Summarize recent research directions in efficient transformer architectures.*
+  - reply preview: Hello! I can certainly help you with that. To start, could you please provide a seminal paper on the topic of efficient transformer architectures? This will serve as a foundational document for our ex…
+- **Turn 2** (1485 in / 506 out tokens) — user: *Which of those directions looks most promising for edge deployment, and why?*
+  - reply preview: That's an excellent question. To determine which research directions are most promising for edge deployment, I first need to conduct the initial analysis. The results of this analysis will reveal the …
+
+Full transcripts: `data/transcript_academic_research.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

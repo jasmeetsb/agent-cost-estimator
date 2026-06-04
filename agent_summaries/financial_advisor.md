@@ -93,3 +93,23 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Agent Runtime | 0.0196 |
 | Memory Bank + Sessions | 0.0015 |
 | **Total (measured SKUs)** | **0.0336** (range 0.0298–0.0385) |
+
+## 7. Test workload & sample interaction
+
+Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+
+**Repeated workload (turn-by-turn):**
+
+| Turn | User query |
+|---|---|
+| 1 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 2 | Based on that, suggest a simple trading strategy and key risks. |
+
+**Sample interaction (the first run):**
+
+- **Turn 1** (9049 in / 1157 out tokens) — user: *I'm a moderate-risk investor. Analyze the outlook for NVDA.*
+  - reply preview: Hello! I'm here to help you navigate the world of financial decision-making. My main goal is to provide you with comprehensive financial advice by guiding you through a step-by-step process. We'll wor…
+- **Turn 2** (8147 in / 273 out tokens) — user: *Based on that, suggest a simple trading strategy and key risks.*
+  - reply preview: I can do that, but to suggest a suitable trading strategy, I really need to know your investment time horizon. Strategies for short-term and long-term investors can be very different.  For example, a …
+
+Full transcripts: `data/transcript_financial_advisor.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

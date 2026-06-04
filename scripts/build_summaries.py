@@ -360,6 +360,46 @@ def load(pkg):
     return json.loads((DATA / f"cost_report_{pkg}.json").read_text())
 
 
+def load_transcript(pkg):
+    """Read transcript JSONL → list of turn dicts. Returns [] if no transcript."""
+    p = DATA / f"transcript_{pkg}.jsonl"
+    if not p.exists():
+        return []
+    rows = []
+    with p.open() as fh:
+        for line in fh:
+            line = line.strip()
+            if line:
+                rows.append(json.loads(line))
+    return rows
+
+
+def sample_workload(pkg, max_chars=200):
+    """Return (unique_prompts, sample_interaction) from a transcript.
+    sample_interaction = list of (turn_num, user_text, in_tok, out_tok, reply_preview).
+    """
+    rows = load_transcript(pkg)
+    if not rows:
+        return [], []
+    # Unique prompts preserving order.
+    seen = []
+    for r in rows:
+        q = (r.get("input") or "").strip()
+        if q and q not in seen:
+            seen.append(q)
+    # First interaction = first run's user_id, all its turns.
+    first_user = rows[0].get("user")
+    interaction = [r for r in rows if r.get("user") == first_user]
+    sample = []
+    for i, r in enumerate(interaction, 1):
+        text = (r.get("output_text") or "").replace("\n", " ").strip()
+        if len(text) > max_chars:
+            text = text[:max_chars] + "…"
+        u = r.get("usage") or {}
+        sample.append((i, r.get("input", ""), u.get("prompt", 0), u.get("output", 0), text))
+    return seen, sample
+
+
 def derive(pkg):
     """Per-interaction SKU usage quantities (+ secondary derived cost) for an agent."""
     r = load(pkg); v = r["variability"]; rt = r["runtime"]; mem = r["memory_and_session"]
@@ -456,6 +496,30 @@ def agent_md(d):
         (f"| Search grounding | {d['c_grounding']:.4f} |" if d['c_grounding'] else None),
         f"| **Total (measured SKUs)** | **{d['c_total']:.4f}** (range {d['c_total_min']:.4f}–{d['c_total_max']:.4f}) |",
     ]
+    # §7 — test workload + sample interaction from transcripts.
+    prompts, sample = sample_workload(d["pkg"])
+    rows = load_transcript(d["pkg"])
+    if prompts:
+        lines += ["",
+                  "## 7. Test workload & sample interaction", "",
+                  f"Total user turns recorded: **{len(rows)}** "
+                  f"(≈ {len(rows)//max(len(prompts),1)} interactions × {len(prompts)} turns each, "
+                  "fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).", "",
+                  "**Repeated workload (turn-by-turn):**", "",
+                  "| Turn | User query |", "|---|---|"]
+        for i, q in enumerate(prompts, 1):
+            qe = q.replace("|", "\\|")
+            lines.append(f"| {i} | {qe} |")
+        lines += ["",
+                  "**Sample interaction (the first run):**", ""]
+        for tn, q, ipt, opt, preview in sample:
+            qe = q.replace("|", "\\|")
+            lines.append(f"- **Turn {tn}** ({ipt} in / {opt} out tokens) — user: *{qe}*")
+            lines.append(f"  - reply preview: {preview}")
+        lines.append("")
+        lines.append(f"Full transcripts: `data/transcript_{d['pkg']}.jsonl` (one JSON record per turn; "
+                     "contains full input, output_text, every tool call+response, and per-step usage). "
+                     "**Not committed** (data/ is gitignored — runtime artifact).")
     (OUT / f"{d['pkg']}.md").write_text("\n".join(x for x in lines if x is not None))
 
 
@@ -716,6 +780,44 @@ def master(ds):
           "— a real SKU footprint for any session-persisted agent.",
           "5. **Grounding and Imagen collectors are validated** (separate validation runs registered "
           "non-zero usage). For the 5 agents above the workloads simply didn't trigger them.", "",
+          "## 6. Experiment query volume (what we actually sent)", "",
+          "Each agent's test consists of N **interactions**, each = a 2-turn conversation + a "
+          "memory-write (memory_assistant = 3-turn). Inside one interaction the user_id stays "
+          "constant; across interactions we mint a fresh user_id so memory state doesn't carry "
+          "over. **All interactions for a given agent cycle through the same prompt set** — that "
+          "isolates the variability to LLM non-determinism rather than prompt diversity.", "",
+          "| Agent | Interactions | Turns/interaction | Total user queries | Source |",
+          "|---|---|---|---|---|"]
+    qrows = []
+    for pkg, title in [("financial_advisor", "financial-advisor"),
+                       ("academic_research", "academic-research"),
+                       ("blogger_agent", "blog-writer"),
+                       ("marketing_agency", "marketing-agency"),
+                       ("nexshift_agent", "nexshift-agent"),
+                       ("fomc_research", "fomc-research"),
+                       ("plumber_agent", "plumber-data-engineering-assistant"),
+                       ("on_brand_genmedia", "on-brand-genmedia")]:
+        trows = load_transcript(pkg)
+        if not trows:
+            continue
+        prompts, _ = sample_workload(pkg)
+        per = max(len(prompts), 1)
+        n_int = len(trows) // per
+        exp = "EXP-006" if pkg in ("financial_advisor", "academic_research", "blogger_agent",
+                                    "marketing_agency") else "EXP-007"
+        qrows.append((title, n_int, per, len(trows), exp))
+    # Also memory_assistant (hand-tracked) and grounded_news (validation only).
+    qrows.append(("memory_assistant", 4, 3, 12, "EXP-005"))
+    qrows.append(("grounded_news (validation)", 2, 1, 2, "collector-validation"))
+    total = sum(r[3] for r in qrows)
+    for nm, ni, tt, tq, exp in sorted(qrows, key=lambda x: -x[3]):
+        L.append(f"| {linkify(nm) if nm in LINKS else nm} | {ni} | {tt} | **{tq}** | {exp} |")
+    L.append(f"| **TOTAL** | — | — | **{total}** | all experiments combined |")
+    L += ["",
+          "Full per-turn transcripts (input, output_text, tool calls/responses, per-step usage) live "
+          "at `data/transcript_<agent>.jsonl` locally. **Not committed** — `data/` is gitignored as "
+          "runtime artifact. Each per-agent doc's §7 shows the workload prompts + one sample "
+          "interaction inline.", "",
           "## Per-agent detail docs", ""]
     for r in sorted(rows, key=sortk):
         t = r["title"]

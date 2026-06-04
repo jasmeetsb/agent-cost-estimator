@@ -136,3 +136,27 @@ utilization assumption for the runtime component.
 - **Memory storage** (monthly) and **session-event** authoritative counts are export-only.
 - **Cloud Trace** (enabled on deploy), **Logging**, **GCS**, **egress** not captured.
 - Runtime amortization depends on the measurement window's utilization.
+
+## 6. Test workload & sample interaction
+
+Total user turns across EXP-004 + EXP-005: **15** (1 single full run + 4 variability runs × 3 turns).
+Each "interaction" is a **3-turn flow across 2 sessions** + an `add_session_to_memory` call between
+sessions. Fresh `user_id` per variability run so memory state doesn't carry across.
+
+**Repeated workload (turn-by-turn):**
+
+| Turn | Session | User query |
+|---|---|---|
+| 1 | A | Hi! My name is Alice and I'm a marine biologist in Lisbon. |
+| 2 | A | Please remember I always prefer metric units and I'm vegetarian. |
+| — | — | *(server-side `add_session_to_memory` → Memory Bank generates memories)* |
+| 3 | B | Based on what you know about me, suggest what I should pack for a research trip, and note my dietary preference. |
+
+**Sample recall (Turn 3, from EXP-004):**
+> *"Given that you are vegetarian, I will keep that in mind. For a research trip, I'd suggest packing comfortable clothes suitable for the climate of your destination, any necessary research materials (laptop, notebooks, pens), toiletries, and …"*
+
+Recall succeeded **100%** of the time across all 5 runs — the agent always correctly remembered "vegetarian" from Session A without needing it re-told. Functional reliability is high; only the *cost* varies (see §4).
+
+Transcripts for memory_assistant predate the `exp_sample.py` transcript-logging flow, so no JSONL
+is committed/captured for this agent — the prompts above came from the experiment scripts
+(`scripts/exp004_memory.py`, `scripts/exp005_variability.py`).

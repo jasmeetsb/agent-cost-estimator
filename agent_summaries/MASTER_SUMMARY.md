@@ -120,6 +120,26 @@ Reference only — list price, not actual billed. The usage tables above are the
 4. **Memory generation + session events are consumed even when memories are never read back** — a real SKU footprint for any session-persisted agent.
 5. **Grounding and Imagen collectors are validated** (separate validation runs registered non-zero usage). For the 5 agents above the workloads simply didn't trigger them.
 
+## 6. Experiment query volume (what we actually sent)
+
+Each agent's test consists of N **interactions**, each = a 2-turn conversation + a memory-write (memory_assistant = 3-turn). Inside one interaction the user_id stays constant; across interactions we mint a fresh user_id so memory state doesn't carry over. **All interactions for a given agent cycle through the same prompt set** — that isolates the variability to LLM non-determinism rather than prompt diversity.
+
+| Agent | Interactions | Turns/interaction | Total user queries | Source |
+|---|---|---|---|---|
+| [nexshift-agent](nexshift_agent.md) | 35 | 2 | **70** | EXP-007 |
+| [fomc-research](fomc_research.md) | 35 | 2 | **70** | EXP-007 |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 35 | 2 | **70** | EXP-007 |
+| [on-brand-genmedia](on_brand_genmedia.md) | 35 | 2 | **70** | EXP-007 |
+| [memory_assistant](memory_assistant.md) | 4 | 3 | **12** | EXP-005 |
+| [financial-advisor](financial_advisor.md) | 3 | 2 | **6** | EXP-006 |
+| [academic-research](academic_research.md) | 3 | 2 | **6** | EXP-006 |
+| [blog-writer](blogger_agent.md) | 3 | 2 | **6** | EXP-006 |
+| [marketing-agency](marketing_agency.md) | 3 | 2 | **6** | EXP-006 |
+| grounded_news (validation) | 2 | 1 | **2** | collector-validation |
+| **TOTAL** | — | — | **318** | all experiments combined |
+
+Full per-turn transcripts (input, output_text, tool calls/responses, per-step usage) live at `data/transcript_<agent>.jsonl` locally. **Not committed** — `data/` is gitignored as runtime artifact. Each per-agent doc's §7 shows the workload prompts + one sample interaction inline.
+
 ## Per-agent detail docs
 
 - [on-brand-genmedia](on_brand_genmedia.md) — Brand-compliant iterative image generation.

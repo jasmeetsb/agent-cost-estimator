@@ -93,3 +93,23 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Agent Runtime | 0.0004 |
 | Memory Bank + Sessions | 0.0007 |
 | **Total (measured SKUs)** | **0.0011** (range 0.0011–0.0011) |
+
+## 7. Test workload & sample interaction
+
+Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+
+**Repeated workload (turn-by-turn):**
+
+| Turn | User query |
+|---|---|
+| 1 | Generate a 1-week nurse roster for 5 nurses across 3 daily shifts; minimum 2 nurses per shift. |
+| 2 | Now adjust the roster if 1 nurse is unavailable Tuesday morning and another wants Friday off. |
+
+**Sample interaction (the first run):**
+
+- **Turn 1** (0 in / 0 out tokens) — user: *Generate a 1-week nurse roster for 5 nurses across 3 daily shifts; minimum 2 nurses per shift.*
+  - reply preview: 
+- **Turn 2** (0 in / 0 out tokens) — user: *Now adjust the roster if 1 nurse is unavailable Tuesday morning and another wants Friday off.*
+  - reply preview: 
+
+Full transcripts: `data/transcript_nexshift_agent.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

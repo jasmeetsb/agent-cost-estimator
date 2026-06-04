@@ -89,3 +89,23 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Agent Runtime | 0.0055 |
 | Memory Bank + Sessions | 0.0015 |
 | **Total (measured SKUs)** | **0.0156** (range 0.0141–0.0170) |
+
+## 7. Test workload & sample interaction
+
+Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+
+**Repeated workload (turn-by-turn):**
+
+| Turn | User query |
+|---|---|
+| 1 | Write a short technical blog post about why vector databases matter for RAG. |
+| 2 | Make the intro punchier and add a one-line takeaway at the end. |
+
+**Sample interaction (the first run):**
+
+- **Turn 1** (742 in / 1915 out tokens) — user: *Write a short technical blog post about why vector databases matter for RAG.*
+  - reply preview: Of course. Here is a short technical blog post on why vector databases are important for RAG.  ***  ### Why Vector Databases are the Unsung Heroes of RAG  If you’ve been following the AI space, you’ve…
+- **Turn 2** (2673 in / 1649 out tokens) — user: *Make the intro punchier and add a one-line takeaway at the end.*
+  - reply preview: Of course. Here is the revised version with a punchier intro and a one-line takeaway.  ***  ### Why Vector Databases are the Unsung Heroes of RAG  Large Language Models (LLMs) are brilliant, but they …
+
+Full transcripts: `data/transcript_blogger_agent.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

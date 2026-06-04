@@ -96,3 +96,23 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Agent Runtime | 0.0055 |
 | Memory Bank + Sessions | 0.0012 |
 | **Total (measured SKUs)** | **0.0111** (range 0.0102–0.0119) |
+
+## 7. Test workload & sample interaction
+
+Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+
+**Repeated workload (turn-by-turn):**
+
+| Turn | User query |
+|---|---|
+| 1 | Create a brand concept for a new oat-milk startup called OatJoy. |
+| 2 | Suggest a tagline and a simple landing-page hero section. |
+
+**Sample interaction (the first run):**
+
+- **Turn 1** (742 in / 469 out tokens) — user: *Create a brand concept for a new oat-milk startup called OatJoy.*
+  - reply preview: Hello! As a marketing expert, I can help you build a strong brand for your oat-milk startup, OatJoy. Let's start by creating a unique online identity for your brand.  First, we'll choose the perfect d…
+- **Turn 2** (1223 in / 683 out tokens) — user: *Suggest a tagline and a simple landing-page hero section.*
+  - reply preview: That's a great idea! A strong tagline and hero section are essential for a compelling brand. However, to build a cohesive and effective online presence, it's best to secure your domain name first. Thi…
+
+Full transcripts: `data/transcript_marketing_agency.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

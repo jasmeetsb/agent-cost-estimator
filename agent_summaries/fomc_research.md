@@ -98,3 +98,23 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Agent Runtime | 0.0009 |
 | Memory Bank + Sessions | 0.0007 |
 | **Total (measured SKUs)** | **0.0033** (range 0.0025–0.0048) |
+
+## 7. Test workload & sample interaction
+
+Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+
+**Repeated workload (turn-by-turn):**
+
+| Turn | User query |
+|---|---|
+| 1 | Summarize the key economic themes from the most recent FOMC meeting. |
+| 2 | What was the FOMC's stance on inflation outlook and interest-rate trajectory? |
+
+**Sample interaction (the first run):**
+
+- **Turn 1** (594 in / 319 out tokens) — user: *Summarize the key economic themes from the most recent FOMC meeting.*
+  - reply preview: Please provide the date of the FOMC meeting you would like me to analyze.
+- **Turn 2** (930 in / 241 out tokens) — user: *What was the FOMC's stance on inflation outlook and interest-rate trajectory?*
+  - reply preview: Please provide the date of the FOMC meeting you would like me to analyze.
+
+Full transcripts: `data/transcript_fomc_research.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
