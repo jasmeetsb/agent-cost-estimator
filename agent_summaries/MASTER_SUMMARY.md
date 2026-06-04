@@ -27,10 +27,10 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 - **on-brand-genmedia** — Brand-compliant iterative image generation. Loop + Hierarchical: prompt → image (gemini-2.5-flash-image) → score → re-prompt if below threshold. Heaviest image-gen SKU usage in the corpus. → [details](on_brand_genmedia.md)
 - **financial-advisor** — Stock analysis & trading-strategy advisor. Hierarchical: coordinator + 4 AgentTool specialists (data, trading, execution, risk). Heaviest input-token consumer; runtime-dominated. → [details](financial_advisor.md)
 - **plumber-data-engineering-assistant** — Build/deploy data pipelines. Deepest hierarchy in the corpus: root + 6 specialist sub-agents (Dataflow / Dataproc / Dataproc-templates / dbt / GitHub / Cloud Monitoring). Touches ~10–11 distinct GCP product SKUs by intent. → [details](plumber_agent.md)
-- **memory_assistant** — Personal assistant with long-term cross-session memory. Coordinator + 2 sub-agents + Memory Bank (write+read). Exercises the most Agent Platform features in this corpus. → [details](memory_assistant.md)
-- **academic-research** — Academic literature discovery & analysis. Coordinator + AgentTool websearch + new-research specialists. → [details](academic_research.md)
-- **blog-writer** — Multi-agent technical blog authoring. Coordinator + 4 sub-agents (outline, draft, edit, social) + HITL refinement. → [details](blogger_agent.md)
 - **marketing-agency** — End-to-end branding suite: domain, website, marketing, logo (Imagen) creators wrapped as AgentTools under one coordinator. → [details](marketing_agency.md)
+- **memory_assistant** — Personal assistant with long-term cross-session memory. Coordinator + 2 sub-agents + Memory Bank (write+read). Exercises the most Agent Platform features in this corpus. → [details](memory_assistant.md)
+- **blog-writer** — Multi-agent technical blog authoring. Coordinator + 4 sub-agents (outline, draft, edit, social) + HITL refinement. → [details](blogger_agent.md)
+- **academic-research** — Academic literature discovery & analysis. Coordinator + AgentTool websearch + new-research specialists. → [details](academic_research.md)
 - **fomc-research** — FOMC meeting financial-analysis report. Hierarchical + Sequential multimodal pipeline (BigQuery metadata + PDF transcripts via pdfplumber + multimodal Gemini). → [details](fomc_research.md)
 - **nexshift-agent** — AI nurse rostering optimizer. Coordinator + 7 sub-agents + OR-Tools CP-SAT solver. 4 orchestration patterns (Hierarchical + Sequential + Parallel + HITL), 31 tools — broadest tool surface in the corpus. → [details](nexshift_agent.md)
 
@@ -39,12 +39,12 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 | Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
 |---|---|---|---|---|---|
 | [on-brand-genmedia](on_brand_genmedia.md) | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
-| [financial-advisor](financial_advisor.md) | 21679 (13333–34507) | 2410 (1430–2942) | 3.3 | 720.8 | 919 |
+| [financial-advisor](financial_advisor.md) | 21786 (7979–81100) | 2753 (1072–12463) | 3.5 | 543.0 | 590 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
+| [marketing-agency](marketing_agency.md) | 3914 (1816–9947) | 3487 (846–63892) | 3.0 | 204.0 | 254 |
 | [memory_assistant](memory_assistant.md) | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
-| [academic-research](academic_research.md) | 3367 (2233–5564) | 2699 (1158–5762) | 2.0 | 166.8 | 560 |
-| [blog-writer](blogger_agent.md) | 3027 (2543–3415) | 3039 (2527–3564) | 2.0 | 164.0 | 640 |
-| [marketing-agency](marketing_agency.md) | 2991 (1965–3609) | 1345 (1152–1638) | 2.7 | 164.0 | 640 |
+| [blog-writer](blogger_agent.md) | 2856 (1803–3618) | 2538 (733–4087) | 2.0 | 118.5 | 178 |
+| [academic-research](academic_research.md) | 2577 (1813–14570) | 1384 (423–6130) | 2.1 | 86.9 | 137 |
 | [fomc-research](fomc_research.md) | 1838 (1306–2800) | 479 (188–949) | 2.3 | 30.1 | 55 |
 | [nexshift-agent](nexshift_agent.md) | 0 (0–0) | 0 (0–0) | 0.0 | 12.8 | 37 |
 
@@ -53,12 +53,12 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 | Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |
 |---|---|---|---|---|
 | [on-brand-genmedia](on_brand_genmedia.md) | 31.6 | 4191 | 0.5 | 0.0 |
-| [financial-advisor](financial_advisor.md) | 6.7 | 3177 | 1.3 | 0.0 |
+| [financial-advisor](financial_advisor.md) | 7.1 | 3087 | 0.9 | 0.0 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 8.0 | 2853 | 0.6 | 0.0 |
+| [marketing-agency](marketing_agency.md) | 6.0 | 2671 | 0.5 | 0.0 |
 | [memory_assistant](memory_assistant.md) | 11.5 | 2493 | 3.2 | 2.5 |
-| [academic-research](academic_research.md) | 4.0 | 2732 | 0.0 | 0.0 |
-| [blog-writer](blogger_agent.md) | 4.0 | 3959 | 1.0 | 0.0 |
-| [marketing-agency](marketing_agency.md) | 5.3 | 2661 | 0.7 | 0.0 |
+| [blog-writer](blogger_agent.md) | 4.0 | 3540 | 0.4 | 0.0 |
+| [academic-research](academic_research.md) | 4.1 | 2627 | 0.1 | 0.0 |
 | [fomc-research](fomc_research.md) | 4.8 | 2358 | 0.0 | 0.0 |
 | [nexshift-agent](nexshift_agent.md) | 2.0 | 2390 | 1.0 | 0.0 |
 
@@ -73,10 +73,10 @@ Collectors: **`extract_grounding_from_events`** (per-interaction, attributable �
 | [on-brand-genmedia](on_brand_genmedia.md) | 0 | 27 |
 | [financial-advisor](financial_advisor.md) | 0 | 0 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0 | 0 |
-| [memory_assistant](memory_assistant.md) | 0 | 0 |
-| [academic-research](academic_research.md) | 0 | 0 |
-| [blog-writer](blogger_agent.md) | 0 | 0 |
 | [marketing-agency](marketing_agency.md) | 0 | 0 |
+| [memory_assistant](memory_assistant.md) | 0 | 0 |
+| [blog-writer](blogger_agent.md) | 0 | 0 |
+| [academic-research](academic_research.md) | 0 | 0 |
 | [fomc-research](fomc_research.md) | 0 | 0 |
 | [nexshift-agent](nexshift_agent.md) | 0 | 0 |
 
@@ -89,10 +89,10 @@ _Would bill ~$0.035 per grounded prompt (Gemini 2.x) and ~$0.04 per image (Image
 | [on-brand-genmedia](on_brand_genmedia.md) | ✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)** |
 | [financial-advisor](financial_advisor.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | [plumber-data-engineering-assistant](plumber_agent.md) | ✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent) |
-| [memory_assistant](memory_assistant.md) | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
-| [academic-research](academic_research.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
-| [blog-writer](blogger_agent.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | [marketing-agency](marketing_agency.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured |
+| [memory_assistant](memory_assistant.md) | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
+| [blog-writer](blogger_agent.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
+| [academic-research](academic_research.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | [fomc-research](fomc_research.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended) |
 | [nexshift-agent](nexshift_agent.md) | ✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | — |
 
@@ -103,12 +103,12 @@ Reference only — list price, not actual billed. The usage tables above are the
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
 | [on-brand-genmedia](on_brand_genmedia.md) | 0.0434 | 0.0086 | 0.0015 | 0.0843 (0.0549–0.1254) | Medium |
-| [financial-advisor](financial_advisor.md) | 0.0125 | 0.0196 | 0.0015 | 0.0336 (0.0298–0.0385) | Medium |
+| [financial-advisor](financial_advisor.md) | 0.0134 | 0.0145 | 0.0010 | 0.0289 (0.0215–0.0710) | High |
 | [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
-| [blog-writer](blogger_agent.md) | 0.0085 | 0.0055 | 0.0015 | 0.0156 (0.0141–0.0170) | Low |
-| [academic-research](academic_research.md) | 0.0078 | 0.0054 | 0.0012 | 0.0144 (0.0101–0.0226) | Very high |
+| [marketing-agency](marketing_agency.md) | 0.0099 | 0.0055 | 0.0008 | 0.0163 (0.0090–0.1671) | Very high |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0127 (0.0099–0.0172) | Medium |
-| [marketing-agency](marketing_agency.md) | 0.0043 | 0.0055 | 0.0012 | 0.0111 (0.0102–0.0119) | Medium |
+| [blog-writer](blogger_agent.md) | 0.0072 | 0.0033 | 0.0011 | 0.0116 (0.0068–0.0156) | Medium |
+| [academic-research](academic_research.md) | 0.0042 | 0.0024 | 0.0008 | 0.0074 (0.0049–0.0203) | Very high |
 | [fomc-research](fomc_research.md) | 0.0017 | 0.0009 | 0.0007 | 0.0033 (0.0025–0.0048) | Medium |
 | [nexshift-agent](nexshift_agent.md) | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 
@@ -126,17 +126,17 @@ Each agent's test consists of N **interactions**, each = a 2-turn conversation +
 
 | Agent | Interactions | Turns/interaction | Total user queries | Source |
 |---|---|---|---|---|
+| [financial-advisor](financial_advisor.md) | 35 | 2 | **70** | EXP-006 |
+| [academic-research](academic_research.md) | 35 | 2 | **70** | EXP-006 |
+| [blog-writer](blogger_agent.md) | 35 | 2 | **70** | EXP-006 |
+| [marketing-agency](marketing_agency.md) | 35 | 2 | **70** | EXP-006 |
 | [nexshift-agent](nexshift_agent.md) | 35 | 2 | **70** | EXP-007 |
 | [fomc-research](fomc_research.md) | 35 | 2 | **70** | EXP-007 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 35 | 2 | **70** | EXP-007 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 35 | 2 | **70** | EXP-007 |
 | [memory_assistant](memory_assistant.md) | 4 | 3 | **12** | EXP-005 |
-| [financial-advisor](financial_advisor.md) | 3 | 2 | **6** | EXP-006 |
-| [academic-research](academic_research.md) | 3 | 2 | **6** | EXP-006 |
-| [blog-writer](blogger_agent.md) | 3 | 2 | **6** | EXP-006 |
-| [marketing-agency](marketing_agency.md) | 3 | 2 | **6** | EXP-006 |
 | grounded_news (validation) | 2 | 1 | **2** | collector-validation |
-| **TOTAL** | — | — | **318** | all experiments combined |
+| **TOTAL** | — | — | **574** | all experiments combined |
 
 Full per-turn transcripts (input, output_text, tool calls/responses, per-step usage) live at `data/transcript_<agent>.jsonl` locally. **Not committed** — `data/` is gitignored as runtime artifact. Each per-agent doc's §7 shows the workload prompts + one sample interaction inline.
 
@@ -145,10 +145,10 @@ Full per-turn transcripts (input, output_text, tool calls/responses, per-step us
 - [on-brand-genmedia](on_brand_genmedia.md) — Brand-compliant iterative image generation.
 - [financial-advisor](financial_advisor.md) — Stock analysis & trading-strategy advisor.
 - [plumber-data-engineering-assistant](plumber_agent.md) — Build/deploy data pipelines.
-- [memory_assistant](memory_assistant.md) — Personal assistant with long-term cross-session memory.
-- [academic-research](academic_research.md) — Academic literature discovery & analysis.
-- [blog-writer](blogger_agent.md) — Multi-agent technical blog authoring.
 - [marketing-agency](marketing_agency.md) — End-to-end branding suite: domain, website, marketing, logo (Imagen) creators wrapped as AgentTools under one coordinator.
+- [memory_assistant](memory_assistant.md) — Personal assistant with long-term cross-session memory.
+- [blog-writer](blogger_agent.md) — Multi-agent technical blog authoring.
+- [academic-research](academic_research.md) — Academic literature discovery & analysis.
 - [fomc-research](fomc_research.md) — FOMC meeting financial-analysis report.
 - [nexshift-agent](nexshift_agent.md) — AI nurse rostering optimizer.
 

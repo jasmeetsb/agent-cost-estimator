@@ -9,12 +9,12 @@ Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3
 | Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
 |---|---|---|---|---|---|
 | on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
-| financial-advisor | 21679 (13333–34507) | 2410 (1430–2942) | 3.3 | 720.8 | 919 |
+| financial-advisor | 21786 (7979–81100) | 2753 (1072–12463) | 3.5 | 543.0 | 590 |
 | plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
+| marketing-agency | 3914 (1816–9947) | 3487 (846–63892) | 3.0 | 204.0 | 254 |
 | memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
-| academic-research | 3367 (2233–5564) | 2699 (1158–5762) | 2.0 | 166.8 | 560 |
-| blog-writer | 3027 (2543–3415) | 3039 (2527–3564) | 2.0 | 164.0 | 640 |
-| marketing-agency | 2991 (1965–3609) | 1345 (1152–1638) | 2.7 | 164.0 | 640 |
+| blog-writer | 2856 (1803–3618) | 2538 (733–4087) | 2.0 | 118.5 | 178 |
+| academic-research | 2577 (1813–14570) | 1384 (423–6130) | 2.1 | 86.9 | 137 |
 | fomc-research | 1838 (1306–2800) | 479 (188–949) | 2.3 | 30.1 | 55 |
 | nexshift-agent | 0 (0–0) | 0 (0–0) | 0.0 | 12.8 | 37 |
 
@@ -23,12 +23,12 @@ Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3
 | Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |
 |---|---|---|---|---|
 | on-brand-genmedia | 31.6 | 4191 | 0.5 | 0.0 |
-| financial-advisor | 6.7 | 3177 | 1.3 | 0.0 |
+| financial-advisor | 7.1 | 3087 | 0.9 | 0.0 |
 | plumber-data-engineering-assistant | 8.0 | 2853 | 0.6 | 0.0 |
+| marketing-agency | 6.0 | 2671 | 0.5 | 0.0 |
 | memory_assistant | 11.5 | 2493 | 3.2 | 2.5 |
-| academic-research | 4.0 | 2732 | 0.0 | 0.0 |
-| blog-writer | 4.0 | 3959 | 1.0 | 0.0 |
-| marketing-agency | 5.3 | 2661 | 0.7 | 0.0 |
+| blog-writer | 4.0 | 3540 | 0.4 | 0.0 |
+| academic-research | 4.1 | 2627 | 0.1 | 0.0 |
 | fomc-research | 4.8 | 2358 | 0.0 | 0.0 |
 | nexshift-agent | 2.0 | 2390 | 1.0 | 0.0 |
 
@@ -43,10 +43,10 @@ Collectors added for Google Search grounding (Cloud Monitoring) and image genera
 | on-brand-genmedia | 0 | 27 |
 | financial-advisor | 0 | 0 |
 | plumber-data-engineering-assistant | 0 | 0 |
-| memory_assistant | 0 | 0 |
-| academic-research | 0 | 0 |
-| blog-writer | 0 | 0 |
 | marketing-agency | 0 | 0 |
+| memory_assistant | 0 | 0 |
+| blog-writer | 0 | 0 |
+| academic-research | 0 | 0 |
 | fomc-research | 0 | 0 |
 | nexshift-agent | 0 | 0 |
 
@@ -59,10 +59,10 @@ _Would bill ~$0.035 per grounded request (Gemini 2.x) and ~$0.04 per image (Imag
 | on-brand-genmedia | ✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)** |
 | financial-advisor | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | plumber-data-engineering-assistant | ✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent) |
-| memory_assistant | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
-| academic-research | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
-| blog-writer | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | marketing-agency | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured |
+| memory_assistant | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
+| blog-writer | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
+| academic-research | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | fomc-research | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended) |
 | nexshift-agent | ✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | — |
 
@@ -73,12 +73,12 @@ Reference only — list price, not actual billed. The usage tables above are the
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
 | on-brand-genmedia | 0.0434 | 0.0086 | 0.0015 | 0.0843 (0.0549–0.1254) | Medium |
-| financial-advisor | 0.0125 | 0.0196 | 0.0015 | 0.0336 (0.0298–0.0385) | Medium |
+| financial-advisor | 0.0134 | 0.0145 | 0.0010 | 0.0289 (0.0215–0.0710) | High |
 | memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
-| blog-writer | 0.0085 | 0.0055 | 0.0015 | 0.0156 (0.0141–0.0170) | Low |
-| academic-research | 0.0078 | 0.0054 | 0.0012 | 0.0144 (0.0101–0.0226) | Very high |
+| marketing-agency | 0.0099 | 0.0055 | 0.0008 | 0.0163 (0.0090–0.1671) | Very high |
 | plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0127 (0.0099–0.0172) | Medium |
-| marketing-agency | 0.0043 | 0.0055 | 0.0012 | 0.0111 (0.0102–0.0119) | Medium |
+| blog-writer | 0.0072 | 0.0033 | 0.0011 | 0.0116 (0.0068–0.0156) | Medium |
+| academic-research | 0.0042 | 0.0024 | 0.0008 | 0.0074 (0.0049–0.0203) | Very high |
 | fomc-research | 0.0017 | 0.0009 | 0.0007 | 0.0033 (0.0025–0.0048) | Medium |
 | nexshift-agent | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 

@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6855475340148473856`
 - **Use case:** End-to-end website/branding launch suite · **Complexity:** Medium-High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.7 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (3.0 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -53,23 +53,23 @@ Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; Imagen / ge
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **3 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package marketing_agency --runs 3 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package marketing_agency --runs 35 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 3 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 2991 | 1965–3609 | Medium |
-| Gemini output tokens (incl. thinking) | tokens | 1345 | 1152–1638 | Medium |
-| Model calls | calls | 2.7 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 164.0 | — | — |
-| Agent Runtime — memory | GiB-seconds | 640.3 | — | — |
-| Sessions | events appended | 5.3 | — | Medium |
-| Memory Bank — generation | tokens | 2661 | — | — |
-| Memory Bank — memories written | memories | 0.7 | — | — |
+| Gemini input tokens | tokens | 3914 | 1816–9947 | High |
+| Gemini output tokens (incl. thinking) | tokens | 3487 | 846–63892 | Very high |
+| Model calls | calls | 3.0 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 204.0 | — | — |
+| Agent Runtime — memory | GiB-seconds | 253.8 | — | — |
+| Sessions | events appended | 6.0 | — | Medium |
+| Memory Bank — generation | tokens | 2671 | — | — |
+| Memory Bank — memories written | memories | 0.5 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
@@ -92,14 +92,14 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0043 |
+| Gemini tokens | 0.0099 |
 | Agent Runtime | 0.0055 |
-| Memory Bank + Sessions | 0.0012 |
-| **Total (measured SKUs)** | **0.0111** (range 0.0102–0.0119) |
+| Memory Bank + Sessions | 0.0008 |
+| **Total (measured SKUs)** | **0.0163** (range 0.0090–0.1671) |
 
 ## 7. Test workload & sample interaction
 
-Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
 
 **Repeated workload (turn-by-turn):**
 
@@ -110,9 +110,9 @@ Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user
 
 **Sample interaction (the first run):**
 
-- **Turn 1** (742 in / 469 out tokens) — user: *Create a brand concept for a new oat-milk startup called OatJoy.*
-  - reply preview: Hello! As a marketing expert, I can help you build a strong brand for your oat-milk startup, OatJoy. Let's start by creating a unique online identity for your brand.  First, we'll choose the perfect d…
-- **Turn 2** (1223 in / 683 out tokens) — user: *Suggest a tagline and a simple landing-page hero section.*
-  - reply preview: That's a great idea! A strong tagline and hero section are essential for a compelling brand. However, to build a cohesive and effective online presence, it's best to secure your domain name first. Thi…
+- **Turn 1** (2090 in / 984 out tokens) — user: *Create a brand concept for a new oat-milk startup called OatJoy.*
+  - reply preview: Of course! Let's start by securing the perfect domain name for your oat-milk startup, OatJoy.  I've used a specialized tool to find some creative and available options for you.  domain_create_agent to…
+- **Turn 2** (1832 in / 696 out tokens) — user: *Suggest a tagline and a simple landing-page hero section.*
+  - reply preview: Excellent ideas! We'll definitely get to crafting the perfect tagline and hero section for your landing page.  However, before we dive into the creative details of your website, we first need to secur…
 
 Full transcripts: `data/transcript_marketing_agency.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

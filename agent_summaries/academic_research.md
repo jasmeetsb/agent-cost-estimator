@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `4540625131680038912`
 - **Use case:** Academic literature analysis & discovery · **Complexity:** Medium-High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.0 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.1 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -46,23 +46,23 @@ Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; Google Sear
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **3 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package academic_research --runs 3 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package academic_research --runs 35 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 3 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 3367 | 2233–5564 | High |
-| Gemini output tokens (incl. thinking) | tokens | 2699 | 1158–5762 | Very high |
-| Model calls | calls | 2.0 | — | Low |
-| Agent Runtime — vCPU | vCPU-seconds | 166.8 | — | — |
-| Agent Runtime — memory | GiB-seconds | 560.1 | — | — |
-| Sessions | events appended | 4.0 | — | Low |
-| Memory Bank — generation | tokens | 2732 | — | — |
-| Memory Bank — memories written | memories | 0.0 | — | — |
+| Gemini input tokens | tokens | 2577 | 1813–14570 | Very high |
+| Gemini output tokens (incl. thinking) | tokens | 1384 | 423–6130 | Very high |
+| Model calls | calls | 2.1 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 86.9 | — | — |
+| Agent Runtime — memory | GiB-seconds | 137.3 | — | — |
+| Sessions | events appended | 4.1 | — | Medium |
+| Memory Bank — generation | tokens | 2627 | — | — |
+| Memory Bank — memories written | memories | 0.1 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
@@ -85,14 +85,14 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0078 |
-| Agent Runtime | 0.0054 |
-| Memory Bank + Sessions | 0.0012 |
-| **Total (measured SKUs)** | **0.0144** (range 0.0101–0.0226) |
+| Gemini tokens | 0.0042 |
+| Agent Runtime | 0.0024 |
+| Memory Bank + Sessions | 0.0008 |
+| **Total (measured SKUs)** | **0.0074** (range 0.0049–0.0203) |
 
 ## 7. Test workload & sample interaction
 
-Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
 
 **Repeated workload (turn-by-turn):**
 
@@ -103,9 +103,9 @@ Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user
 
 **Sample interaction (the first run):**
 
-- **Turn 1** (819 in / 652 out tokens) — user: *Summarize recent research directions in efficient transformer architectures.*
-  - reply preview: Hello! I can certainly help you with that. To start, could you please provide a seminal paper on the topic of efficient transformer architectures? This will serve as a foundational document for our ex…
-- **Turn 2** (1485 in / 506 out tokens) — user: *Which of those directions looks most promising for edge deployment, and why?*
-  - reply preview: That's an excellent question. To determine which research directions are most promising for edge deployment, I first need to conduct the initial analysis. The results of this analysis will reveal the …
+- **Turn 1** (819 in / 523 out tokens) — user: *Summarize recent research directions in efficient transformer architectures.*
+  - reply preview: Hello! I can certainly help you with that. To provide a thorough analysis of recent research in efficient transformer architectures, I first need a seminal paper on the topic to serve as a starting po…
+- **Turn 2** (1356 in / 482 out tokens) — user: *Which of those directions looks most promising for edge deployment, and why?*
+  - reply preview: That's an excellent question. To determine which research directions are most promising for edge deployment, I first need to identify the current research directions in efficient transformer architect…
 
 Full transcripts: `data/transcript_academic_research.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

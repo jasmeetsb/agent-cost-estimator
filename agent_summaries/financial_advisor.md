@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `343270278970736640`
 - **Use case:** Stock analysis & trading-strategy advisor · **Complexity:** High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (3.3 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (3.5 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -50,23 +50,23 @@ Gemini tokens (input/output/cached); Agent Runtime (vCPU + memory); Sessions; Me
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **3 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package financial_advisor --runs 3 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package financial_advisor --runs 35 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 3 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 21679 | 13333–34507 | High |
-| Gemini output tokens (incl. thinking) | tokens | 2410 | 1430–2942 | Medium |
-| Model calls | calls | 3.3 | — | Low |
-| Agent Runtime — vCPU | vCPU-seconds | 720.8 | — | — |
-| Agent Runtime — memory | GiB-seconds | 919.2 | — | — |
-| Sessions | events appended | 6.7 | — | Low |
-| Memory Bank — generation | tokens | 3177 | — | — |
-| Memory Bank — memories written | memories | 1.3 | — | — |
+| Gemini input tokens | tokens | 21786 | 7979–81100 | High |
+| Gemini output tokens (incl. thinking) | tokens | 2753 | 1072–12463 | Very high |
+| Model calls | calls | 3.5 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 543.0 | — | — |
+| Agent Runtime — memory | GiB-seconds | 589.9 | — | — |
+| Sessions | events appended | 7.1 | — | Medium |
+| Memory Bank — generation | tokens | 3087 | — | — |
+| Memory Bank — memories written | memories | 0.9 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
@@ -89,14 +89,14 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0125 |
-| Agent Runtime | 0.0196 |
-| Memory Bank + Sessions | 0.0015 |
-| **Total (measured SKUs)** | **0.0336** (range 0.0298–0.0385) |
+| Gemini tokens | 0.0134 |
+| Agent Runtime | 0.0145 |
+| Memory Bank + Sessions | 0.0010 |
+| **Total (measured SKUs)** | **0.0289** (range 0.0215–0.0710) |
 
 ## 7. Test workload & sample interaction
 
-Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
 
 **Repeated workload (turn-by-turn):**
 
@@ -107,9 +107,9 @@ Total user turns recorded: **6** (≈ 3 interactions × 2 turns each, fresh user
 
 **Sample interaction (the first run):**
 
-- **Turn 1** (9049 in / 1157 out tokens) — user: *I'm a moderate-risk investor. Analyze the outlook for NVDA.*
+- **Turn 1** (7295 in / 1563 out tokens) — user: *I'm a moderate-risk investor. Analyze the outlook for NVDA.*
   - reply preview: Hello! I'm here to help you navigate the world of financial decision-making. My main goal is to provide you with comprehensive financial advice by guiding you through a step-by-step process. We'll wor…
-- **Turn 2** (8147 in / 273 out tokens) — user: *Based on that, suggest a simple trading strategy and key risks.*
-  - reply preview: I can do that, but to suggest a suitable trading strategy, I really need to know your investment time horizon. Strategies for short-term and long-term investors can be very different.  For example, a …
+- **Turn 2** (16737 in / 2853 out tokens) — user: *Based on that, suggest a simple trading strategy and key risks.*
+  - reply preview: Of course. To provide a trading strategy, I will assume a **medium-term** investment period, as this typically aligns with a moderate-risk profile.  I will now call the `trading_analyst` subagent to g…
 
 Full transcripts: `data/transcript_financial_advisor.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
