@@ -11,15 +11,23 @@
 graph TB
     User([User]) --> Coord
     subgraph Engine["Vertex AI Agent Engine — academic_research"]
+        direction TB
         Coord[academic_coordinator]
         Coord -->|AgentTool| WS[academic_websearch]
         Coord -->|AgentTool| NR[academic_newresearch]
     end
-    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
-    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
-    Engine -.->|events appended| Sess[(Sessions SKU)]
-    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
-    WS -.->|capable, 0 measured| Search[(Google Search grounding)]
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    subgraph Extras["Agent-specific SKUs"]
+        Search[("Google Search grounding<br/>capable, 0 measured")]
+    end
+    Engine -.-> Core
+    WS -.-> Search
 ```
 
 `academic_coordinator` (root) routes between 2 specialist AgentTools:

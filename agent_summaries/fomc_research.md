@@ -11,19 +11,30 @@
 graph TB
     User([User]) --> Root
     subgraph Engine["Vertex AI Agent Engine — fomc-research"]
+        direction TB
         Root[root_agent]
         Root -->|1| R1[retrieve_meeting_data]
         Root -->|2| R2["extract_page_data<br/>(multimodal Gemini)"]
         Root -->|3| R3[research_agent]
         Root -->|4| R4[analysis_agent]
     end
-    Engine -.->|tokens text + multimodal| Gemini[(Gemini 2.5 Flash)]
-    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
-    Engine -.->|events appended| Sess[(Sessions SKU)]
-    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
-    R1 -.->|FOMC dataset query| BQ[(BigQuery)]
-    R2 -.->|PDF transcript download| GCS[(Cloud Storage)]
-    R3 -.->|capable, 0 measured| Search[(Google Search grounding)]
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token (text + multimodal)")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    subgraph Extras["Agent-specific SKUs"]
+        direction LR
+        BQ[("BigQuery<br/>FOMC dataset queries")]
+        GCS[("Cloud Storage<br/>PDF transcripts")]
+        Search[("Google Search grounding<br/>capable, 0 measured")]
+    end
+    Engine -.-> Core
+    R1 -.-> BQ
+    R2 -.-> GCS
+    R3 -.-> Search
 ```
 
 Hierarchical multi-stage research pipeline. Root agent coordinates 4 sub-agents in sequence:

@@ -11,16 +11,21 @@
 graph TB
     User([User]) <-->|HITL refine| Coord
     subgraph Engine["Vertex AI Agent Engine — blog-writer"]
+        direction TB
         Coord[interactive_blogger_agent]
         Coord --> P1[blog_planner]
         P1 --> P2[blog_writer]
         P2 --> P3[blog_editor]
         P3 --> P4[social_media_writer]
     end
-    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
-    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
-    Engine -.->|events appended| Sess[(Sessions SKU)]
-    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    Engine -.-> Core
 ```
 
 `interactive_blogger_agent` orchestrates a 4-stage pipeline of sub-agents:

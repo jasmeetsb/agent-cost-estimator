@@ -11,18 +11,28 @@
 graph TB
     User([User]) --> Coord
     subgraph Engine["Vertex AI Agent Engine — marketing-agency"]
+        direction TB
         Coord[marketing_coordinator]
         Coord -->|AgentTool| DC[domain_create_agent]
         Coord -->|AgentTool| WC[website_create_agent]
         Coord -->|AgentTool| MC[marketing_create_agent]
         Coord -->|AgentTool| LC[logo_create_agent]
     end
-    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
-    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
-    Engine -.->|events appended| Sess[(Sessions SKU)]
-    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
-    LC -.->|per image| Imagen[(gemini-2.5-flash-image SKU)]
-    LC -.->|image artifact| GCS[(Cloud Storage)]
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    subgraph Extras["Agent-specific SKUs"]
+        direction LR
+        Imagen[("gemini-2.5-flash-image<br/>per image")]
+        GCS[("Cloud Storage<br/>image artifacts")]
+    end
+    Engine -.-> Core
+    LC -.-> Imagen
+    LC -.-> GCS
 ```
 
 `marketing_coordinator` (root) delegates to 4 specialist creators wrapped as AgentTools:

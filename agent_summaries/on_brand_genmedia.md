@@ -11,6 +11,7 @@
 graph TB
     User([User]) --> Prompt
     subgraph Engine["Vertex AI Agent Engine — on-brand-genmedia"]
+        direction TB
         Prompt[prompt_agent]
         Img[image_agent]
         Score[scoring_agent]
@@ -19,12 +20,21 @@ graph TB
         Check -->|no, loop up to 2x| Prompt
         Check -->|yes| Out([final image])
     end
-    Engine -.->|tokens, heavy fan-out| Gemini[(Gemini 2.5 Flash)]
-    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
-    Engine -.->|events appended| Sess[(Sessions SKU)]
-    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
-    Img -.->|per image $0.04| Imagen[(gemini-2.5-flash-image SKU)]
-    Img -.->|image artifact| GCS[(Cloud Storage)]
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token (heavy fan-out)")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    subgraph Extras["Agent-specific SKUs"]
+        direction LR
+        Imagen[("gemini-2.5-flash-image<br/>per image (~$0.04)")]
+        GCS[("Cloud Storage<br/>image artifacts")]
+    end
+    Engine -.-> Core
+    Img -.-> Imagen
+    Img -.-> GCS
 ```
 
 Iterative image generation with a scoring gate. Sub-agents:

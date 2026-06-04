@@ -11,6 +11,7 @@
 graph TB
     User([User]) <-->|HITL| Coord
     subgraph Engine["Vertex AI Agent Engine — nexshift-agent"]
+        direction TB
         Coord[RosteringCoordinator]
         Coord --> CG[context_gatherer]
         Coord --> Cfg[config]
@@ -19,10 +20,14 @@ graph TB
         Coord --> Emp[empathy]
         Coord --> Prs[presenter]
     end
-    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
-    SV -.->|heavy vCPU on hard solves| Runtime[(Agent Runtime SKU)]
-    Engine -.->|events appended| Sess[(Sessions SKU)]
-    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec<br/>(heavy on hard solves)")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    Engine -.-> Core
 ```
 
 `RosteringCoordinator` (root) orchestrates **7 specialist sub-agents** across the rostering flow:

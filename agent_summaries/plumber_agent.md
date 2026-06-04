@@ -11,6 +11,7 @@
 graph TB
     User([User]) --> Coord
     subgraph Engine["Vertex AI Agent Engine — plumber-agent"]
+        direction TB
         Coord[plumber_agent]
         Coord --> DA[dataflow_agent]
         Coord --> DPA[dataproc_agent]
@@ -19,17 +20,31 @@ graph TB
         Coord --> GH[github_agent]
         Coord --> Mon[monitoring_agent]
     end
-    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
-    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
-    Engine -.->|events appended| Sess[(Sessions SKU)]
-    Engine -.->|writes + gen tokens| MB[(Memory Bank SKU)]
-    DBT -.->|SQL artifact| GCS[(Cloud Storage)]
-    DBT -.->|execute| BQ[(BigQuery)]
-    DA -.->|capable| DF[(Dataflow)]
-    DPA -.->|capable| DP[(Dataproc)]
-    DPT -.->|capable| DFT[(Dataform)]
-    Mon -.->|read metrics| CM[(Cloud Monitoring)]
-    GH -.->|external| GHE[GitHub repo]
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    subgraph Extras["Agent-specific SKUs (~6 GCP data products by intent)"]
+        direction LR
+        BQ[("BigQuery<br/>dbt execution")]
+        GCS[("Cloud Storage<br/>SQL artifacts")]
+        DF[("Dataflow<br/>pipeline jobs")]
+        DP[("Dataproc<br/>cluster ops")]
+        DFT[("Dataform<br/>templates")]
+        CM[("Cloud Monitoring<br/>metric reads")]
+        GHE[GitHub repo<br/>external]
+    end
+    Engine -.-> Core
+    DBT -.-> BQ
+    DBT -.-> GCS
+    DA -.-> DF
+    DPA -.-> DP
+    DPT -.-> DFT
+    Mon -.-> CM
+    GH -.-> GHE
 ```
 
 `plumber_agent` (root) routes data-engineering requests to **6 specialist sub-agents** — the deepest hierarchy in this corpus. Each sub-agent owns a distinct GCP data product:

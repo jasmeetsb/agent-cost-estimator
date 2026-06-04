@@ -31,14 +31,19 @@ Sessions (managed, persistent) → every turn/event persisted
 graph TB
     User([User]) <-->|2 sessions across days| Coord
     subgraph Engine["Vertex AI Agent Engine — memory_assistant"]
+        direction TB
         Coord["personal_assistant<br/>(preload_memory tool)"]
         Coord --> P[prefs_agent]
         Coord --> N[notes_agent]
     end
-    Engine -.->|tokens| Gemini[(Gemini 2.5 Flash)]
-    Engine -.->|vCPU + memory| Runtime[(Agent Runtime SKU)]
-    Engine <-.->|events appended| Sess[(Sessions SKU)]
-    Engine <-.->|read + write + gen tokens| MB[(Memory Bank SKU<br/>cross-session)]
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens<br/>(read+write+gen)")]
+    end
+    Engine -.-> Core
 ```
 
 **Cost unit — "1 interaction" = 3 user messages across 2 sessions** (NOT a single query):
