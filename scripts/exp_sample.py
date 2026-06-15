@@ -94,13 +94,33 @@ WORKLOADS = {
 }
 
 
+def _with_retry(fn, *, what="call", tries=6, base=8.0):
+    """Retry on ResourceExhausted (429 'Query Reasoning Engine requests per minute
+    per region' — a per-minute regional rate limit). Exponential backoff so the
+    minute window clears between attempts."""
+    import time as _t
+    for i in range(tries):
+        try:
+            return fn()
+        except Exception as ex:
+            m = str(ex)
+            transient = ("RESOURCE_EXHAUSTED" in m or "429" in m or "ResourceExhausted" in type(ex).__name__
+                         or "503" in m or "ServiceUnavailable" in type(ex).__name__)
+            if not transient or i == tries - 1:
+                raise
+            wait = base * (2 ** i)
+            print(f"   {what}: rate-limited, backoff {wait:.0f}s (attempt {i+1}/{tries})")
+            _t.sleep(min(wait, 90))
+
+
 def one_run(engine, pb, user, transcripts):
     in_tok = out_tok = calls = events_total = grounded = 0
     prompts = WORKLOADS.get(_AGENT, WORKLOADS["financial_advisor"])
 
     def turn(session_id, msg):
         nonlocal in_tok, out_tok, calls, events_total, grounded
-        evs = list(engine.stream_query(user_id=user, session_id=session_id, message=msg))
+        evs = _with_retry(lambda: list(engine.stream_query(
+            user_id=user, session_id=session_id, message=msg)), what="stream_query")
         events_total += len(evs) + 1
         qc = price_query(evs, pb)
         in_tok += qc.usage.prompt_tokens + qc.usage.cached_tokens
@@ -110,13 +130,15 @@ def one_run(engine, pb, user, transcripts):
         rec = build_turn(msg, evs, session_id=session_id); rec["user"] = user
         transcripts.append(rec)
 
-    s = engine.create_session(user_id=user)
+    s = _with_retry(lambda: engine.create_session(user_id=user), what="create_session")
     sid = s.get("id") if isinstance(s, dict) else s.id
     for m in prompts:
         turn(sid, m)
     try:
-        sess = engine.get_session(user_id=user, session_id=sid)
-        asyncio.run(engine.async_add_session_to_memory(session=sess))
+        sess = _with_retry(lambda: engine.get_session(user_id=user, session_id=sid),
+                           what="get_session")
+        _with_retry(lambda: asyncio.run(engine.async_add_session_to_memory(session=sess)),
+                    what="add_session_to_memory")
     except Exception as ex:
         print("   memory add skipped:", repr(ex)[:80])
     model_usd = in_tok * (pb.input_token_usd or 0) + out_tok * (pb.output_token_usd or 0)
@@ -141,6 +163,9 @@ def main():
     ap.add_argument("--package", required=True)
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--settle", type=int, default=300)
+    ap.add_argument("--delay", type=float, default=2.0,
+                    help="seconds between runs to stay under the per-minute "
+                         "Query Reasoning Engine requests quota")
     args = ap.parse_args()
     _AGENT = args.package
 
@@ -160,6 +185,8 @@ def main():
             r = one_run(engine, pb, user, transcripts)
         except Exception as ex:
             print("  run failed:", repr(ex)[:160]); continue
+        if args.delay:
+            time.sleep(args.delay)
         rows.append(r)
         print(f"  in={r['input_tokens']:6} out={r['output_tokens']:6} calls={r['model_calls']} "
               f"events={r['session_events']} model=${r['model_usd']:.6f}")
