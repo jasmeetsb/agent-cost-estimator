@@ -74,6 +74,23 @@ WORKLOADS = {
         "Design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery.",
         "What would the dbt model look like to aggregate the daily data into weekly summaries?",
     ],
+    # ---- Archetype agents (moderate complexity) ----
+    "conversational_chatbot": [
+        "Hi, how do I reset my password and what are your support hours?",
+        "Also, what are your pricing tiers and do you support SSO?",
+    ],
+    "workflow_operator": [
+        "Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.",
+        "Now process order ORD-1003 — flag any issues before shipping.",
+    ],
+    "autonomous_researcher": [
+        "Research the current state of small modular nuclear reactors (SMRs) and their commercial outlook.",
+        "Now focus on the main regulatory and cost barriers, and which companies lead.",
+    ],
+    "multi_agent_orchestrator": [
+        "Analyze last quarter's support-ticket volume trend and recommend actions.",
+        "Now draft an executive summary, open a follow-up ticket, and send an update to the ops channel.",
+    ],
 }
 
 

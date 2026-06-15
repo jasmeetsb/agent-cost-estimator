@@ -1,0 +1,64 @@
+"""Conversational Chatbot archetype — Moderate complexity.
+
+Single user-facing support agent. Light tool use (FAQ + KB lookup), Memory Bank
+for returning-user personalization. Matches the calculator's Conversational
+Chatbot / Moderate column: ~3 turns/query, 20% turns with tools, cheap model.
+
+Intended model tier: Gemini 3.1 Flash-Lite (volume-driven). Deployed on
+gemini-2.5-flash for measurement parity with prior experiments.
+"""
+
+from google.adk.agents import Agent
+from google.adk.tools import preload_memory
+
+MODEL = "gemini-2.5-flash"
+
+# Canned support knowledge — stands in for a BigQuery/KB lookup (the real SKU
+# would be BigQuery; mocked here so the agent is deployable without a dataset).
+_FAQ = {
+    "reset password": "Go to Settings → Security → Reset Password; you'll get an email link.",
+    "business hours": "Support is available 9am–6pm local time, Monday–Friday.",
+    "refund": "Refunds are processed within 5–7 business days to the original payment method.",
+    "shipping": "Standard shipping takes 3–5 business days; express is 1–2.",
+    "cancel": "You can cancel any time from Account → Subscriptions → Cancel.",
+}
+
+_KB = {
+    "integration": "We support REST and webhook integrations; see docs.example.com/integrations.",
+    "pricing tiers": "Starter ($0), Pro ($29/mo), Enterprise (contact sales).",
+    "data export": "Export your data as CSV or JSON from Account → Data → Export.",
+    "sso": "SSO (SAML/OIDC) is available on Enterprise; contact your account manager.",
+}
+
+
+def faq_lookup(topic: str) -> dict:
+    """Look up an answer to a common support question by topic."""
+    key = topic.strip().lower()
+    for k, v in _FAQ.items():
+        if k in key or key in k:
+            return {"status": "ok", "topic": k, "answer": v}
+    return {"status": "not_found", "message": f"No FAQ entry for '{topic}'."}
+
+
+def kb_search(query: str) -> dict:
+    """Search the product knowledge base for a topic."""
+    key = query.strip().lower()
+    hits = [{"topic": k, "answer": v} for k, v in _KB.items() if any(w in k for w in key.split())]
+    if hits:
+        return {"status": "ok", "results": hits[:3]}
+    return {"status": "not_found", "message": f"No KB articles for '{query}'."}
+
+
+root_agent = Agent(
+    name="conversational_chatbot",
+    model=MODEL,
+    description="Customer-support chatbot that answers questions using FAQ + KB lookup, with memory of the user.",
+    instruction=(
+        "You are a friendly customer-support assistant. Answer concisely. "
+        "Use faq_lookup for common questions (passwords, refunds, shipping, hours, cancellation) "
+        "and kb_search for product/technical topics (integrations, pricing, SSO, data export). "
+        "Recalled facts about the user appear in context — use them to personalize. "
+        "If a lookup returns nothing, answer from general knowledge and offer to escalate."
+    ),
+    tools=[faq_lookup, kb_search, preload_memory],
+)
