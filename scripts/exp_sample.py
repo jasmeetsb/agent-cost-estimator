@@ -113,9 +113,71 @@ def _with_retry(fn, *, what="call", tries=6, base=8.0):
             _t.sleep(min(wait, 90))
 
 
-def one_run(engine, pb, user, transcripts):
+# Multi-conversation scenarios (varying turn counts + topics) for the archetype
+# agents. Real-world interactions differ in length and subject; cycling these
+# across interactions makes the accumulated dataset more representative than one
+# repeated 2-turn workload. Turn counts raised where it makes sense per archetype.
+SCENARIOS = {
+    "conversational_chatbot": [  # 2-4 turns; support back-and-forth
+        ["How do I reset my password, and what are your support hours?",
+         "Also, what are your pricing tiers and do you support SSO?"],
+        ["I'd like a refund on my last order.",
+         "How long does that take to process?",
+         "Can it go to a different card than I paid with?"],
+        ["Do you integrate with Slack?",
+         "What about exporting my data?",
+         "Is data export on the Pro tier or Enterprise only?",
+         "Okay — how do I upgrade my plan?"],
+        ["My shipment hasn't arrived yet.",
+         "It's order ORD-1002. What's the ETA?",
+         "Can you switch it to express?"],
+    ],
+    "workflow_operator": [  # 2-4 turns; order workflows
+        ["Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.",
+         "Now process order ORD-1003 — flag any issues before shipping."],
+        ["Process order ORD-1002 with standard shipping.",
+         "Apply the WELCOME discount and recalculate shipping.",
+         "Send the customer an email confirmation and log it."],
+        ["Check inventory for the items in order ORD-1001.",
+         "Validate the address and calculate express shipping.",
+         "Apply SAVE10 and update the status to confirmed.",
+         "Notify the customer by SMS and log the transaction."],
+    ],
+    "autonomous_researcher": [  # 2-3 turns; expensive (long outputs + grounding)
+        ["Research the current state of small modular nuclear reactors (SMRs) and their commercial outlook.",
+         "Now focus on the main regulatory and cost barriers, and which companies lead."],
+        ["Research the state of solid-state EV batteries in 2026.",
+         "Which companies are closest to mass production, and what technical hurdles remain?",
+         "Summarize the investment outlook in a few sentences."],
+        ["Research recent advances in direct-air carbon capture.",
+         "Compare it with point-source capture on cost and scalability."],
+    ],
+    "multi_agent_orchestrator": [  # 2-5 turns; multi-step analyses
+        ["Analyze last quarter's support-ticket volume trend and recommend actions.",
+         "Now draft an executive summary, open a follow-up ticket, and send an update to the ops channel."],
+        ["Pull our key product metrics for the last 30 days and analyze the trend.",
+         "Fetch the related customer records.",
+         "Summarize the findings, create a ticket for the biggest issue, and notify the team."],
+        ["Gather sales metrics and the internal playbook on churn.",
+         "Analyze the churn trend.",
+         "Cross-reference it with recent support tickets.",
+         "Draft an executive summary of what's driving churn.",
+         "Open a remediation ticket and send an update to the ops channel."],
+    ],
+}
+
+
+def get_scenarios(pkg):
+    """Return a list of conversations (each a list of turn strings) for an agent.
+    Multi-scenario for archetypes; single repeated workload otherwise."""
+    if pkg in SCENARIOS:
+        return SCENARIOS[pkg]
+    return [WORKLOADS.get(pkg, WORKLOADS["financial_advisor"])]
+
+
+def one_run(engine, pb, user, transcripts, scenario):
     in_tok = out_tok = calls = events_total = grounded = 0
-    prompts = WORKLOADS.get(_AGENT, WORKLOADS["financial_advisor"])
+    prompts = scenario
 
     def _query(session_id, msg):
         evs = list(engine.stream_query(user_id=user, session_id=session_id, message=msg))
@@ -151,7 +213,7 @@ def one_run(engine, pb, user, transcripts):
     model_usd = in_tok * (pb.input_token_usd or 0) + out_tok * (pb.output_token_usd or 0)
     return {"user": user, "input_tokens": in_tok, "output_tokens": out_tok,
             "model_calls": calls, "session_events": events_total, "model_usd": model_usd,
-            "grounded_responses": grounded}
+            "grounded_responses": grounded, "turns": len(prompts)}
 
 
 def variability(rows, key):
@@ -173,6 +235,9 @@ def main():
     ap.add_argument("--delay", type=float, default=2.0,
                     help="seconds between runs to stay under the per-minute "
                          "Query Reasoning Engine requests quota")
+    ap.add_argument("--append", action="store_true",
+                    help="accumulate onto the existing cost report + transcript "
+                         "instead of overwriting (additive dataset across batches)")
     args = ap.parse_args()
     _AGENT = args.package
 
@@ -182,26 +247,26 @@ def main():
     engine = agent_engines.get(name)
     pb = load_or_build("gemini-2.5-flash")
 
+    scenarios = get_scenarios(args.package)
     stamp = int(time.time())
     win_start = datetime.now(timezone.utc) - timedelta(seconds=60)
     rows, transcripts = [], []
     for i in range(args.runs):
+        scenario = scenarios[i % len(scenarios)]
         user = f"{USER}-{stamp}-{i}"
-        print(f"Run {i+1}/{args.runs} ({args.package})...")
+        print(f"Run {i+1}/{args.runs} ({args.package}, {len(scenario)} turns)...")
         try:
-            r = one_run(engine, pb, user, transcripts)
+            r = one_run(engine, pb, user, transcripts, scenario)
         except Exception as ex:
             print("  run failed:", repr(ex)[:160]); continue
         if args.delay:
             time.sleep(args.delay)
         rows.append(r)
-        print(f"  in={r['input_tokens']:6} out={r['output_tokens']:6} calls={r['model_calls']} "
-              f"events={r['session_events']} model=${r['model_usd']:.6f}")
+        print(f"  turns={r['turns']} in={r['input_tokens']:6} out={r['output_tokens']:6} "
+              f"calls={r['model_calls']} events={r['session_events']} model=${r['model_usd']:.6f}")
 
     if not rows:
         print("No successful runs."); return
-    var = {k: variability(rows, k) for k in
-           ("input_tokens", "output_tokens", "model_calls", "session_events", "model_usd")}
 
     print(f"\nWaiting {args.settle}s for Monitoring ingestion...")
     time.sleep(args.settle)
@@ -209,43 +274,91 @@ def main():
     w0, w1 = win_start.strftime(fmt), datetime.now(timezone.utc).strftime(fmt)
     runtime = collect_runtime_usage(PROJECT, engine_id, w0, w1)
     memory = collect_memory_usage(PROJECT, engine_id, w0, w1)
-    mem_priced = price_memory_usage(memory, pb, session_events=int(var["session_events"]["mean"]))
     rt_priced = price_runtime(runtime, pb)
-    tok_mon = collect_publisher_tokens(PROJECT, w0, w1)
-    # PRIMARY grounding signal = per-interaction events (validated 2026-05-28):
-    # the project-wide web_search_requests metric does NOT fire for native Gemini
-    # Search grounding, but grounding_metadata appears in events when it occurs.
+    imagen = collect_imagen_usage(PROJECT, w0, w1)
     grounded_events_total = sum(r.get("grounded_responses", 0) for r in rows)
-    grounding_xcheck = collect_grounding_usage(PROJECT, w0, w1)  # secondary x-check ("Web Grounding for Enterprise")
-    imagen = collect_imagen_usage(PROJECT, w0, w1)               # project-wide Imagen invocations
-    media = price_grounding_and_media(grounded_events_total, int(imagen["images_generated"]))
+
+    # This batch's window-total cost components (priced).
+    batch_n = len(rows)
+    batch_runtime_usd = rt_priced["runtime_total_usd"]
+    batch_gen_tokens = memory.get("generate_memories_tokens", 0) or 0
+    batch_session_events = sum(r.get("session_events", 0) for r in rows)
+    batch_mem_retrieved = memory.get("memory_retrieval_count", 0) or 0
+    batch_images = int(imagen["images_generated"])
+
+    rpt_path = DATA / f"cost_report_{args.package}.json"
+    # ---- accumulate onto prior batches when --append ----
+    prior = {}
+    if args.append and rpt_path.exists():
+        prior = json.loads(rpt_path.read_text())
+    all_rows = (prior.get("runs", []) if args.append else []) + rows
+    cum = prior.get("cumulative", {}) if args.append else {}
+    # Reconstruct cumulative from a pre-`cumulative` report (the original 35-run
+    # batches) so their interactions/runtime aren't dropped from the amortization.
+    if args.append and prior and "cumulative" not in prior:
+        pr = prior.get("runs", []); pa = prior.get("per_run_avg", {})
+        pgm = prior.get("grounding_and_media", {}); pms = prior.get("memory_and_session", {})
+        cum = {"interactions": len(pr),
+               "runtime_usd_total": pa.get("runtime_usd", 0.0) * len(pr),
+               "generate_memories_tokens": pms.get("generate_memories_tokens", 0),
+               "session_events": sum(r.get("session_events", 0) for r in pr),
+               "memory_retrieved": pms.get("memories_retrieved", 0),
+               "grounded_responses": int(pgm.get("web_search_requests", 0) or 0),
+               "images_generated": int(pgm.get("images_generated", 0) or 0)}
+    cum_n = cum.get("interactions", 0) + batch_n
+    cum_runtime_usd = cum.get("runtime_usd_total", 0.0) + batch_runtime_usd
+    cum_gen_tokens = cum.get("generate_memories_tokens", 0) + batch_gen_tokens
+    cum_session_events = cum.get("session_events", 0) + batch_session_events
+    cum_mem_retrieved = cum.get("memory_retrieved", 0) + batch_mem_retrieved
+    cum_grounded = cum.get("grounded_responses", 0) + grounded_events_total
+    cum_images = cum.get("images_generated", 0) + batch_images
+    batches = prior.get("batches", []) if args.append else []
+    batches.append({"window": [w0, w1], "interactions": batch_n,
+                    "runtime_usd": round(batch_runtime_usd, 6),
+                    "turns_per_interaction": sorted(set(r.get("turns", 0) for r in rows))})
+
+    var = {k: variability(all_rows, k) for k in
+           ("input_tokens", "output_tokens", "model_calls", "session_events", "model_usd", "turns")
+           if all(k in rr for rr in all_rows)}
+
+    # Priced cumulative memory+session and grounding/media (over cumulative counts).
+    cum_memory = {"generate_memories_token_count": cum_gen_tokens,
+                  "memory_retrieval_count": cum_mem_retrieved, "memory_mutation_count": 0}
+    mem_priced = price_memory_usage(cum_memory, pb, session_events=cum_session_events)
+    media = price_grounding_and_media(cum_grounded, cum_images)
     media["grounded_responses_source"] = "response events (grounding_metadata)"
-    media["web_grounding_enterprise_xcheck"] = grounding_xcheck["web_search_requests"]
     media["imagen_by_model"] = imagen["by_model"]
 
+    per_run = {
+        "model_usd": var["model_usd"]["mean"],                      # exact per-interaction mean
+        "runtime_usd": cum_runtime_usd / max(cum_n, 1),             # amortized over all interactions
+        "memory_session_usd": mem_priced["per_run_memory_usd"] / max(cum_n, 1),
+    }
+    per_run["total_usd"] = sum(per_run.values())
+
     report = {
-        "agent": args.package, "engine": name, "runs": rows, "variability": var,
+        "agent": args.package, "engine": name, "runs": all_rows, "variability": var,
         "window": [w0, w1],
-        # Raw measured runtime usage (vCPU-sec, GiB-sec) from Cloud Monitoring, alongside priced.
+        "cumulative": {"interactions": cum_n, "runtime_usd_total": cum_runtime_usd,
+                       "generate_memories_tokens": cum_gen_tokens,
+                       "session_events": cum_session_events, "memory_retrieved": cum_mem_retrieved,
+                       "grounded_responses": cum_grounded, "images_generated": cum_images},
+        "batches": batches,
         "runtime_usage": runtime.to_dict(),
-        "runtime": rt_priced, "memory_and_session": mem_priced, "token_xcheck_monitoring": tok_mon,
+        "runtime": rt_priced, "memory_and_session": mem_priced,
         "grounding_and_media": media,
-        "per_run_avg": {
-            "model_usd": var["model_usd"]["mean"],
-            "runtime_usd": rt_priced["runtime_total_usd"] / len(rows),
-            "memory_session_usd": mem_priced["per_run_memory_usd"] / max(len(rows), 1),
-        },
+        "per_run_avg": per_run,
         "uncaptured_skus": ["Cloud Trace", "Cloud Logging", "Cloud Storage",
                             "memory storage (monthly)"],
     }
-    report["per_run_avg"]["total_usd"] = sum(report["per_run_avg"].values())
-    print("\n=== ACTUAL SKU USAGE (per agent, over window) ===")
-    print(json.dumps({"runtime": rt_priced, "memory_and_session": mem_priced,
-                      "grounding_and_media": media, "per_run_avg": report["per_run_avg"]}, indent=2))
+    print(f"\n=== {'ACCUMULATED' if args.append else 'BATCH'} SKU USAGE "
+          f"({cum_n} total interactions) ===")
+    print(json.dumps({"per_run_avg": per_run, "n_interactions": cum_n,
+                      "turns_seen": sorted(set(r.get('turns', 0) for r in all_rows))}, indent=2))
 
-    (DATA / f"cost_report_{args.package}.json").write_text(json.dumps(report, indent=2))
-    write_transcript(DATA / f"transcript_{args.package}.jsonl", transcripts)
-    print(f"\nReport: data/cost_report_{args.package}.json")
+    rpt_path.write_text(json.dumps(report, indent=2))
+    write_transcript(DATA / f"transcript_{args.package}.jsonl", transcripts, append=args.append)
+    print(f"\nReport: {rpt_path}  (total interactions: {cum_n})")
 
 
 if __name__ == "__main__":

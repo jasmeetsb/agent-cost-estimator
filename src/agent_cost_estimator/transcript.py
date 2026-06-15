@@ -61,10 +61,14 @@ def build_turn(message: str, events: list, *, author: str = "user",
     }
 
 
-def write_transcript(path: str | Path, records: list[dict]) -> None:
-    """Write transcript records as JSONL (one JSON object per line)."""
+def write_transcript(path: str | Path, records: list[dict], append: bool = False) -> None:
+    """Write transcript records as JSONL (one JSON object per line).
+
+    append=True adds to an existing transcript (accumulate batches) instead of
+    overwriting."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w") as f:
+    mode = "a" if append else "w"
+    with path.open(mode) as f:
         for r in records:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
