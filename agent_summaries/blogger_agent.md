@@ -90,22 +90,22 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Memory Bank + Sessions | 0.0011 |
 | **Total (measured SKUs)** | **0.0116** (range 0.0068–0.0156) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
-**Repeated workload (turn-by-turn):**
+**Workload (turn-by-turn):**
 
 | Turn | User query |
 |---|---|
 | 1 | Write a short technical blog post about why vector databases matter for RAG. |
 | 2 | Make the intro punchier and add a one-line takeaway at the end. |
 
-**Sample interaction (the first run):**
+**Sample interaction (first run):**
 
 - **Turn 1** (742 in / 1756 out tokens) — user: *Write a short technical blog post about why vector databases matter for RAG.*
   - reply preview: Of course. Here is a short technical blog post about why vector databases matter for RAG:  ***  ### Vector Databases: The Backbone of Retrieval-Augmented Generation (RAG)  If you've been following the…
 - **Turn 2** (2514 in / 1704 out tokens) — user: *Make the intro punchier and add a one-line takeaway at the end.*
   - reply preview: Of course. Here is the revised version with a punchier intro and a one-line takeaway.  ***  ### Vector Databases: The Backbone of Retrieval-Augmented Generation (RAG)  Retrieval-Augmented Generation (…
 
-Full transcripts: `data/transcript_blogger_agent.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_blogger_agent.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

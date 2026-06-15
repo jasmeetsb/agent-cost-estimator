@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `8867981841211064320`
 - **Use case:** Decompose-and-delegate orchestration · **Complexity:** Archetype: Multi-Agent Orchestrator / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (12.5 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (13.0 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -40,23 +40,23 @@ Gemini tokens (coordinator + sub-agents); Agent Runtime (vCPU + memory); Session
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package multi_agent_orchestrator --runs 35 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **85 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package multi_agent_orchestrator --runs 85 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 85 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 20216 | 5634–71718 | High |
-| Gemini output tokens (incl. thinking) | tokens | 5143 | 1866–13649 | High |
-| Model calls | calls | 12.5 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 274.3 | — | — |
-| Agent Runtime — memory | GiB-seconds | 331.4 | — | — |
-| Sessions | events appended | 25.0 | — | Medium |
-| Memory Bank — generation | tokens | 2627 | — | — |
-| Memory Bank — memories written | memories | 1.5 | — | — |
+| Gemini input tokens | tokens | 21938 | 4773–80880 | High |
+| Gemini output tokens (incl. thinking) | tokens | 5190 | 1649–16444 | High |
+| Model calls | calls | 13.0 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 104.7 | — | — |
+| Agent Runtime — memory | GiB-seconds | 130.0 | — | — |
+| Sessions | events appended | 26.0 | — | Medium |
+| Memory Bank — generation | tokens | 1082 | — | — |
+| Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
@@ -79,27 +79,45 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0189 |
-| Agent Runtime | 0.0074 |
-| Memory Bank + Sessions | 0.0010 |
-| **Total (measured SKUs)** | **0.0273** (range 0.0159–0.0578) |
+| Gemini tokens | 0.0196 |
+| Agent Runtime | 0.0059 |
+| Memory Bank + Sessions | 0.0068 |
+| **Total (measured SKUs)** | **0.0323** (range 0.0188–0.0753) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**85 interactions** (235 total user turns), fresh user_id per interaction. Interactions cycle **3 distinct conversation scenarios** of varying length (2-turn×52, 3-turn×17, 5-turn×16) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
-**Repeated workload (turn-by-turn):**
+**Scenario 1** (2 turns):
 
 | Turn | User query |
 |---|---|
 | 1 | Analyze last quarter's support-ticket volume trend and recommend actions. |
 | 2 | Now draft an executive summary, open a follow-up ticket, and send an update to the ops channel. |
 
-**Sample interaction (the first run):**
+**Scenario 2** (3 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Pull our key product metrics for the last 30 days and analyze the trend. |
+| 2 | Fetch the related customer records. |
+| 3 | Summarize the findings, create a ticket for the biggest issue, and notify the team. |
+
+**Scenario 3** (5 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Gather sales metrics and the internal playbook on churn. |
+| 2 | Analyze the churn trend. |
+| 3 | Cross-reference it with recent support tickets. |
+| 4 | Draft an executive summary of what's driving churn. |
+| 5 | Open a remediation ticket and send an update to the ops channel. |
+
+**Sample interaction (first run):**
 
 - **Turn 1** (4462 in / 1713 out tokens) — user: *Analyze last quarter's support-ticket volume trend and recommend actions.*
   - reply preview: The support-ticket volume for the last quarter shows a significant upward trend, with a 45% increase. The volume fluctuated between 98 and 145 tickets, with an average of 117 tickets over the period. …
 - **Turn 2** (4886 in / 682 out tokens) — user: *Now draft an executive summary, open a follow-up ticket, and send an update to the ops channel.*
   - reply preview: Executive summary drafted, a follow-up ticket created, and an update sent to the ops channel.
 
-Full transcripts: `data/transcript_multi_agent_orchestrator.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_multi_agent_orchestrator.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `923632098529509376`
 - **Use case:** Order-fulfillment workflow operator · **Complexity:** Archetype: Workflow Operator / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (12.5 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (13.1 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -45,23 +45,23 @@ Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (Backend to
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package workflow_operator --runs 35 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **85 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package workflow_operator --runs 85 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 85 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 13101 | 7256–32653 | High |
-| Gemini output tokens (incl. thinking) | tokens | 1369 | 731–2305 | Medium |
-| Model calls | calls | 12.5 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 244.8 | — | — |
-| Agent Runtime — memory | GiB-seconds | 302.0 | — | — |
-| Sessions | events appended | 25.3 | — | Medium |
-| Memory Bank — generation | tokens | 2572 | — | — |
-| Memory Bank — memories written | memories | 1.2 | — | — |
+| Gemini input tokens | tokens | 14121 | 7256–35760 | Medium |
+| Gemini output tokens (incl. thinking) | tokens | 1385 | 727–2964 | Medium |
+| Model calls | calls | 13.1 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 113.8 | — | — |
+| Agent Runtime — memory | GiB-seconds | 141.3 | — | — |
+| Sessions | events appended | 26.4 | — | Medium |
+| Memory Bank — generation | tokens | 1059 | — | — |
+| Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
@@ -84,27 +84,44 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0074 |
-| Agent Runtime | 0.0066 |
-| Memory Bank + Sessions | 0.0010 |
-| **Total (measured SKUs)** | **0.0150** (range 0.0118–0.0227) |
+| Gemini tokens | 0.0077 |
+| Agent Runtime | 0.0058 |
+| Memory Bank + Sessions | 0.0069 |
+| **Total (measured SKUs)** | **0.0204** (range 0.0169–0.0309) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**85 interactions** (219 total user turns), fresh user_id per interaction. Interactions cycle **3 distinct conversation scenarios** of varying length (2-turn×52, 3-turn×17, 4-turn×16) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
-**Repeated workload (turn-by-turn):**
+**Scenario 1** (2 turns):
 
 | Turn | User query |
 |---|---|
 | 1 | Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping. |
 | 2 | Now process order ORD-1003 — flag any issues before shipping. |
 
-**Sample interaction (the first run):**
+**Scenario 2** (3 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Process order ORD-1002 with standard shipping. |
+| 2 | Apply the WELCOME discount and recalculate shipping. |
+| 3 | Send the customer an email confirmation and log it. |
+
+**Scenario 3** (4 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Check inventory for the items in order ORD-1001. |
+| 2 | Validate the address and calculate express shipping. |
+| 3 | Apply SAVE10 and update the status to confirmed. |
+| 4 | Notify the customer by SMS and log the transaction. |
+
+**Sample interaction (first run):**
 
 - **Turn 1** (8112 in / 1045 out tokens) — user: *Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.*
   - reply preview: Order ORD-1001 for 2 'wireless mouse' units has been successfully processed. Inventory was confirmed, the shipping address was validated, and express shipping was calculated at $16 with a 2-day ETA. A…
 - **Turn 2** (1529 in / 228 out tokens) — user: *Now process order ORD-1003 — flag any issues before shipping.*
   - reply preview: 
 
-Full transcripts: `data/transcript_workflow_operator.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_workflow_operator.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

@@ -90,22 +90,22 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Memory Bank + Sessions | 0.0008 |
 | **Total (measured SKUs)** | **0.0074** (range 0.0049–0.0203) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
-**Repeated workload (turn-by-turn):**
+**Workload (turn-by-turn):**
 
 | Turn | User query |
 |---|---|
 | 1 | Summarize recent research directions in efficient transformer architectures. |
 | 2 | Which of those directions looks most promising for edge deployment, and why? |
 
-**Sample interaction (the first run):**
+**Sample interaction (first run):**
 
 - **Turn 1** (819 in / 523 out tokens) — user: *Summarize recent research directions in efficient transformer architectures.*
   - reply preview: Hello! I can certainly help you with that. To provide a thorough analysis of recent research in efficient transformer architectures, I first need a seminal paper on the topic to serve as a starting po…
 - **Turn 2** (1356 in / 482 out tokens) — user: *Which of those directions looks most promising for edge deployment, and why?*
   - reply preview: That's an excellent question. To determine which research directions are most promising for edge deployment, I first need to identify the current research directions in efficient transformer architect…
 
-Full transcripts: `data/transcript_academic_research.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_academic_research.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

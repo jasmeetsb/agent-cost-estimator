@@ -100,22 +100,22 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Imagen (image generation) | 0.0309 |
 | **Total (measured SKUs)** | **0.0843** (range 0.0549–0.1254) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
-**Repeated workload (turn-by-turn):**
+**Workload (turn-by-turn):**
 
 | Turn | User query |
 |---|---|
 | 1 | Generate a brand-aligned hero image for a coffee shop's grand opening promotion. |
 | 2 | Now create a variation sized for an Instagram banner. |
 
-**Sample interaction (the first run):**
+**Sample interaction (first run):**
 
 - **Turn 1** (29318 in / 5592 out tokens) — user: *Generate a brand-aligned hero image for a coffee shop's grand opening promotion.*
   - reply preview: Checking for relevant digital assets...  Fetching guidelines and rules for media generation...  Generating the prompt... PROMPT: A premium, high-quality cinematic photograph of a modern and inviting c…
 - **Turn 2** (51942 in / 1820 out tokens) — user: *Now create a variation sized for an Instagram banner.*
   - reply preview: Checking for relevant digital assets...  Fetching guidelines and rules for media generation...  Generating the prompt... PROMPT: A premium, high-quality cinematic photograph for an Instagram banner, d…
 
-Full transcripts: `data/transcript_on_brand_genmedia.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_on_brand_genmedia.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

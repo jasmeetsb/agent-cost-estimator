@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `7861427324493758464`
 - **Use case:** Customer-support Q&A chatbot · **Complexity:** Archetype: Conversational Chatbot / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (4.0 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (4.9 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -39,22 +39,22 @@ Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (BigQuery/K
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package conversational_chatbot --runs 35 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **88 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package conversational_chatbot --runs 88 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 88 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 1420 | 920–1751 | Low |
-| Gemini output tokens (incl. thinking) | tokens | 363 | 208–617 | Medium |
-| Model calls | calls | 4.0 | — | Low |
-| Agent Runtime — vCPU | vCPU-seconds | 52.1 | — | — |
-| Agent Runtime — memory | GiB-seconds | 109.8 | — | — |
-| Sessions | events appended | 8.0 | — | Low |
-| Memory Bank — generation | tokens | 2429 | — | — |
+| Gemini input tokens | tokens | 1837 | 920–6286 | High |
+| Gemini output tokens (incl. thinking) | tokens | 392 | 167–1084 | High |
+| Model calls | calls | 4.9 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 36.6 | — | — |
+| Agent Runtime — memory | GiB-seconds | 57.4 | — | — |
+| Sessions | events appended | 9.7 | — | Medium |
+| Memory Bank — generation | tokens | 966 | — | — |
 | Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
 
@@ -78,27 +78,59 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0013 |
-| Agent Runtime | 0.0015 |
-| Memory Bank + Sessions | 0.0008 |
-| **Total (measured SKUs)** | **0.0036** (range 0.0032–0.0044) |
+| Gemini tokens | 0.0015 |
+| Agent Runtime | 0.0017 |
+| Memory Bank + Sessions | 0.0027 |
+| **Total (measured SKUs)** | **0.0059** (range 0.0051–0.0090) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**88 interactions** (228 total user turns), fresh user_id per interaction. Interactions cycle **5 distinct conversation scenarios** of varying length (2-turn×49, 3-turn×26, 4-turn×13) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
-**Repeated workload (turn-by-turn):**
+**Scenario 1** (2 turns):
 
 | Turn | User query |
 |---|---|
 | 1 | Hi, how do I reset my password and what are your support hours? |
 | 2 | Also, what are your pricing tiers and do you support SSO? |
 
-**Sample interaction (the first run):**
+**Scenario 2** (2 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | How do I reset my password, and what are your support hours? |
+| 2 | Also, what are your pricing tiers and do you support SSO? |
+
+**Scenario 3** (3 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | I'd like a refund on my last order. |
+| 2 | How long does that take to process? |
+| 3 | Can it go to a different card than I paid with? |
+
+**Scenario 4** (4 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Do you integrate with Slack? |
+| 2 | What about exporting my data? |
+| 3 | Is data export on the Pro tier or Enterprise only? |
+| 4 | Okay — how do I upgrade my plan? |
+
+**Scenario 5** (3 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | My shipment hasn't arrived yet. |
+| 2 | It's order ORD-1002. What's the ETA? |
+| 3 | Can you switch it to express? |
+
+**Sample interaction (first run):**
 
 - **Turn 1** (451 in / 231 out tokens) — user: *Hi, how do I reset my password and what are your support hours?*
   - reply preview: I can't find specific information on how to reset your password or our exact support hours at the moment. Generally, you can reset your password on the login page by clicking "Forgot password" or "Res…
 - **Turn 2** (1044 in / 252 out tokens) — user: *Also, what are your pricing tiers and do you support SSO?*
   - reply preview: We offer SSO (SAML/OIDC) on our Enterprise plan. Please contact your account manager for more details.  I couldn't find specific information about our pricing tiers. Would you like me to connect you w…
 
-Full transcripts: `data/transcript_conversational_chatbot.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_conversational_chatbot.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

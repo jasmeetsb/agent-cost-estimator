@@ -94,22 +94,22 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Memory Bank + Sessions | 0.0010 |
 | **Total (measured SKUs)** | **0.0289** (range 0.0215–0.0710) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
-**Repeated workload (turn-by-turn):**
+**Workload (turn-by-turn):**
 
 | Turn | User query |
 |---|---|
 | 1 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
 | 2 | Based on that, suggest a simple trading strategy and key risks. |
 
-**Sample interaction (the first run):**
+**Sample interaction (first run):**
 
 - **Turn 1** (7295 in / 1563 out tokens) — user: *I'm a moderate-risk investor. Analyze the outlook for NVDA.*
   - reply preview: Hello! I'm here to help you navigate the world of financial decision-making. My main goal is to provide you with comprehensive financial advice by guiding you through a step-by-step process. We'll wor…
 - **Turn 2** (16737 in / 2853 out tokens) — user: *Based on that, suggest a simple trading strategy and key risks.*
   - reply preview: Of course. To provide a trading strategy, I will assume a **medium-term** investment period, as this typically aligns with a moderate-risk profile.  I will now call the `trading_analyst` subagent to g…
 
-Full transcripts: `data/transcript_financial_advisor.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_financial_advisor.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

@@ -97,22 +97,22 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Memory Bank + Sessions | 0.0008 |
 | **Total (measured SKUs)** | **0.0163** (range 0.0090–0.1671) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
-**Repeated workload (turn-by-turn):**
+**Workload (turn-by-turn):**
 
 | Turn | User query |
 |---|---|
 | 1 | Create a brand concept for a new oat-milk startup called OatJoy. |
 | 2 | Suggest a tagline and a simple landing-page hero section. |
 
-**Sample interaction (the first run):**
+**Sample interaction (first run):**
 
 - **Turn 1** (2090 in / 984 out tokens) — user: *Create a brand concept for a new oat-milk startup called OatJoy.*
   - reply preview: Of course! Let's start by securing the perfect domain name for your oat-milk startup, OatJoy.  I've used a specialized tool to find some creative and available options for you.  domain_create_agent to…
 - **Turn 2** (1832 in / 696 out tokens) — user: *Suggest a tagline and a simple landing-page hero section.*
   - reply preview: Excellent ideas! We'll definitely get to crafting the perfect tagline and hero section for your landing page.  However, before we dive into the creative details of your website, we first need to secur…
 
-Full transcripts: `data/transcript_marketing_agency.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_marketing_agency.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

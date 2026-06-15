@@ -505,30 +505,45 @@ def load_transcript(pkg):
     return rows
 
 
-def sample_workload(pkg, max_chars=200):
-    """Return (unique_prompts, sample_interaction) from a transcript.
-    sample_interaction = list of (turn_num, user_text, in_tok, out_tok, reply_preview).
-    """
+def transcript_interactions(pkg):
+    """Group a transcript into interactions by user_id (preserving order).
+    Returns a list of interactions, each a list of turn records."""
     rows = load_transcript(pkg)
-    if not rows:
-        return [], []
-    # Unique prompts preserving order.
-    seen = []
+    inters, by_user = [], {}
     for r in rows:
-        q = (r.get("input") or "").strip()
-        if q and q not in seen:
-            seen.append(q)
-    # First interaction = first run's user_id, all its turns.
-    first_user = rows[0].get("user")
-    interaction = [r for r in rows if r.get("user") == first_user]
+        u = r.get("user")
+        if u not in by_user:
+            by_user[u] = []
+            inters.append(by_user[u])
+        by_user[u].append(r)
+    return inters
+
+
+def workload_profile(pkg, max_chars=200):
+    """Summarize a transcript's workload for §7.
+    Returns dict: n_interactions, turn_counts (Counter), scenarios (list of
+    distinct conversations as prompt-lists), sample (first interaction turns)."""
+    import collections
+    inters = transcript_interactions(pkg)
+    if not inters:
+        return None
+    turn_counts = collections.Counter(len(it) for it in inters)
+    # Distinct scenarios = distinct tuples of inputs (order-preserving).
+    seen, scenarios = set(), []
+    for it in inters:
+        key = tuple((t.get("input") or "").strip() for t in it)
+        if key not in seen:
+            seen.add(key)
+            scenarios.append([t.get("input", "") for t in it])
     sample = []
-    for i, r in enumerate(interaction, 1):
-        text = (r.get("output_text") or "").replace("\n", " ").strip()
-        if len(text) > max_chars:
-            text = text[:max_chars] + "…"
-        u = r.get("usage") or {}
-        sample.append((i, r.get("input", ""), u.get("prompt", 0), u.get("output", 0), text))
-    return seen, sample
+    for i, t in enumerate(inters[0], 1):
+        txt = (t.get("output_text") or "").replace("\n", " ").strip()
+        if len(txt) > max_chars:
+            txt = txt[:max_chars] + "…"
+        u = t.get("usage") or {}
+        sample.append((i, t.get("input", ""), u.get("prompt", 0), u.get("output", 0), txt))
+    return {"n_interactions": len(inters), "turn_counts": dict(sorted(turn_counts.items())),
+            "scenarios": scenarios, "sample": sample}
 
 
 def derive(pkg):
@@ -628,28 +643,37 @@ def agent_md(d):
         f"| **Total (measured SKUs)** | **{d['c_total']:.4f}** (range {d['c_total_min']:.4f}–{d['c_total_max']:.4f}) |",
     ]
     # §7 — test workload + sample interaction from transcripts.
-    prompts, sample = sample_workload(d["pkg"])
+    wp = workload_profile(d["pkg"])
     rows = load_transcript(d["pkg"])
-    if prompts:
+    if wp:
+        tc = wp["turn_counts"]
+        multi = len(wp["scenarios"]) > 1
+        turn_desc = (", ".join(f"{n}-turn×{c}" for n, c in tc.items())
+                     if multi else f"{next(iter(tc), 2)} turns each")
         lines += ["",
-                  "## 7. Test workload & sample interaction", "",
-                  f"Total user turns recorded: **{len(rows)}** "
-                  f"(≈ {len(rows)//max(len(prompts),1)} interactions × {len(prompts)} turns each, "
-                  "fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).", "",
-                  "**Repeated workload (turn-by-turn):**", "",
-                  "| Turn | User query |", "|---|---|"]
-        for i, q in enumerate(prompts, 1):
-            qe = q.replace("|", "\\|")
-            lines.append(f"| {i} | {qe} |")
-        lines += ["",
-                  "**Sample interaction (the first run):**", ""]
-        for tn, q, ipt, opt, preview in sample:
-            qe = q.replace("|", "\\|")
-            lines.append(f"- **Turn {tn}** ({ipt} in / {opt} out tokens) — user: *{qe}*")
+                  "## 7. Test workload & sample interactions", "",
+                  f"**{wp['n_interactions']} interactions** ({len(rows)} total user turns), "
+                  f"fresh user_id per interaction. "
+                  + (f"Interactions cycle **{len(wp['scenarios'])} distinct conversation scenarios** of "
+                     f"varying length ({turn_desc}) — real-world interactions differ in length and topic, "
+                     "so this spreads coverage rather than repeating one script."
+                     if multi else
+                     "All interactions repeat the same 2-turn workload to isolate run-to-run variability."),
+                  ""]
+        for si, sc in enumerate(wp["scenarios"], 1):
+            lines.append(f"**Scenario {si}** ({len(sc)} turns):" if multi else "**Workload (turn-by-turn):**")
+            lines.append("")
+            lines.append("| Turn | User query |"); lines.append("|---|---|")
+            for ti, q in enumerate(sc, 1):
+                lines.append(f"| {ti} | {q.replace('|', '\\|')} |")
+            lines.append("")
+        lines += ["**Sample interaction (first run):**", ""]
+        for tn, q, ipt, opt, preview in wp["sample"]:
+            lines.append(f"- **Turn {tn}** ({ipt} in / {opt} out tokens) — user: *{q.replace('|', '\\|')}*")
             lines.append(f"  - reply preview: {preview}")
         lines.append("")
         lines.append(f"Full transcripts: `data/transcript_{d['pkg']}.jsonl` (one JSON record per turn; "
-                     "contains full input, output_text, every tool call+response, and per-step usage). "
+                     "full input, output_text, every tool call+response, per-step usage). "
                      "**Not committed** (data/ is gitignored — runtime artifact).")
     (OUT / f"{d['pkg']}.md").write_text("\n".join(x for x in lines if x is not None))
 
@@ -932,9 +956,9 @@ def master(ds):
           "Each agent's test consists of N **interactions**, each = a 2-turn conversation + a "
           "memory-write (memory_assistant = 3-turn). Inside one interaction the user_id stays "
           "constant; across interactions we mint a fresh user_id so memory state doesn't carry "
-          "over. **All interactions for a given agent cycle through the same prompt set** — that "
-          "isolates the variability to LLM non-determinism rather than prompt diversity.", "",
-          "| Agent | Interactions | Turns/interaction | Total user queries | Source |",
+          "over. Sample agents (EXP-006/007) repeat one 2-turn workload; **archetype agents "
+          "(EXP-008) cycle multiple conversation scenarios of varying length** (2–5 turns).", "",
+          "| Agent | Interactions | Turns/interaction | Total user turns | Source |",
           "|---|---|---|---|---|"]
     qrows = []
     for pkg, title in [("financial_advisor", "financial-advisor"),
@@ -949,12 +973,12 @@ def master(ds):
                        ("workflow_operator", "workflow-operator (archetype)"),
                        ("autonomous_researcher", "autonomous-researcher (archetype)"),
                        ("multi_agent_orchestrator", "multi-agent-orchestrator (archetype)")]:
-        trows = load_transcript(pkg)
-        if not trows:
+        wp = workload_profile(pkg)
+        if not wp:
             continue
-        prompts, _ = sample_workload(pkg)
-        per = max(len(prompts), 1)
-        n_int = len(trows) // per
+        tc = wp["turn_counts"]
+        turns_disp = "–".join(str(x) for x in (min(tc), max(tc))) if min(tc) != max(tc) else str(min(tc))
+        total_turns = sum(n * c for n, c in tc.items())
         if pkg in ("financial_advisor", "academic_research", "blogger_agent", "marketing_agency"):
             exp = "EXP-006"
         elif pkg in ("conversational_chatbot", "workflow_operator", "autonomous_researcher",
@@ -962,10 +986,10 @@ def master(ds):
             exp = "EXP-008 (archetype)"
         else:
             exp = "EXP-007"
-        qrows.append((title, n_int, per, len(trows), exp))
+        qrows.append((title, wp["n_interactions"], turns_disp, total_turns, exp))
     # Also memory_assistant (hand-tracked) and grounded_news (validation only).
-    qrows.append(("memory_assistant", 4, 3, 12, "EXP-005"))
-    qrows.append(("grounded_news (validation)", 2, 1, 2, "collector-validation"))
+    qrows.append(("memory_assistant", 4, "3", 12, "EXP-005"))
+    qrows.append(("grounded_news (validation)", 2, "1", 2, "collector-validation"))
     total = sum(r[3] for r in qrows)
     for nm, ni, tt, tq, exp in sorted(qrows, key=lambda x: -x[3]):
         L.append(f"| {linkify(nm) if nm in LINKS else nm} | {ni} | {tt} | **{tq}** | {exp} |")

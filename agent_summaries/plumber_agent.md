@@ -111,22 +111,22 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Memory Bank + Sessions | 0.0009 |
 | **Total (measured SKUs)** | **0.0127** (range 0.0099–0.0172) |
 
-## 7. Test workload & sample interaction
+## 7. Test workload & sample interactions
 
-Total user turns recorded: **70** (≈ 35 interactions × 2 turns each, fresh user_id per interaction; identical prompts repeat to isolate run-to-run variability).
+**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
-**Repeated workload (turn-by-turn):**
+**Workload (turn-by-turn):**
 
 | Turn | User query |
 |---|---|
 | 1 | Design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
 | 2 | What would the dbt model look like to aggregate the daily data into weekly summaries? |
 
-**Sample interaction (the first run):**
+**Sample interaction (first run):**
 
 - **Turn 1** (6759 in / 999 out tokens) — user: *Design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery.*
   - reply preview: Of course, I can help with that. To get started, I need a bit more information about your pipeline.  First, could you describe the data processing logic you'd like to implement? For example, what are …
 - **Turn 2** (7309 in / 547 out tokens) — user: *What would the dbt model look like to aggregate the daily data into weekly summaries?*
   - reply preview: Of course. I can help with that. In order for me to generate the dbt model, I will need the source to target mapping file. You can provide it as a csv file or an image file with source and target colu…
 
-Full transcripts: `data/transcript_plumber_agent.jsonl` (one JSON record per turn; contains full input, output_text, every tool call+response, and per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
+Full transcripts: `data/transcript_plumber_agent.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
