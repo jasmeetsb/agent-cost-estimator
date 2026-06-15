@@ -57,6 +57,30 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-06-15 — EXP-008: 4 calculator archetypes (Moderate) deployed + measured.** Built representative
+  GCP/ADK agents for Conversational Chatbot / Workflow Operator / Autonomous Researcher / Multi-Agent
+  Orchestrator (see ARCHETYPE_ARCHITECTURES.md), 35 sessions each. Measured $/interaction:
+  chatbot $0.0036 (1.4k in, 4 calls) · workflow $0.0150 (13k in, 12.5 calls, 25 session events) ·
+  researcher $0.093 incl. ~$0.069 Search grounding (2.6k in / 6k out, 69 grounded searches — first
+  material grounding cost) · orchestrator $0.027 (20k in, 12.5 calls). Profiles match archetype theory:
+  chatbot=volume/cheap, workflow=tool-fan-out, researcher=output-depth+grounding, orchestrator=fan-out.
+- **2026-06-15 — THREE deployment gotchas (all fixed in scripts):**
+  1. **Never deploy engines concurrently** — `agent_engines.create()` stages to a FIXED GCS path
+     (`agent_engine/agent_engine.pkl` + `dependencies.tar.gz`); parallel deploys race and cross-
+     contaminate (a chatbot engine got another agent's tarball → "No module named ..."). Deploy
+     sequentially.
+  2. **Pin `google-adk` to the local version on deploy** — the unpinned `[adk]` extra let the container
+     pull a NEWER ADK than the local one that cloudpickled the agent; every query then crashed with
+     `AttributeError: 'LlmAgent' object has no attribute 'mode'` and returned EMPTY event streams (0
+     tokens, no exception). `deploy.py` now pins `google-adk==<local>`.
+  3. **REST auth via ADC, not the gcloud CLI** — `pricing.py`/`usage.py` shelled out to
+     `gcloud auth print-access-token`, which broke when the gcloud CLI credential expired (Context
+     Aware Access) even though ADC was valid. Now use `google.auth` default creds.
+- **2026-06-15 — Agent Engine query quota is 90 req/min/project/region** ("Query Reasoning Engine
+  requests"). Shared across ALL engines in the region. When exceeded, `stream_query` sometimes RAISES
+  429 and sometimes returns an EMPTY stream (silent). `exp_sample.py` now retries both (backoff to 90s)
+  and paces runs (`--delay`). Orchestrator/sub-agent fan-out hits it fastest.
+
 - **2026-05-28 — Validated grounding collector; native Search grounding comes from events, NOT Monitoring.**
   Built a minimal `grounded_news` agent (single ADK `google_search` tool) and queried it with current-info
   prompts. Result: 2 of 2 responses were grounded (fresh web info; e.g. "Kimi Antonelli won the 2026

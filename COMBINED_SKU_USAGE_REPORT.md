@@ -10,12 +10,16 @@ Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3
 |---|---|---|---|---|---|
 | on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
 | financial-advisor | 21786 (7979–81100) | 2753 (1072–12463) | 3.5 | 543.0 | 590 |
+| multi-agent-orchestrator (archetype) | 20216 (5634–71718) | 5143 (1866–13649) | 12.5 | 274.3 | 331 |
 | plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
+| workflow-operator (archetype) | 13101 (7256–32653) | 1369 (731–2305) | 12.5 | 244.8 | 302 |
 | marketing-agency | 3914 (1816–9947) | 3487 (846–63892) | 3.0 | 204.0 | 254 |
 | memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
 | blog-writer | 2856 (1803–3618) | 2538 (733–4087) | 2.0 | 118.5 | 178 |
+| autonomous-researcher (archetype) | 2647 (283–4460) | 6022 (678–9470) | 2.0 | 214.5 | 275 |
 | academic-research | 2577 (1813–14570) | 1384 (423–6130) | 2.1 | 86.9 | 137 |
 | fomc-research | 1838 (1306–2800) | 479 (188–949) | 2.3 | 30.1 | 55 |
+| conversational-chatbot (archetype) | 1420 (920–1751) | 363 (208–617) | 4.0 | 52.1 | 110 |
 | nexshift-agent | 0 (0–0) | 0 (0–0) | 0.0 | 12.8 | 37 |
 
 ## 2. SKU usage per interaction — Agent Platform features (PRIMARY)
@@ -24,12 +28,16 @@ Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3
 |---|---|---|---|---|
 | on-brand-genmedia | 31.6 | 4191 | 0.5 | 0.0 |
 | financial-advisor | 7.1 | 3087 | 0.9 | 0.0 |
+| multi-agent-orchestrator (archetype) | 25.0 | 2627 | 1.5 | 0.0 |
 | plumber-data-engineering-assistant | 8.0 | 2853 | 0.6 | 0.0 |
+| workflow-operator (archetype) | 25.3 | 2572 | 1.2 | 0.0 |
 | marketing-agency | 6.0 | 2671 | 0.5 | 0.0 |
 | memory_assistant | 11.5 | 2493 | 3.2 | 2.5 |
 | blog-writer | 4.0 | 3540 | 0.4 | 0.0 |
+| autonomous-researcher (archetype) | 4.0 | 6315 | 0.5 | 0.0 |
 | academic-research | 4.1 | 2627 | 0.1 | 0.0 |
 | fomc-research | 4.8 | 2358 | 0.0 | 0.0 |
+| conversational-chatbot (archetype) | 8.0 | 2429 | 0.0 | 0.0 |
 | nexshift-agent | 2.0 | 2390 | 1.0 | 0.0 |
 
 _Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant retrieves because cross-session recall is its purpose._
@@ -42,12 +50,16 @@ Collectors added for Google Search grounding (Cloud Monitoring) and image genera
 |---|---|---|
 | on-brand-genmedia | 0 | 27 |
 | financial-advisor | 0 | 0 |
+| multi-agent-orchestrator (archetype) | 0 | 0 |
 | plumber-data-engineering-assistant | 0 | 0 |
+| workflow-operator (archetype) | 0 | 0 |
 | marketing-agency | 0 | 0 |
 | memory_assistant | 0 | 0 |
 | blog-writer | 0 | 0 |
+| autonomous-researcher (archetype) | 69 | 0 |
 | academic-research | 0 | 0 |
 | fomc-research | 0 | 0 |
+| conversational-chatbot (archetype) | 0 | 0 |
 | nexshift-agent | 0 | 0 |
 
 _Would bill ~$0.035 per grounded request (Gemini 2.x) and ~$0.04 per image (Imagen) if triggered._
@@ -72,13 +84,17 @@ Reference only — list price, not actual billed. The usage tables above are the
 
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
+| autonomous-researcher (archetype) | 0.0159 | 0.0058 | 0.0019 | 0.0927 (0.0785–0.1014) | Medium |
 | on-brand-genmedia | 0.0434 | 0.0086 | 0.0015 | 0.0843 (0.0549–0.1254) | Medium |
 | financial-advisor | 0.0134 | 0.0145 | 0.0010 | 0.0289 (0.0215–0.0710) | High |
+| multi-agent-orchestrator (archetype) | 0.0189 | 0.0074 | 0.0010 | 0.0273 (0.0159–0.0578) | High |
 | memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | marketing-agency | 0.0099 | 0.0055 | 0.0008 | 0.0163 (0.0090–0.1671) | Very high |
+| workflow-operator (archetype) | 0.0074 | 0.0066 | 0.0010 | 0.0150 (0.0118–0.0227) | Medium |
 | plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0127 (0.0099–0.0172) | Medium |
 | blog-writer | 0.0072 | 0.0033 | 0.0011 | 0.0116 (0.0068–0.0156) | Medium |
 | academic-research | 0.0042 | 0.0024 | 0.0008 | 0.0074 (0.0049–0.0203) | Very high |
+| conversational-chatbot (archetype) | 0.0013 | 0.0015 | 0.0008 | 0.0036 (0.0032–0.0044) | Medium |
 | fomc-research | 0.0017 | 0.0009 | 0.0007 | 0.0033 (0.0025–0.0048) | Medium |
 | nexshift-agent | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 

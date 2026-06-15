@@ -44,6 +44,19 @@ python scripts/harness.py --mode remote --iters 5             # query deployed e
   the module must exist in the container. `deploy.py` `os.chdir`es into `agents/` and passes
   `extra_packages=["weather_agent"]` so it lands at `/code/weather_agent`. Without this the
   engine builds but fails to start with `ModuleNotFoundError: No module named 'weather_agent'`.
+- **Pin `google-adk` to the local version on deploy.** The agent is cloudpickled with the local
+  ADK; if the container's `[adk]` extra pulls a newer ADK, every query crashes at runtime
+  (`AttributeError: 'LlmAgent' object has no attribute 'mode'`) and returns EMPTY event streams
+  (0 tokens, no exception). `deploy.py` pins `google-adk==<local>`. Symptom of the mismatch:
+  deploy succeeds + smoke test may pass once, but experiment runs return all-empty.
+- **NEVER deploy engines concurrently.** `agent_engines.create()` stages to a fixed GCS path
+  (`agent_engine/*`); parallel deploys race and cross-contaminate (one engine gets another's
+  tarball → wrong-module errors). Deploy sequentially.
+- **Agent Engine query quota = 90 req/min/project/region** ("Query Reasoning Engine requests"),
+  shared across all engines. Over-limit `stream_query` sometimes 429s, sometimes returns an empty
+  stream silently. `exp_sample.py` retries both (backoff) and paces with `--delay`.
+- **REST auth uses ADC, not the gcloud CLI.** `pricing.py`/`usage.py` get tokens via `google.auth`
+  default creds (robust to gcloud CLI credential expiry / Context Aware Access).
 - **SKU name collisions**: "gemini 2.5 flash" substring-matches "flash lite"; preview vs **GA**
   SKUs have different prices. `pricing.py` filters lite and scores GA highest — keep that logic.
 - **Costs are catalog-price estimates, not billed dollars.** True spend only comes from

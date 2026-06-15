@@ -342,8 +342,139 @@ META["on_brand_genmedia"] = {
             "Sessions; Memory Bank; **Imagen / gemini-2.5-flash-image** (per-image SKU, multiple per "
             "interaction); Cloud Storage (image artifacts).",
 }
+# ---- Archetype agents (calculator archetypes, Moderate complexity) ----
+META["conversational_chatbot"] = {
+    "title": "conversational-chatbot (archetype)", "use_case": "Customer-support Q&A chatbot",
+    "complexity": "Archetype: Conversational Chatbot / Moderate",
+    "pattern": "Single agent + light tools + Memory Bank",
+    "diagram": """graph TB
+    User([User]) <--> Coord
+    subgraph Engine["Agent Engine — conversational_chatbot"]
+        direction TB
+        Coord["chatbot_agent (Gemini 2.5 Flash)"]
+        Coord -->|tool| FAQ[faq_lookup]
+        Coord -->|tool| KB[kb_search]
+        Coord -->|tool| PM[preload_memory]
+    end
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    Engine -.-> Core""",
+    "arch": ("Single user-facing support agent (archetype: Conversational Chatbot, Moderate). "
+             "Light tool use — `faq_lookup` + `kb_search` (stand-ins for a BigQuery/KB lookup) — and "
+             "`preload_memory` for returning-user personalization. Volume-driven archetype: cheap "
+             "model, short turns. Measured ~4 model calls / ~8 session events per 2-turn interaction."),
+    "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (BigQuery/KB lookup "
+            "mocked locally — would bill BigQuery in production.)",
+}
+META["workflow_operator"] = {
+    "title": "workflow-operator (archetype)", "use_case": "Order-fulfillment workflow operator",
+    "complexity": "Archetype: Workflow Operator / Moderate",
+    "pattern": "Single agent + heavy tool fan-out (8 tools)",
+    "diagram": """graph TB
+    User([User]) --> Op
+    subgraph Engine["Agent Engine — workflow_operator"]
+        direction TB
+        Op["operator_agent (Gemini 2.5 Flash)"]
+        Op --> T1[lookup_order]
+        Op --> T2[check_inventory]
+        Op --> T3[validate_address]
+        Op --> T4[calculate_shipping]
+        Op --> T5[apply_discount]
+        Op --> T6[update_order_status]
+        Op --> T7[send_notification]
+        Op --> T8[log_transaction]
+    end
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token (high tool fan-out)")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    Engine -.-> Core
+    T1 -.->|prod: via| Backend[(BigQuery / Apigee-fronted APIs)]""",
+    "arch": ("Single agent that drives an order-fulfillment workflow end to end with heavy tool "
+             "fan-out (archetype: Workflow Operator, Moderate). 8 tools — lookup_order, "
+             "check_inventory, validate_address, calculate_shipping, apply_discount, "
+             "update_order_status, send_notification, log_transaction. Tool-fan-out-driven: measured "
+             "~12.5 model calls / ~25 session events per 2-turn interaction (highest tool churn of "
+             "the four archetypes). Tools stand in for backend/API calls (Apigee + BigQuery in prod)."),
+    "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (Backend tool calls "
+            "mocked — would bill BigQuery + Apigee in production.)",
+}
+META["autonomous_researcher"] = {
+    "title": "autonomous-researcher (archetype)", "use_case": "Deep web research with synthesis",
+    "complexity": "Archetype: Autonomous Researcher / Moderate",
+    "pattern": "Single agent + Google Search grounding, long outputs",
+    "diagram": """graph TB
+    User([User]) --> Res
+    subgraph Engine["Agent Engine — autonomous_researcher"]
+        direction TB
+        Res["researcher_agent (Gemini 2.5 Flash)<br/>plan → search → synthesize"]
+        Res -->|tool| GSt[google_search]
+    end
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token (long outputs)")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    subgraph Extras["Agent-specific SKUs"]
+        GS[("Google Search grounding<br/>per grounded prompt")]
+    end
+    Engine -.-> Core
+    GSt -.-> GS""",
+    "arch": ("Deep-research agent (archetype: Autonomous Researcher, Moderate). Plans, grounds on the "
+             "web via ADK `google_search`, and synthesizes long reports. Token-depth-driven: premium "
+             "model intent (Gemini Pro), long outputs (~6,000 output tokens/interaction measured), and "
+             "Search grounding (~69 grounded searches across the run — the first SKU usage that "
+             "actually exercises Search grounding in this project). Internal-corpus RAG (Vertex AI "
+             "Search) deferred to the High variant, since google_search must be the sole tool."),
+    "skus": "Gemini tokens (long outputs); Agent Runtime (vCPU + memory); Sessions; Memory Bank; "
+            "**Google Search grounding** (measured non-zero).",
+}
+META["multi_agent_orchestrator"] = {
+    "title": "multi-agent-orchestrator (archetype)", "use_case": "Decompose-and-delegate orchestration",
+    "complexity": "Archetype: Multi-Agent Orchestrator / Moderate",
+    "pattern": "Coordinator + 3 specialist sub-agents (agent-call fan-out)",
+    "diagram": """graph TB
+    User([User]) --> Orch
+    subgraph Engine["Agent Engine — multi_agent_orchestrator"]
+        direction TB
+        Orch["orchestrator_agent (Gemini 2.5 Flash)"]
+        Orch -->|sub-agent| DS["data_specialist<br/>(query_metrics, fetch_records, corpus_search)"]
+        Orch -->|sub-agent| AS["analysis_specialist<br/>(compute_stats, detect_trends)"]
+        Orch -->|sub-agent| ACT["action_specialist<br/>(draft_summary, create_ticket, send_update)"]
+    end
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token (coordinator + 3 sub-agents)")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+    end
+    Engine -.-> Core
+    DS -.->|prod| BQ[(BigQuery / RAG)]""",
+    "arch": ("Coordinator that decomposes a request and delegates to 3 specialist sub-agents — "
+             "data_specialist (metrics / records / corpus), analysis_specialist (stats / trends), "
+             "action_specialist (summary / ticket / notify) (archetype: Multi-Agent Orchestrator, "
+             "Moderate). Fan-out-driven and the most expensive of the four: measured ~20,000 input "
+             "tokens, ~12.5 model calls, ~25 session events per 2-turn interaction (coordinator + "
+             "sub-agent token multiplication). Specialist tools are local stand-ins for BigQuery / RAG."),
+    "skus": "Gemini tokens (coordinator + sub-agents); Agent Runtime (vCPU + memory); Sessions; "
+            "Memory Bank. (Specialist BigQuery/RAG calls mocked — would bill in production.)",
+}
+
 PACKAGES = ["financial_advisor", "academic_research", "blogger_agent", "marketing_agency",
-            "nexshift_agent", "fomc_research", "plumber_agent", "on_brand_genmedia"]
+            "nexshift_agent", "fomc_research", "plumber_agent", "on_brand_genmedia",
+            "conversational_chatbot", "workflow_operator", "autonomous_researcher",
+            "multi_agent_orchestrator"]
 
 
 def var_word(cv: float) -> str:
@@ -625,6 +756,10 @@ LINKS = {
     "fomc-research": "fomc_research.md",
     "plumber-data-engineering-assistant": "plumber_agent.md",
     "on-brand-genmedia": "on_brand_genmedia.md",
+    "conversational-chatbot (archetype)": "conversational_chatbot.md",
+    "workflow-operator (archetype)": "workflow_operator.md",
+    "autonomous-researcher (archetype)": "autonomous_researcher.md",
+    "multi-agent-orchestrator (archetype)": "multi_agent_orchestrator.md",
 }
 
 # Brief descriptions for the "Agents at a glance" header section.
@@ -653,6 +788,15 @@ DESCRIPTIONS = {
     "on-brand-genmedia": ("Brand-compliant iterative image generation. Loop + Hierarchical: prompt → "
                           "image (gemini-2.5-flash-image) → score → re-prompt if below threshold. "
                           "Heaviest image-gen SKU usage in the corpus."),
+    # Calculator archetypes (moderate complexity), purpose-built for this project.
+    "conversational-chatbot (archetype)": ("Calculator archetype: Conversational Chatbot / Moderate. "
+                          "Single support agent + light tools + Memory Bank. Cheapest archetype; volume-driven."),
+    "workflow-operator (archetype)": ("Calculator archetype: Workflow Operator / Moderate. Single agent "
+                          "driving an 8-tool order workflow. Tool-fan-out-driven (highest session-event churn)."),
+    "autonomous-researcher (archetype)": ("Calculator archetype: Autonomous Researcher / Moderate. Single "
+                          "agent + Google Search grounding, long outputs. Token-depth-driven; exercises Search grounding."),
+    "multi-agent-orchestrator (archetype)": ("Calculator archetype: Multi-Agent Orchestrator / Moderate. "
+                          "Coordinator + 3 specialist sub-agents. Fan-out-driven; most expensive archetype."),
 }
 
 
@@ -753,6 +897,10 @@ def master(ds):
         "fomc-research": "✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended)",
         "plumber-data-engineering-assistant": "✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent)",
         "on-brand-genmedia": "✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)**",
+        "conversational-chatbot (archetype)": "✓ | ✓ | ✓ | ✓ (write) | — | — (BigQuery KB mocked)",
+        "workflow-operator (archetype)": "✓ | ✓ | ✓ | ✓ (write) | — | — (BigQuery/Apigee mocked)",
+        "autonomous-researcher (archetype)": "✓ | ✓ | ✓ | ✓ (write) | **measured non-zero** | —",
+        "multi-agent-orchestrator (archetype)": "✓ | ✓ | ✓ | ✓ (write) | — | — (BigQuery/RAG mocked)",
     }
     for r in sorted(rows, key=sortk):
         if r["title"] in pres:
@@ -796,15 +944,24 @@ def master(ds):
                        ("nexshift_agent", "nexshift-agent"),
                        ("fomc_research", "fomc-research"),
                        ("plumber_agent", "plumber-data-engineering-assistant"),
-                       ("on_brand_genmedia", "on-brand-genmedia")]:
+                       ("on_brand_genmedia", "on-brand-genmedia"),
+                       ("conversational_chatbot", "conversational-chatbot (archetype)"),
+                       ("workflow_operator", "workflow-operator (archetype)"),
+                       ("autonomous_researcher", "autonomous-researcher (archetype)"),
+                       ("multi_agent_orchestrator", "multi-agent-orchestrator (archetype)")]:
         trows = load_transcript(pkg)
         if not trows:
             continue
         prompts, _ = sample_workload(pkg)
         per = max(len(prompts), 1)
         n_int = len(trows) // per
-        exp = "EXP-006" if pkg in ("financial_advisor", "academic_research", "blogger_agent",
-                                    "marketing_agency") else "EXP-007"
+        if pkg in ("financial_advisor", "academic_research", "blogger_agent", "marketing_agency"):
+            exp = "EXP-006"
+        elif pkg in ("conversational_chatbot", "workflow_operator", "autonomous_researcher",
+                     "multi_agent_orchestrator"):
+            exp = "EXP-008 (archetype)"
+        else:
+            exp = "EXP-007"
         qrows.append((title, n_int, per, len(trows), exp))
     # Also memory_assistant (hand-tracked) and grounded_news (validation only).
     qrows.append(("memory_assistant", 4, 3, 12, "EXP-005"))
