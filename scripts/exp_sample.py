@@ -117,10 +117,17 @@ def one_run(engine, pb, user, transcripts):
     in_tok = out_tok = calls = events_total = grounded = 0
     prompts = WORKLOADS.get(_AGENT, WORKLOADS["financial_advisor"])
 
+    def _query(session_id, msg):
+        evs = list(engine.stream_query(user_id=user, session_id=session_id, message=msg))
+        # Throttling (90 req/min) sometimes yields an EMPTY stream instead of
+        # raising 429. Treat a no-event response as transient so _with_retry waits.
+        if not evs:
+            raise RuntimeError("RESOURCE_EXHAUSTED: empty stream (likely rate-limited)")
+        return evs
+
     def turn(session_id, msg):
         nonlocal in_tok, out_tok, calls, events_total, grounded
-        evs = _with_retry(lambda: list(engine.stream_query(
-            user_id=user, session_id=session_id, message=msg)), what="stream_query")
+        evs = _with_retry(lambda: _query(session_id, msg), what="stream_query")
         events_total += len(evs) + 1
         qc = price_query(evs, pb)
         in_tok += qc.usage.prompt_tokens + qc.usage.cached_tokens
