@@ -39,12 +39,21 @@ def main():
     root_agent = importlib.import_module(f"{args.agent}.agent").root_agent
     display = args.display_name or f"{args.agent}_cost_demo"
 
+    # Pin google-adk to the LOCAL version: the agent is cloudpickled with the
+    # local ADK, and the container must run the same version or it crashes at
+    # query time (e.g. AttributeError: 'LlmAgent' object has no attribute 'mode'
+    # when the container's newer ADK reads a field the pickled object lacks).
+    import importlib.metadata as _md
+    adk_ver = _md.version("google-adk")
+    reqs = ["google-cloud-aiplatform[agent_engines,adk]", f"google-adk=={adk_ver}"]
+
     vertexai.init(project=PROJECT, location=LOCATION, staging_bucket=STAGING)
-    print(f"Deploying '{args.agent}' to Agent Engine (builds a container, ~5-10 min)...")
+    print(f"Deploying '{args.agent}' to Agent Engine (builds a container, ~5-10 min)... "
+          f"pinning google-adk=={adk_ver}")
     remote = agent_engines.create(
         agent_engines.AdkApp(agent=root_agent, enable_tracing=True),
         display_name=display,
-        requirements=["google-cloud-aiplatform[agent_engines,adk]"],
+        requirements=reqs,
         extra_packages=[args.agent],
     )
     name = remote.resource_name
