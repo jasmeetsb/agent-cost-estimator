@@ -47,6 +47,18 @@ MEMORY_METRICS = {
 
 
 def _access_token() -> str:
+    """OAuth token for Monitoring REST. Prefer ADC (robust to gcloud CLI
+    credential expiry); fall back to the gcloud CLI."""
+    try:
+        import google.auth
+        import google.auth.transport.requests
+        creds, _ = google.auth.default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        creds.refresh(google.auth.transport.requests.Request())
+        if creds.token:
+            return creds.token
+    except Exception:
+        pass
     return subprocess.run(
         ["gcloud", "auth", "print-access-token"],
         capture_output=True, text=True, check=True,
