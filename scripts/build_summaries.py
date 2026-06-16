@@ -817,7 +817,17 @@ def combined(ds):
           "c_model": 0.0050, "c_runtime": 0.0035, "c_memsess": 0.0080, "c_total": 0.0165,
           "c_total_min": 0.0144, "c_total_max": 0.0206, "cost_var": "High"}
     rows = ds + [ma]
-    sortk = lambda r: -r["in_tok"]
+    # Row order: the 4 archetypes first, then the 4 actively-developed use-case agents,
+    # then everything else (by input-token weight). Keeps the most relevant rows on top.
+    _ARCHE = ["conversational_chatbot", "workflow_operator", "autonomous_researcher", "multi_agent_orchestrator"]
+    _USECASE = ["financial_advisor", "academic_research", "marketing_agency", "blogger_agent"]
+    def sortk(r):
+        pkg = r.get("pkg", r.get("title", ""))
+        if pkg in _ARCHE:
+            return (0, _ARCHE.index(pkg))
+        if pkg in _USECASE:
+            return (1, _USECASE.index(pkg))
+        return (2, -r.get("in_tok", 0))
     L = ["# Combined SKU-Usage Report — ADK Agents on Gemini Enterprise Agent Platform", "",
          "**Purpose:** estimate **usage per SKU** across different agent architectures deployed to "
          "Vertex AI Agent Engine. Usage quantities are the primary output; dollar cost is a secondary "
@@ -985,7 +995,17 @@ def master(ds):
           "c_model": 0.0050, "c_runtime": 0.0035, "c_memsess": 0.0080, "c_total": 0.0165,
           "c_total_min": 0.0144, "c_total_max": 0.0206, "cost_var": "High"}
     rows = ds + [ma]
-    sortk = lambda r: -r["in_tok"]
+    # Row order: the 4 archetypes first, then the 4 actively-developed use-case agents,
+    # then everything else (by input-token weight). Keeps the most relevant rows on top.
+    _ARCHE = ["conversational_chatbot", "workflow_operator", "autonomous_researcher", "multi_agent_orchestrator"]
+    _USECASE = ["financial_advisor", "academic_research", "marketing_agency", "blogger_agent"]
+    def sortk(r):
+        pkg = r.get("pkg", r.get("title", ""))
+        if pkg in _ARCHE:
+            return (0, _ARCHE.index(pkg))
+        if pkg in _USECASE:
+            return (1, _USECASE.index(pkg))
+        return (2, -r.get("in_tok", 0))
 
     totals = [r["c_total"] for r in rows]
     L = ["# Master Summary — Implemented Agent Architectures", "",

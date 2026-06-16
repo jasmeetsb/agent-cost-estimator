@@ -8,16 +8,16 @@ Unit = one interaction = a conversation + a memory-write. The 4 archetype agents
 
 | Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
 |---|---|---|---|---|---|
-| multi-agent-orchestrator (archetype) | 149080 (6076–8349717) | 6080 (1140–106637) | 18.9 | 90.6 | 100 |
-| on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
-| autonomous-researcher (archetype) | 44234 (16990–166168) | 8482 (4524–14742) | 7.8 | 171.2 | 201 |
-| financial-advisor | 27586 (3667–139557) | 1724 (780–8097) | 3.6 | 347.5 | 420 |
-| workflow-operator (archetype) | 20107 (3343–74345) | 1485 (419–3502) | 14.0 | 25.3 | 47 |
-| plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
-| blog-writer | 8121 (3278–13401) | 5334 (451–8595) | 5.0 | 225.9 | 259 |
 | conversational-chatbot (archetype) | 6369 (2030–17874) | 693 (185–1876) | 7.5 | 20.9 | 39 |
-| marketing-agency | 6206 (3386–18972) | 1031 (578–2626) | 4.2 | 79.7 | 138 |
+| workflow-operator (archetype) | 20107 (3343–74345) | 1485 (419–3502) | 14.0 | 25.3 | 47 |
+| autonomous-researcher (archetype) | 44234 (16990–166168) | 8482 (4524–14742) | 7.8 | 171.2 | 201 |
+| multi-agent-orchestrator (archetype) | 149080 (6076–8349717) | 6080 (1140–106637) | 18.9 | 90.6 | 100 |
+| financial-advisor | 27586 (3667–139557) | 1724 (780–8097) | 3.6 | 347.5 | 420 |
 | academic-research | 4058 (2367–8369) | 890 (393–3026) | 3.1 | 72.7 | 125 |
+| marketing-agency | 6206 (3386–18972) | 1031 (578–2626) | 4.2 | 79.7 | 138 |
+| blog-writer | 8121 (3278–13401) | 5334 (451–8595) | 5.0 | 225.9 | 259 |
+| on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
+| plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
 | memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
 | fomc-research | 1838 (1306–2800) | 479 (188–949) | 2.3 | 30.1 | 55 |
 | nexshift-agent | 0 (0–0) | 0 (0–0) | 0.0 | 12.8 | 37 |
@@ -26,16 +26,16 @@ Unit = one interaction = a conversation + a memory-write. The 4 archetype agents
 
 | Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |
 |---|---|---|---|---|
-| multi-agent-orchestrator (archetype) | 37.9 | 2793 | 1.2 | 0.2 |
-| on-brand-genmedia | 31.6 | 4191 | 0.5 | 0.0 |
-| autonomous-researcher (archetype) | 15.6 | 7999 | 0.6 | 0.4 |
-| financial-advisor | 7.3 | 3377 | 0.8 | 0.0 |
-| workflow-operator (archetype) | 27.9 | 2549 | 1.1 | 0.7 |
-| plumber-data-engineering-assistant | 8.0 | 2853 | 0.6 | 0.0 |
-| blog-writer | 11.5 | 5386 | 0.2 | 0.0 |
 | conversational-chatbot (archetype) | 15.0 | 2486 | 0.0 | 0.0 |
-| marketing-agency | 8.3 | 2753 | 0.7 | 0.0 |
+| workflow-operator (archetype) | 27.9 | 2549 | 1.1 | 0.7 |
+| autonomous-researcher (archetype) | 15.6 | 7999 | 0.6 | 0.4 |
+| multi-agent-orchestrator (archetype) | 37.9 | 2793 | 1.2 | 0.2 |
+| financial-advisor | 7.3 | 3377 | 0.8 | 0.0 |
 | academic-research | 6.2 | 2555 | 0.1 | 0.0 |
+| marketing-agency | 8.3 | 2753 | 0.7 | 0.0 |
+| blog-writer | 11.5 | 5386 | 0.2 | 0.0 |
+| on-brand-genmedia | 31.6 | 4191 | 0.5 | 0.0 |
+| plumber-data-engineering-assistant | 8.0 | 2853 | 0.6 | 0.0 |
 | memory_assistant | 11.5 | 2493 | 3.2 | 2.5 |
 | fomc-research | 4.8 | 2358 | 0.0 | 0.0 |
 | nexshift-agent | 2.0 | 2390 | 1.0 | 0.0 |
@@ -48,16 +48,16 @@ Collectors added for Google Search grounding (Cloud Monitoring) and image genera
 
 | Agent | Web-search grounded requests | Images generated |
 |---|---|---|
-| multi-agent-orchestrator (archetype) | 0 | 0 |
-| on-brand-genmedia | 0 | 27 |
-| autonomous-researcher (archetype) | 0 | 0 |
-| financial-advisor | 0 | 0 |
-| workflow-operator (archetype) | 0 | 0 |
-| plumber-data-engineering-assistant | 0 | 0 |
-| blog-writer | 40 | 0 |
 | conversational-chatbot (archetype) | 0 | 0 |
-| marketing-agency | 0 | 0 |
+| workflow-operator (archetype) | 0 | 0 |
+| autonomous-researcher (archetype) | 0 | 0 |
+| multi-agent-orchestrator (archetype) | 0 | 0 |
+| financial-advisor | 0 | 0 |
 | academic-research | 0 | 0 |
+| marketing-agency | 0 | 0 |
+| blog-writer | 40 | 0 |
+| on-brand-genmedia | 0 | 27 |
+| plumber-data-engineering-assistant | 0 | 0 |
 | memory_assistant | 0 | 0 |
 | fomc-research | 0 | 0 |
 | nexshift-agent | 0 | 0 |
@@ -70,14 +70,14 @@ Per-interaction quantities for the archetype agents (Firestore document ops via 
 
 | Agent | Firestore writes | Firestore reads | Vertex AI Search (RAG) queries | Google Search grounded turns |
 |---|---|---|---|---|
-| multi-agent-orchestrator (archetype) | 0.29 | 0.63 | 0.42 | 0.00 |
-| autonomous-researcher (archetype) | 1.34 | 2.06 | 1.18 | 1.62 |
-| financial-advisor | 0.00 | 0.93 | 0.17 | 0.95 |
-| workflow-operator (archetype) | 1.42 | 1.23 | 0.00 | 0.00 |
-| blog-writer | 0.00 | 1.00 | 0.72 | 0.00 |
 | conversational-chatbot (archetype) | 0.03 | 0.00 | 2.15 | 0.00 |
-| marketing-agency | 0.00 | 1.00 | 2.00 | 0.00 |
+| workflow-operator (archetype) | 1.42 | 1.23 | 0.00 | 0.00 |
+| autonomous-researcher (archetype) | 1.34 | 2.06 | 1.18 | 1.62 |
+| multi-agent-orchestrator (archetype) | 0.29 | 0.63 | 0.42 | 0.00 |
+| financial-advisor | 0.00 | 0.93 | 0.17 | 0.95 |
 | academic-research | 0.05 | 0.68 | 0.38 | 0.68 |
+| marketing-agency | 0.00 | 1.00 | 2.00 | 0.00 |
+| blog-writer | 0.00 | 1.00 | 0.72 | 0.00 |
 
 _RAG priced at $1.50/1K queries, Google Search grounding at $14/1K grounded turns, Firestore at catalog read/write rates (GE AP calculator). Usage counts are the deliverable; cost is the secondary view in §4. Google Search grounding = web_researcher AgentTool invocations (native google_search grounding_metadata is encapsulated by the tool; Monitoring does not track native ADK google_search)._
 
@@ -85,12 +85,12 @@ _RAG priced at $1.50/1K queries, Google Search grounding at $14/1K grounded turn
 
 | Agent | Gemini tokens | Agent Runtime | Sessions | Memory Bank | Search grounding | Image gen |
 |---|---|---|---|---|---|---|
-| on-brand-genmedia | ✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)** |
 | financial-advisor | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
-| plumber-data-engineering-assistant | ✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent) |
-| blog-writer | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
-| marketing-agency | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured |
 | academic-research | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
+| marketing-agency | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured |
+| blog-writer | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
+| on-brand-genmedia | ✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)** |
+| plumber-data-engineering-assistant | ✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent) |
 | memory_assistant | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
 | fomc-research | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended) |
 | nexshift-agent | ✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | — |
