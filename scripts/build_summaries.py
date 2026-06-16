@@ -575,6 +575,11 @@ def derive(pkg):
         "mem_written": mem.get("memories_written", 0) / n,
         "mem_retrieved": mem.get("memories_retrieved", 0) / n,
         "web_searches": gm.get("web_search_requests", 0), "images": gm.get("images_generated", 0),
+        # Model Armor (P1) — DERIVED, not deployed: bills per token scanned ($0.10/1M).
+        # Assumes 100% of conversation I/O (input+output tokens) is scanned. If only the
+        # user-facing boundary is scanned, it's a fraction of this.
+        "armor_tokens": v["input_tokens"]["mean"] + v["output_tokens"]["mean"],
+        "c_model_armor": (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6,
         "fs_reads": (r.get("cumulative", {}) or {}).get("fs_reads", 0),
         "fs_writes": (r.get("cumulative", {}) or {}).get("fs_writes", 0),
         "fs_reads_pi": (r.get("cumulative", {}) or {}).get("fs_reads", 0) / n,
@@ -583,7 +588,8 @@ def derive(pkg):
         "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
         "c_firestore": avg.get("firestore_usd", 0),
         "c_image": image_per_run, "c_grounding": grounding_per_run,
-        "c_total": avg["total_usd"] + image_per_run + grounding_per_run,
+        "c_total": avg["total_usd"] + image_per_run + grounding_per_run
+        + (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6,
         "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "cost_var": var_word(v["model_usd"]["cv_pct"]),
@@ -649,6 +655,7 @@ def agent_md(d):
         f"| Memory Bank + Sessions | {d['c_memsess']:.4f} |",
         (f"| Firestore ({d['fs_writes']:.0f}w/{d['fs_reads']:.0f}r over {d['n']} runs) | {d['c_firestore']:.7f} |"
          if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
+        f"| Model Armor (derived: {d['armor_tokens']:.0f} tok scanned @ $0.10/1M) | {d['c_model_armor']:.6f} |",
         (f"| Imagen (image generation) | {d['c_image']:.4f} |" if d['c_image'] else None),
         (f"| Search grounding | {d['c_grounding']:.4f} |" if d['c_grounding'] else None),
         f"| **Total (measured SKUs)** | **{d['c_total']:.4f}** (range {d['c_total_min']:.4f}–{d['c_total_max']:.4f}) |",
