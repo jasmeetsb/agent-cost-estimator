@@ -1069,10 +1069,21 @@ def master(ds):
             f"{r['gen_tok']:.0f} | {r['mem_retrieved']:.2f} | {fsw:.2f}/{fsr:.2f} | "
             f"{r.get('rag_pi', 0):.2f} | {web:.2f} | {r.get('images', 0):.0f} | {r['c_total']:.4f} |")
     L += ["",
-          "_Firestore W/R = document writes/reads. RAG = Vertex AI Search queries. Web grounding = "
-          "Google Search grounded query-turns. Model Armor (derived, = all tokens scanned @ $0.10/1M) "
-          "is folded into $/intxn but omitted as a column. '—' = not tracked for that legacy entry. "
-          "All per-interaction averages over the Interactions column._", "",
+          "**Legend** — what each column means (all values are **per interaction**, averaged over the "
+          "Interactions column, unless noted):", "",
+          "- **Interactions** — number of interactions the agent was tested over (sample size for every average in the row).",
+          "- **Input tok / Output tok** — Gemini prompt tokens (incl. cached) / output tokens (candidates + thinking). Billed at the input / output rates.",
+          "- **Model calls** — model invocations per interaction; one tool-using turn emits several.",
+          "- **vCPU-s / GiB-s** — Agent Runtime vCPU-seconds / memory GiB-seconds, amortized over the measurement window (upper bound, not actual billed instance-time).",
+          "- **Session events** — events appended to the Sessions (short-term memory) store.",
+          "- **Mem-gen tok** — Memory Bank generation tokens (LLM extraction triggered by `add_session_to_memory`).",
+          "- **Mem retrieved** — Memory Bank memories retrieved via `load_memory`; 0 when the workload doesn't recall prior context.",
+          "- **Firestore W/R** — Firestore document writes / reads (`save_note` / `load_note`).",
+          "- **RAG queries** — Vertex AI Search (RAG) queries against the synthetic corpus.",
+          "- **Web grounding** — Google Search grounded query-turns (`google_search` via a web-research AgentTool).",
+          "- **Imagen** — images generated (Imagen / `gemini-2.5-flash-image`).",
+          "- **$/intxn** — derived cost per interaction = Σ(usage × catalog list price); includes Model Armor (all tokens scanned @ $0.10/1M, folded in, no column). **Reference only — list price, not actual billed dollars.**",
+          "- **'—'** — not tracked for that legacy entry (`memory_assistant`).", "",
           "## 1. SKU usage per interaction — model & compute (PRIMARY)", "",
           "| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |",
           "|---|---|---|---|---|---|"]
