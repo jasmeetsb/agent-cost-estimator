@@ -566,6 +566,23 @@ def count_rag_searches(pkg):
     return count_tool_calls(pkg, _RAG_TOOLS)
 
 
+def count_memories_retrieved(pkg):
+    """Count Memory Bank memories RETRIEVED via load_memory, from the function_response
+    (`{"result": {"memories": [...]}}`). Fresh users return []; returning users return
+    prior memories — so this is the billable 'memories retrieved' unit, not raw calls.
+    Returns (total_memories, n_interactions)."""
+    total = 0
+    for r in load_transcript(pkg):
+        for s in r.get("steps", []):
+            if s.get("type") == "tool_response" and (s.get("tool") or "") in _MEM_RETRIEVAL_TOOLS:
+                resp = s.get("response")
+                if isinstance(resp, dict):
+                    mems = (resp.get("result") or {}).get("memories")
+                    if isinstance(mems, list):
+                        total += len(mems)
+    return total, len(transcript_interactions(pkg))
+
+
 def workload_profile(pkg, max_chars=200):
     """Summarize a transcript's workload for §7.
     Returns dict: n_interactions, turn_counts (Counter), scenarios (list of
@@ -599,7 +616,7 @@ def derive(pkg):
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
     rag_total, rag_inters = count_rag_searches(pkg)
     web_ground_total, web_ground_inters = count_tool_calls(pkg, _WEB_GROUNDING_TOOLS)
-    retr_total, retr_inters = count_tool_calls(pkg, _MEM_RETRIEVAL_TOOLS)
+    retr_total, retr_inters = count_memories_retrieved(pkg)
     # Actual turn structure (multi-turn archetypes vs 2-turn samples) from the data.
     tv = v.get("turns")
     if tv:
@@ -745,7 +762,7 @@ def agent_md(d):
          if d.get('rag_total', 0) else None),
         (f"| Google Search grounding ({d['web_ground_pi']:.2f} grounded turns/intxn @ $14/1K) | {d['c_web_ground']:.6f} |"
          if d.get('web_ground_total', 0) else None),
-        (f"| Memory Bank retrieval ({d['mem_retrieved']:.2f} load_memory calls/intxn @ $0.5/1K) | {d['c_mem_retr']:.6f} |"
+        (f"| Memory Bank retrieval ({d['mem_retrieved']:.2f} memories retrieved/intxn @ $0.5/1K) | {d['c_mem_retr']:.6f} |"
          if d.get('mem_retrieved', 0) else None),
         f"| Model Armor (derived: {d['armor_tokens']:.0f} tok scanned @ $0.10/1M) | {d['c_model_armor']:.6f} |",
         (f"| Imagen (image generation) | {d['c_image']:.4f} |" if d['c_image'] else None),
