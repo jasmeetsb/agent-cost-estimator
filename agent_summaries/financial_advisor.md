@@ -1,8 +1,8 @@
 # SKU Usage Summary — `financial-advisor` (financial_advisor)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `5907850248633450496`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `7070341902448459776`
 - **Use case:** Stock analysis & trading-strategy advisor · **Complexity:** High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (3.6 model calls avg), averaged over **40 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (3.5 model calls avg), averaged over **80 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -50,34 +50,33 @@ Gemini tokens (input/output/cached); Agent Runtime (vCPU + memory); Sessions; Me
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **40 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package financial_advisor --runs 40 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **80 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package financial_advisor --runs 80 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 40 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 80 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 27586 | 3667–139557 | Very high |
-| Gemini output tokens (incl. thinking) | tokens | 1724 | 780–8097 | Very high |
-| Model calls | calls | 3.6 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 347.5 | — | — |
-| Agent Runtime — memory | GiB-seconds | 420.3 | — | — |
-| Sessions | events appended | 7.3 | — | Low |
-| Memory Bank — generation | tokens | 3377 | — | — |
-| Memory Bank — memories written | memories | 0.8 | — | — |
-| Memory Bank — retrievals | reads | 0.0 | — | — |
-| Firestore — document writes | writes | 0.00 | — | — |
-| Firestore — document reads | reads | 0.93 | — | — |
-| Vertex AI Search (RAG) — queries | searches | 0.17 | — | — |
-| Google Search grounding — query turns | grounded turns | 0.95 | — | — |
+| Gemini input tokens | tokens | 21665 | 3667–139557 | Very high |
+| Gemini output tokens (incl. thinking) | tokens | 1789 | 709–16996 | Very high |
+| Model calls | calls | 3.5 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 135.6 | — | — |
+| Agent Runtime — memory | GiB-seconds | 174.1 | — | — |
+| Sessions | events appended | 7.2 | — | Medium |
+| Memory Bank — generation | tokens | 3151 | — | — |
+| Memory Bank — memories written | memories | 0.9 | — | — |
+| Memory Bank — retrievals | reads | 0.6 | — | — |
+| Firestore — document writes | writes | 0.03 | — | — |
+| Firestore — document reads | reads | 0.95 | — | — |
+| Vertex AI Search (RAG) — queries | searches | 0.26 | — | — |
+| Google Search grounding — query turns | grounded turns | 0.90 | — | — |
 
-_Memory retrievals = 0 for this workload: the agent either has no retrieval tool (the adk-sample agents) or answers directly without invoking recall (the support-FAQ chatbot — it IS `load_memory`-capable and recalls when asked, but its FAQ turns don't trigger it). Retrieval IS exercised by the returning-user runs of workflow-operator, autonomous-researcher, and multi-agent-orchestrator, and by `memory_assistant`._
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 0.95 grounded query-turns per interaction measured (web_researcher AgentTool invocations; each runs ≥1 native google_search generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not track native ADK google_search — so the AgentTool call count is the measurable unit.
+- **Google Search grounding:** 0.90 grounded query-turns per interaction measured (web_researcher AgentTool invocations; each runs ≥1 native google_search generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not track native ADK google_search — so the AgentTool call count is the measurable unit.
 - **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
 
 ## 5b. Caveats on usage capture
@@ -93,25 +92,47 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0126 |
-| Agent Runtime | 0.0094 |
-| Memory Bank + Sessions | 0.0029 |
-| Firestore (0w/37r over 40 runs) | 0.0000000 |
-| Vertex AI Search (RAG: 0.17 queries/intxn @ $1.50/1K) | 0.000262 |
-| Google Search grounding (0.95 grounded turns/intxn @ $14/1K) | 0.013300 |
-| Model Armor (derived: 29310 tok scanned @ $0.10/1M) | 0.002931 |
-| **Total (measured SKUs)** | **0.0413** (range 0.0160–0.0587) |
+| Gemini tokens | 0.0110 |
+| Agent Runtime | 0.0084 |
+| Memory Bank + Sessions | 0.0030 |
+| Firestore (2w/76r over 80 runs) | 0.0000001 |
+| Vertex AI Search (RAG: 0.26 queries/intxn @ $1.50/1K) | 0.000394 |
+| Google Search grounding (0.90 grounded turns/intxn @ $14/1K) | 0.012600 |
+| Memory Bank retrieval (0.55 memories retrieved/intxn @ $0.5/1K) | 0.000275 |
+| Model Armor (derived: 23455 tok scanned @ $0.10/1M) | 0.002345 |
+| **Total (measured SKUs)** | **0.0380** (range 0.0144–0.0876) |
 
 ## 7. Test workload & sample interactions
 
-**40 interactions** (80 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
+**45 interactions** (160 total user turns), fresh user_id per interaction. Interactions cycle **2 distinct conversation scenarios** of varying length (2-turn×40, 16-turn×5) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
-**Workload (turn-by-turn):**
+**Scenario 1** (2 turns):
 
 | Turn | User query |
 |---|---|
 | 1 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
 | 2 | Based on that, suggest a simple trading strategy and key risks. |
+
+**Scenario 2** (16 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 2 | Based on that, suggest a simple trading strategy and key risks. |
+| 3 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 4 | Based on that, suggest a simple trading strategy and key risks. |
+| 5 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 6 | Based on that, suggest a simple trading strategy and key risks. |
+| 7 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 8 | Based on that, suggest a simple trading strategy and key risks. |
+| 9 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 10 | Based on that, suggest a simple trading strategy and key risks. |
+| 11 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 12 | Based on that, suggest a simple trading strategy and key risks. |
+| 13 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 14 | Based on that, suggest a simple trading strategy and key risks. |
+| 15 | I'm a moderate-risk investor. Analyze the outlook for NVDA. |
+| 16 | Based on that, suggest a simple trading strategy and key risks. |
 
 **Sample interaction (first run):**
 

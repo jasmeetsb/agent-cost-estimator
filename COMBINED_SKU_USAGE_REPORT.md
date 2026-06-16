@@ -12,9 +12,9 @@ Unit = one interaction = a conversation + a memory-write. The 4 archetype agents
 | workflow-operator (archetype) | 20107 (3343–74345) | 1485 (419–3502) | 14.0 | 25.3 | 47 |
 | autonomous-researcher (archetype) | 44234 (16990–166168) | 8482 (4524–14742) | 7.8 | 171.2 | 201 |
 | multi-agent-orchestrator (archetype) | 149080 (6076–8349717) | 6080 (1140–106637) | 18.9 | 90.6 | 100 |
-| financial-advisor | 27586 (3667–139557) | 1724 (780–8097) | 3.6 | 347.5 | 420 |
+| financial-advisor | 21665 (3667–139557) | 1789 (709–16996) | 3.5 | 135.6 | 174 |
 | academic-research | 4055 (2367–8369) | 958 (341–3193) | 3.0 | 66.5 | 85 |
-| marketing-agency | 6206 (3386–18972) | 1031 (578–2626) | 4.2 | 79.7 | 138 |
+| marketing-agency | 7027 (2621–18972) | 1184 (535–3126) | 3.7 | 187.9 | 231 |
 | blog-writer | 8882 (3278–17842) | 4135 (257–8595) | 4.8 | 101.3 | 138 |
 | on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
 | plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
@@ -30,9 +30,9 @@ Unit = one interaction = a conversation + a memory-write. The 4 archetype agents
 | workflow-operator (archetype) | 27.9 | 2549 | 1.1 | 0.7 |
 | autonomous-researcher (archetype) | 15.6 | 7999 | 0.6 | 0.4 |
 | multi-agent-orchestrator (archetype) | 37.9 | 2793 | 1.2 | 0.2 |
-| financial-advisor | 7.3 | 3377 | 0.8 | 0.0 |
+| financial-advisor | 7.2 | 3151 | 0.9 | 0.6 |
 | academic-research | 6.0 | 2480 | 0.0 | 0.0 |
-| marketing-agency | 8.3 | 2753 | 0.7 | 0.0 |
+| marketing-agency | 7.6 | 2762 | 0.6 | 0.4 |
 | blog-writer | 11.1 | 4603 | 0.3 | 0.3 |
 | on-brand-genmedia | 31.6 | 4191 | 0.5 | 0.0 |
 | plumber-data-engineering-assistant | 8.0 | 2853 | 0.6 | 0.0 |
@@ -74,9 +74,9 @@ Per-interaction quantities for the archetype agents (Firestore document ops via 
 | workflow-operator (archetype) | 1.42 | 1.23 | 0.00 | 0.00 |
 | autonomous-researcher (archetype) | 1.34 | 2.06 | 1.18 | 1.62 |
 | multi-agent-orchestrator (archetype) | 0.29 | 0.63 | 0.42 | 0.00 |
-| financial-advisor | 0.00 | 0.93 | 0.17 | 0.95 |
+| financial-advisor | 0.03 | 0.95 | 0.26 | 0.90 |
 | academic-research | 0.04 | 0.56 | 0.34 | 0.70 |
-| marketing-agency | 0.00 | 1.00 | 2.00 | 0.00 |
+| marketing-agency | 0.05 | 1.01 | 1.70 | 0.53 |
 | blog-writer | 0.00 | 0.95 | 0.80 | 0.50 |
 
 _RAG priced at $1.50/1K queries, Google Search grounding at $14/1K grounded turns, Firestore at catalog read/write rates (GE AP calculator). Usage counts are the deliverable; cost is the secondary view in §4. Google Search grounding = web_researcher AgentTool invocations (native google_search grounding_metadata is encapsulated by the tool; Monitoring does not track native ADK google_search)._
@@ -105,13 +105,13 @@ Reference only — list price, not actual billed. The usage tables above are the
 | multi-agent-orchestrator (archetype) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
 | autonomous-researcher (archetype) | 0.0345 | 0.0101 | 0.0065 | 0.0810 (0.0340–0.1005) | Medium |
 | blog-writer | 0.0130 | 0.0058 | 0.0043 | 0.0595 (0.0385–0.0603) | High |
-| financial-advisor | 0.0126 | 0.0094 | 0.0029 | 0.0413 (0.0160–0.0587) | Very high |
+| financial-advisor | 0.0110 | 0.0084 | 0.0030 | 0.0380 (0.0144–0.0876) | Very high |
+| marketing-agency | 0.0051 | 0.0062 | 0.0030 | 0.0252 (0.0120–0.0214) | Medium |
 | workflow-operator (archetype) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
 | academic-research | 0.0036 | 0.0028 | 0.0023 | 0.0195 (0.0067–0.0143) | High |
 | memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | conversational-chatbot (archetype) | 0.0036 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0160) | High |
-| marketing-agency | 0.0044 | 0.0023 | 0.0029 | 0.0133 (0.0080–0.0174) | Medium |
 | fomc-research | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
 | nexshift-agent | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 

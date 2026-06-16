@@ -693,11 +693,14 @@ def derive(pkg):
 
 def agent_md(d):
     m = META[d["pkg"]]
-    retr_note = ("\n_Memory retrievals = 0 for this workload: the agent either has no retrieval tool "
-                 "(the adk-sample agents) or answers directly without invoking recall (the support-FAQ "
-                 "chatbot — it IS `load_memory`-capable and recalls when asked, but its FAQ turns don't "
-                 "trigger it). Retrieval IS exercised by the returning-user runs of workflow-operator, "
-                 "autonomous-researcher, and multi-agent-orchestrator, and by `memory_assistant`._"
+    retr_note = ("\n_Memory retrievals = 0 for this workload. `load_memory` returns memories only when "
+                 "(a) the agent invokes it and (b) earlier sessions generated **user-centric** memories "
+                 "worth recalling. Here it is 0 — the agent has no retrieval tool, or doesn't call it "
+                 "(support-FAQ chatbot answers directly), or calls it but its sessions produce no "
+                 "user-centric memories to retrieve (e.g., academic-research: topic Q&A, not facts about "
+                 "the user). The retrieval SKU IS exercised by financial-advisor, marketing-agency, "
+                 "blog-writer, workflow-operator, autonomous-researcher, and multi-agent-orchestrator "
+                 "(returning-user runs) + `memory_assistant`._"
                  if d["mem_retrieved"] == 0 else "")
     lines = [
         f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",

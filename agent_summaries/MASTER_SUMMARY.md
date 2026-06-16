@@ -48,9 +48,9 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 | [workflow-operator (archetype)](workflow_operator.md) | 118 | 425 | 20107 | 1485 | 14.0 | 25.3 | 47 | 27.9 | 2549 | 0.67 | 1.42/1.23 | 0.00 | 0.00 | 0 | 0.0232 |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 79 | 253 | 44234 | 8482 | 7.8 | 171.2 | 201 | 15.6 | 7999 | 0.38 | 1.34/2.06 | 1.18 | 1.62 | 0 | 0.0810 |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 120 | 432 | 149080 | 6080 | 18.9 | 90.6 | 100 | 37.9 | 2793 | 0.20 | 0.29/0.63 | 0.42 | 0.00 | 0 | 0.0932 |
-| [financial-advisor](financial_advisor.md) | 40 | 80 | 27586 | 1724 | 3.6 | 347.5 | 420 | 7.3 | 3377 | 0.00 | 0.00/0.93 | 0.17 | 0.95 | 0 | 0.0413 |
+| [financial-advisor](financial_advisor.md) | 80 | 160 | 21665 | 1789 | 3.5 | 135.6 | 174 | 7.2 | 3151 | 0.55 | 0.03/0.95 | 0.26 | 0.90 | 0 | 0.0380 |
 | [academic-research](academic_research.md) | 80 | 160 | 4055 | 958 | 3.0 | 66.5 | 85 | 6.0 | 2480 | 0.00 | 0.04/0.56 | 0.34 | 0.70 | 0 | 0.0195 |
-| [marketing-agency](marketing_agency.md) | 40 | 80 | 6206 | 1031 | 4.2 | 79.7 | 138 | 8.3 | 2753 | 0.00 | 0.00/1.00 | 2.00 | 0.00 | 0 | 0.0133 |
+| [marketing-agency](marketing_agency.md) | 80 | 160 | 7027 | 1184 | 3.7 | 187.9 | 231 | 7.6 | 2762 | 0.40 | 0.05/1.01 | 1.70 | 0.53 | 0 | 0.0252 |
 | [blog-writer](blogger_agent.md) | 80 | 160 | 8882 | 4135 | 4.8 | 101.3 | 138 | 11.1 | 4603 | 0.31 | 0.00/0.95 | 0.80 | 0.50 | 0 | 0.0595 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 35 | — | 83460 | 7349 | 17.2 | 322.7 | 329 | 31.6 | 4191 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 27 | 0.0934 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 35 | — | 13800 | 1958 | 4.0 | 104.1 | 127 | 8.0 | 2853 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0143 |
@@ -124,9 +124,9 @@ How the §0 columns map to the rows in the GE AP pricing calculator (the referen
 | [workflow-operator (archetype)](workflow_operator.md) | 20107 (3343–74345) | 1485 (419–3502) | 14.0 | 25.3 | 47 |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 44234 (16990–166168) | 8482 (4524–14742) | 7.8 | 171.2 | 201 |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 149080 (6076–8349717) | 6080 (1140–106637) | 18.9 | 90.6 | 100 |
-| [financial-advisor](financial_advisor.md) | 27586 (3667–139557) | 1724 (780–8097) | 3.6 | 347.5 | 420 |
+| [financial-advisor](financial_advisor.md) | 21665 (3667–139557) | 1789 (709–16996) | 3.5 | 135.6 | 174 |
 | [academic-research](academic_research.md) | 4055 (2367–8369) | 958 (341–3193) | 3.0 | 66.5 | 85 |
-| [marketing-agency](marketing_agency.md) | 6206 (3386–18972) | 1031 (578–2626) | 4.2 | 79.7 | 138 |
+| [marketing-agency](marketing_agency.md) | 7027 (2621–18972) | 1184 (535–3126) | 3.7 | 187.9 | 231 |
 | [blog-writer](blogger_agent.md) | 8882 (3278–17842) | 4135 (257–8595) | 4.8 | 101.3 | 138 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
@@ -142,9 +142,9 @@ How the §0 columns map to the rows in the GE AP pricing calculator (the referen
 | [workflow-operator (archetype)](workflow_operator.md) | 27.9 | 2549 | 1.1 | 0.7 |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 15.6 | 7999 | 0.6 | 0.4 |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 37.9 | 2793 | 1.2 | 0.2 |
-| [financial-advisor](financial_advisor.md) | 7.3 | 3377 | 0.8 | 0.0 |
+| [financial-advisor](financial_advisor.md) | 7.2 | 3151 | 0.9 | 0.6 |
 | [academic-research](academic_research.md) | 6.0 | 2480 | 0.0 | 0.0 |
-| [marketing-agency](marketing_agency.md) | 8.3 | 2753 | 0.7 | 0.0 |
+| [marketing-agency](marketing_agency.md) | 7.6 | 2762 | 0.6 | 0.4 |
 | [blog-writer](blogger_agent.md) | 11.1 | 4603 | 0.3 | 0.3 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 31.6 | 4191 | 0.5 | 0.0 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 8.0 | 2853 | 0.6 | 0.0 |
@@ -206,13 +206,13 @@ Reference only — list price, not actual billed. The usage tables above are the
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0345 | 0.0101 | 0.0065 | 0.0810 (0.0340–0.1005) | Medium |
 | [blog-writer](blogger_agent.md) | 0.0130 | 0.0058 | 0.0043 | 0.0595 (0.0385–0.0603) | High |
-| [financial-advisor](financial_advisor.md) | 0.0126 | 0.0094 | 0.0029 | 0.0413 (0.0160–0.0587) | Very high |
+| [financial-advisor](financial_advisor.md) | 0.0110 | 0.0084 | 0.0030 | 0.0380 (0.0144–0.0876) | Very high |
+| [marketing-agency](marketing_agency.md) | 0.0051 | 0.0062 | 0.0030 | 0.0252 (0.0120–0.0214) | Medium |
 | [workflow-operator (archetype)](workflow_operator.md) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
 | [academic-research](academic_research.md) | 0.0036 | 0.0028 | 0.0023 | 0.0195 (0.0067–0.0143) | High |
 | [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0036 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0160) | High |
-| [marketing-agency](marketing_agency.md) | 0.0044 | 0.0023 | 0.0029 | 0.0133 (0.0080–0.0174) | Medium |
 | [fomc-research](fomc_research.md) | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
 | [nexshift-agent](nexshift_agent.md) | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 
@@ -234,17 +234,17 @@ Each agent's test consists of N **interactions**, each = a 2-turn conversation +
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 85 | 2–40 | **432** | EXP-008 (archetype) |
 | [workflow-operator (archetype)](workflow_operator.md) | 85 | 2–35 | **426** | EXP-008 (archetype) |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 45 | 2–32 | **253** | EXP-008 (archetype) |
+| [financial-advisor](financial_advisor.md) | 45 | 2–16 | **160** | EXP-006 |
 | [academic-research](academic_research.md) | 45 | 2–16 | **160** | EXP-006 |
 | [blog-writer](blogger_agent.md) | 45 | 2–16 | **160** | EXP-006 |
-| [financial-advisor](financial_advisor.md) | 40 | 2 | **80** | EXP-006 |
-| [marketing-agency](marketing_agency.md) | 40 | 2 | **80** | EXP-006 |
+| [marketing-agency](marketing_agency.md) | 45 | 2–16 | **160** | EXP-006 |
 | [nexshift-agent](nexshift_agent.md) | 35 | 2 | **70** | EXP-007 |
 | [fomc-research](fomc_research.md) | 35 | 2 | **70** | EXP-007 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 35 | 2 | **70** | EXP-007 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 35 | 2 | **70** | EXP-007 |
 | [memory_assistant](memory_assistant.md) | 4 | 3 | **12** | EXP-005 |
 | grounded_news (validation) | 2 | 1 | **2** | collector-validation |
-| **TOTAL** | — | — | **2317** | all experiments combined |
+| **TOTAL** | — | — | **2477** | all experiments combined |
 
 Full per-turn transcripts (input, output_text, tool calls/responses, per-step usage) live at `data/transcript_<agent>.jsonl` locally. **Not committed** — `data/` is gitignored as runtime artifact. Each per-agent doc's §7 shows the workload prompts + one sample interaction inline.
 

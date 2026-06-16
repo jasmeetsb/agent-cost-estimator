@@ -508,6 +508,28 @@ RAG) and never invokes `load_memory` — it IS retrieval-capable (probe confirme
 adding load_memory redeployed each agent (new engine), so the dataset spans the old (cold-run) and new
 (returning-run) engines; `backfill_memory.py` groups batches by engine and sums.
 
+### EXP-013 — Retrieval + web grounding on the 4 use-case (adk-sample) agents
+- **Date:** 2026-06-16 | financial_advisor, academic_research, marketing_agency, blogger_agent.
+  Added `load_memory` (retrieval) to all 4 + a dedicated `web_research_agent` (google_search AgentTool)
+  to marketing + blogger (financial already searches via `data_analyst`, academic via
+  `academic_websearch`). Returning-user run: **40 new + 40 returning** (`--user-pool 5 --append`) →
+  **80 interactions each** (~50% returning). All gemini-2.5-flash.
+
+| Agent | Intxns | Web grounding/intxn | Mem retrieved/intxn | RAG/intxn | $/interaction |
+|-------|--------|----------------------|----------------------|-----------|----------------|
+| financial-advisor | 80 | **0.90** | **0.55** | 0.26 | $0.0380 |
+| academic-research | 80 | **0.70** | 0.00¹ | 0.34 | $0.0195 |
+| marketing-agency | 80 | **0.53** | **0.40** | 1.70 | $0.0252 |
+| blog-writer | 80 | **0.50** | **0.31** | 0.80 | $0.0595 |
+
+**Findings:** web grounding now measured for all 4 (the user's ask) — it was previously 0 because the
+search was buried in non-dedicated AgentTools (financial `data_analyst`, marketing/blogger) or the
+transfer pattern; financial/academic count their dedicated search sub-agents, marketing/blogger got a
+new `web_research_agent`. ¹**academic retrieval = 0**: it *calls* `load_memory` (32×) but its
+topic-research sessions generate ~no user-centric memories (2 mutations), so nothing comes back —
+a workload reality (cf. the support-FAQ chatbot). The other 3 retrieve. Engine-aware memory backfill
+across each agent's cold-run + returning-run engines.
+
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
 - Date / Agent / Workload / Engine id
