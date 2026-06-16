@@ -63,6 +63,34 @@ python scripts/harness.py --mode remote --iters 5             # query deployed e
   BigQuery billing export, which is NOT set up and is likely locked on this shared corp billing
   account. The standard Cloud Billing API returns no spend amounts.
 - A deployed Agent Engine accrues idle runtime cost. Tear down unused engines (`engine.delete(force=True)`).
+- **Firestore client needs the project ID, not the number.** Agent Engine sets `GOOGLE_CLOUD_PROJECT`
+  to the project *number* (436848677253); `firestore.Client()` defaulting to that 404s ("database does
+  not exist"). `fs_state.py` reads `FIRESTORE_PROJECT_ID` (the string id `jsb-genai-sa`). Symptom: writes
+  silently fail in the container but `save_note`/`load_note` function_calls still appear in events (so the
+  op *count* looks right while nothing lands). Verify by querying Firestore directly after a run, not by
+  counting tool calls.
+- **RAG ingestion: inline `raw_bytes` is rejected; use GCS + a JSONL manifest.** Importing unstructured
+  docs into a GENERIC/CONTENT_REQUIRED Vertex AI Search datastore via `InlineSource(raw_bytes=...)` fails
+  per-document ("document.data is a required field") and the LRO still reports success — datastore ends up
+  empty. `setup_rag.py` uploads each doc as a `.txt` to GCS and imports a JSONL manifest with
+  `content.uri` + `data_schema="document"`. It self-verifies (doc count + sample search).
+- **RAG search 403 from the deployed agent.** The Reasoning Engine runtime SA
+  (`service-436848677253@gcp-sa-aiplatform-re.iam.gserviceaccount.com`) needs `roles/discoveryengine.viewer`
+  to call `discoveryengine.servingConfigs.search`. Datastore searchable via your ADC ≠ searchable by the
+  agent. Same SA also holds `roles/datastore.user` (Firestore). Grant via REST setIamPolicy (gcloud CLI
+  auth is often stale; ADC works).
+- **Built-in tools (`google_search`) must be an `AgentTool`, not a `sub_agent`, to actually run.** A
+  built-in tool can't be combined with function tools on one agent, so it lives on its own agent. If that
+  agent is wired via `sub_agents` (LLM `transfer_to_agent`), the deployed `stream_query` hands off control
+  and the built-in tool **never executes** (stream ends after the transfer; 0 grounding). Wrap it as
+  `AgentTool(agent=...)` and put it in `tools=[...]` so the coordinator *calls* it and gets results back.
+- **Native `google_search` grounding is not metered by `web_search_requests` Monitoring metric** (tracks a
+  different "Web Grounding for Enterprise" path) and its `grounding_metadata` is encapsulated inside an
+  AgentTool (not in the parent stream). Count the `web_researcher` AgentTool invocations from the transcript
+  as the grounded-query-turn unit instead.
+- **Redirected stdout is block-buffered.** A long `exp_sample.py` run writing to a file shows 0 bytes until
+  it exits (flush on exit), so progress looks stuck. Run with `python -u` for live progress; to check a
+  detached run is alive, watch `/proc/<pid>/stat` CPU ticks, not the log size.
 
 ## PROTECTED RESOURCES — DO NOT DELETE
 - **`reasoningEngines/105003910208421888` ("Beads Issue Tracker")** belongs to separate work and
