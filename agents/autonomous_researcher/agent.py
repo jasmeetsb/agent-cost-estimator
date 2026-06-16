@@ -12,11 +12,17 @@ model tier: Gemini 3.1 Pro (≤200k). Deployed on gemini-2.5-flash for parity.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools import google_search
+from google.adk.tools import google_search, VertexAiSearchTool
 
 from .fs_state import save_note, load_note
 
 MODEL = "gemini-2.5-flash"
+
+# Shared synthetic knowledge corpus (Vertex AI Search / RAG) — internal references
+# to complement live web search.
+_DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
+               "default_collection/dataStores/agent-knowledge")
+corpus_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
 
 # Search grounding lives on its own sub-agent (built-in google_search can't be
 # combined with function tools on the same agent).
@@ -38,12 +44,13 @@ root_agent = Agent(
     description="Autonomous research analyst that web-searches and synthesizes long, cited reports.",
     instruction=(
         "You are an autonomous research analyst. For any question: (1) briefly plan the angles to "
-        "investigate, (2) use load_note (topic = the subject) to recall any prior research, "
+        "investigate, (2) use load_note (topic = the subject) to recall prior research and consult "
+        "the internal corpus via the Vertex AI Search RAG tool for reference briefs, "
         "(3) delegate web research to the web_researcher sub-agent to gather current information, "
         "(4) synthesize a thorough, well-structured report with sections, an executive summary, and "
         "cited sources, and (5) persist the key findings with save_note (topic = the subject). "
         "Be comprehensive and detailed — depth is expected."
     ),
-    tools=[save_note, load_note],
+    tools=[save_note, load_note, corpus_rag],
     sub_agents=[web_researcher],
 )

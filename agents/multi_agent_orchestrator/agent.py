@@ -13,10 +13,16 @@ BigQuery / RAG / action APIs (those SKUs would bill in production).
 """
 
 from google.adk.agents import Agent
+from google.adk.tools import VertexAiSearchTool
 
 from .fs_state import save_note, load_note
 
 MODEL = "gemini-2.5-flash"
+
+# Shared synthetic knowledge corpus (Vertex AI Search / RAG).
+_DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
+               "default_collection/dataStores/agent-knowledge")
+corpus_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
 
 
 # ---- data specialist tools (would hit BigQuery / RAG) ----
@@ -75,9 +81,10 @@ def send_update(channel: str, message: str) -> dict:
 data_specialist = Agent(
     name="data_specialist", model=MODEL,
     description="Gathers data: business metrics, records, and internal corpus passages.",
-    instruction="You gather data. Use query_metrics, fetch_records, and corpus_search as needed, "
-                "then return the raw findings clearly.",
-    tools=[query_metrics, fetch_records, corpus_search],
+    instruction="You gather data. Use query_metrics and fetch_records for metrics/records, and the "
+                "Vertex AI Search RAG tool to retrieve relevant internal corpus passages. Return "
+                "the raw findings clearly.",
+    tools=[query_metrics, fetch_records, corpus_rag],
 )
 
 analysis_specialist = Agent(
