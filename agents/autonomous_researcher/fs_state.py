@@ -21,14 +21,19 @@ import os
 from google.cloud import firestore
 from google.adk.tools import ToolContext
 
-_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "jsb-genai-sa")
+# Use the project ID, NOT GOOGLE_CLOUD_PROJECT — Agent Engine sets that env var to
+# the project NUMBER, and Firestore's database lookup rejects the number with a
+# 404 "database does not exist" (it requires the project ID). Verified: id→OK,
+# number→404. Multi-region (nam5) named DB targeted explicitly.
+_PROJECT = os.environ.get("FIRESTORE_PROJECT_ID", "jsb-genai-sa")
+_DATABASE = os.environ.get("FIRESTORE_DATABASE", "agentstate")
 _CLIENT = None
 
 
 def _db():
     global _CLIENT
     if _CLIENT is None:
-        _CLIENT = firestore.Client(project=_PROJECT)
+        _CLIENT = firestore.Client(project=_PROJECT, database=_DATABASE)
     return _CLIENT
 
 
