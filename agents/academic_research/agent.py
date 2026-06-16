@@ -16,7 +16,7 @@
 
 from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool
-from google.adk.tools import VertexAiSearchTool
+from google.adk.tools import VertexAiSearchTool, load_memory
 
 from . import prompt
 from .fs_state import save_note, load_note
@@ -34,8 +34,9 @@ corpus_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_li
 # Addendum so the coordinator exercises the state + retrieval SKUs (web search via
 # the academic_websearch AgentTool already grounds on Google Search).
 _SKU_ADDENDUM = (
-    "\n\nAdditionally: at the start, call load_note (topic = the paper/research subject) to recall "
-    "prior work. Consult the internal corpus via the Vertex AI Search tool for relevant reference "
+    "\n\nAdditionally: at the start, ALWAYS call load_memory to recall prior research sessions and "
+    "load_note (topic = the paper/research subject) to recall prior work. Consult the internal "
+    "corpus via the Vertex AI Search tool for relevant reference "
     "briefs, and use the academic_websearch tool for current papers. When done, persist the key "
     "findings with save_note (topic = the subject)."
 )
@@ -58,6 +59,7 @@ academic_coordinator = LlmAgent(
         AgentTool(agent=academic_newresearch_agent),
         save_note,
         load_note,
+        load_memory,
         corpus_rag,
     ],
 )

@@ -16,7 +16,7 @@
 
 from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool
-from google.adk.tools import VertexAiSearchTool
+from google.adk.tools import VertexAiSearchTool, google_search, load_memory
 
 from . import prompt
 from .fs_state import save_note, load_note
@@ -34,10 +34,24 @@ _DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
                "default_collection/dataStores/agent-knowledge")
 brand_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
 
+# Dedicated web-research agent (Google Search grounding) exposed as an AgentTool, so the
+# coordinator CALLS it for live market/competitor/trend research and the grounding SKU is
+# actually exercised + countable. (google_search must be the sole tool on its own agent.)
+web_research_agent = LlmAgent(
+    name="web_research_agent", model=MODEL,
+    description="Researches the live web (Google Search) for market, competitor, and trend info.",
+    instruction="Use google_search to gather current market/competitor/trend information for the "
+                "brief, then return organized findings with the sources you used.",
+    tools=[google_search],
+)
+web_research_tool = AgentTool(agent=web_research_agent)
+
 # Addendum so the coordinator exercises the state + retrieval SKUs.
 _SKU_ADDENDUM = (
-    "\n\nAdditionally: at the start, call load_note (topic = the brand/project name) to recall prior "
-    "work. Use the Vertex AI Search tool to retrieve relevant brand/marketing best-practice briefs "
+    "\n\nAdditionally: at the start, ALWAYS call load_memory to recall prior work with this client and "
+    "load_note (topic = the brand/project name) to recall prior "
+    "work. ALWAYS call the web_research_agent tool to research the live market/competitors/trends for "
+    "the brand. Use the Vertex AI Search tool to retrieve relevant brand/marketing best-practice briefs "
     "(brand strategy, naming, channels, landing pages, SEO, social) before advising. When done, "
     "persist a concise brand summary with save_note (topic = the brand/project name)."
 )
@@ -60,7 +74,9 @@ marketing_coordinator = LlmAgent(
         AgentTool(agent=logo_create_agent),
         save_note,
         load_note,
+        load_memory,
         brand_rag,
+        web_research_tool,
     ],
 )
 

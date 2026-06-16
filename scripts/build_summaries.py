@@ -40,8 +40,12 @@ _RAG_TOOLS = {"discovery_engine_search", "vertex_ai_search"}
 # the parent stream) and the Monitoring web_search_requests metric does not track
 # native ADK google_search, so the AgentTool call count is the measurable proxy.
 WEB_GROUNDING_USD_PER_TURN = 14.0 / 1000
-# AgentTool names that wrap a google_search agent (each call = ≥1 grounded turn).
-_WEB_GROUNDING_TOOLS = {"web_researcher", "academic_websearch_agent"}
+# AgentTool names that wrap a *dedicated* google_search agent (only tool = google_search),
+# so each call = ≥1 grounded query-turn. Includes the adk-sample search sub-agents:
+# data_analyst (financial_advisor), domain_create (marketing_agency), academic_websearch
+# (academic_research), web_researcher/web_research (our archetype + blogger).
+_WEB_GROUNDING_TOOLS = {"web_researcher", "web_research_agent", "academic_websearch_agent",
+                        "data_analyst_agent", "domain_create_agent"}
 
 # Memory Bank retrieval price. Source: GE AP calculator "Memory Retrieval" = $0.5 / 1K
 # memories retrieved. Counted from `load_memory` tool_calls in the transcript — the

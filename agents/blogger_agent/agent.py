@@ -15,7 +15,8 @@
 import datetime
 
 from google.adk.agents import Agent
-from google.adk.tools import FunctionTool, VertexAiSearchTool
+from google.adk.tools import FunctionTool, VertexAiSearchTool, google_search, load_memory
+from google.adk.tools.agent_tool import AgentTool
 
 from .config import config
 from .fs_state import save_note, load_note
@@ -33,6 +34,19 @@ from .tools import analyze_codebase, save_blog_post_to_file
 _DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
                "default_collection/dataStores/agent-knowledge")
 blog_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
+
+# Dedicated web-research agent (Google Search grounding) as an AgentTool, so the blogger
+# CALLS it to research the topic on the live web before planning/writing — exercising the
+# grounding SKU countably. (blog_writer/blog_planner also have google_search but are wired
+# as sub_agents/transfer, which doesn't reliably execute it.)
+web_research_agent = Agent(
+    name="web_research_agent", model=config.worker_model,
+    description="Researches the live web (Google Search) for current facts on the blog topic.",
+    instruction="Use google_search to gather current, accurate information on the topic, then "
+                "return organized findings with the sources you used.",
+    tools=[google_search],
+)
+web_research_tool = AgentTool(agent=web_research_agent)
 
 # --- AGENT DEFINITIONS ---
 
@@ -58,10 +72,11 @@ interactive_blogger_agent = Agent(
     7.  **Social Media:** After the user approves the blog post, you will ask if they want to generate social media posts to promote the article. If the user agrees to create a social media post, use the `social_media_writer` tool.
     8.  **Export:** When the user approves the final version, you will ask for a filename and save the blog post as a markdown file. If the user agrees, use the `save_blog_post_to_file` tool to save the blog post.
 
-    Before planning, call `load_note` (topic = the blog title or subject) to recall any prior draft,
-    and use the Vertex AI Search tool to retrieve relevant technical reference material from the
-    internal corpus. After the final version is approved, persist a short summary with `save_note`
-    (topic = the blog title).
+    Before planning, ALWAYS call `load_memory` to recall prior sessions and `load_note` (topic = the
+    blog title or subject) to recall any prior draft, call the `web_research_agent` tool to research
+    the topic on the live web, and use the Vertex AI Search tool to retrieve relevant technical
+    reference material from the internal corpus. After the final version is approved, persist a short
+    summary with `save_note` (topic = the blog title).
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
     """,
@@ -76,7 +91,9 @@ interactive_blogger_agent = Agent(
         FunctionTool(analyze_codebase),
         load_note,
         save_note,
+        load_memory,
         blog_rag,
+        web_research_tool,
     ],
     output_key="blog_outline",
 )
