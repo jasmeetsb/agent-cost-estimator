@@ -92,7 +92,8 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Gemini tokens | 0.0134 |
 | Agent Runtime | 0.0145 |
 | Memory Bank + Sessions | 0.0010 |
-| **Total (measured SKUs)** | **0.0289** (range 0.0215–0.0710) |
+| Model Armor (derived: 24539 tok scanned @ $0.10/1M) | 0.002454 |
+| **Total (measured SKUs)** | **0.0313** (range 0.0215–0.0710) |
 
 ## 7. Test workload & sample interactions
 

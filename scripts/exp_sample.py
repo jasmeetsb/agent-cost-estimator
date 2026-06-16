@@ -118,52 +118,86 @@ def _with_retry(fn, *, what="call", tries=6, base=8.0):
 # agents. Real-world interactions differ in length and subject; cycling these
 # across interactions makes the accumulated dataset more representative than one
 # repeated 2-turn workload. Turn counts raised where it makes sense per archetype.
+# 5 scenarios per agent, exactly ONE 2-turn + four 3-5 turn → ~80% of cycled
+# interactions are >2 turns (meets the ≥70% multi-turn requirement). Diverse topics.
 SCENARIOS = {
-    "conversational_chatbot": [  # 2-4 turns; support back-and-forth
-        ["How do I reset my password, and what are your support hours?",
+    "conversational_chatbot": [
+        ["How do I reset my password, and what are your support hours?",          # 2
          "Also, what are your pricing tiers and do you support SSO?"],
-        ["I'd like a refund on my last order.",
+        ["I'd like a refund on my last order.",                                   # 3
          "How long does that take to process?",
          "Can it go to a different card than I paid with?"],
-        ["Do you integrate with Slack?",
+        ["Do you integrate with Slack?",                                          # 4
          "What about exporting my data?",
          "Is data export on the Pro tier or Enterprise only?",
          "Okay — how do I upgrade my plan?"],
-        ["My shipment hasn't arrived yet.",
+        ["My shipment hasn't arrived yet.",                                       # 4
          "It's order ORD-1002. What's the ETA?",
-         "Can you switch it to express?"],
+         "Can you switch it to express shipping?",
+         "Will I be charged extra for that?"],
+        ["I'm new — can you walk me through setting up my account?",              # 5
+         "How do I invite my team?",
+         "What roles can I assign them?",
+         "Do you support SSO for the team?",
+         "And what does all that cost on the Pro tier?"],
     ],
-    "workflow_operator": [  # 2-4 turns; order workflows
-        ["Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.",
+    "workflow_operator": [
+        ["Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.",  # 2
          "Now process order ORD-1003 — flag any issues before shipping."],
-        ["Process order ORD-1002 with standard shipping.",
+        ["Process order ORD-1002 with standard shipping.",                        # 3
          "Apply the WELCOME discount and recalculate shipping.",
          "Send the customer an email confirmation and log it."],
-        ["Check inventory for the items in order ORD-1001.",
+        ["Check inventory for the items in order ORD-1001.",                      # 4
          "Validate the address and calculate express shipping.",
          "Apply SAVE10 and update the status to confirmed.",
          "Notify the customer by SMS and log the transaction."],
+        ["Look up order ORD-1003 and tell me its current state.",                 # 4
+         "The address issue is fixed — re-validate it.",
+         "Calculate standard shipping and apply WELCOME.",
+         "Confirm the order and notify by email."],
+        ["Start processing order ORD-1001.",                                      # 5
+         "Check inventory and confirm availability.",
+         "Validate the shipping address.",
+         "Apply SAVE10 with express shipping and update status.",
+         "Notify the customer and write the audit log."],
     ],
-    "autonomous_researcher": [  # 2-3 turns; expensive (long outputs + grounding)
-        ["Research the current state of small modular nuclear reactors (SMRs) and their commercial outlook.",
+    "autonomous_researcher": [
+        ["Research the current state of small modular reactors (SMRs) and their commercial outlook.",  # 2
          "Now focus on the main regulatory and cost barriers, and which companies lead."],
-        ["Research the state of solid-state EV batteries in 2026.",
-         "Which companies are closest to mass production, and what technical hurdles remain?",
-         "Summarize the investment outlook in a few sentences."],
-        ["Research recent advances in direct-air carbon capture.",
-         "Compare it with point-source capture on cost and scalability."],
+        ["Research the state of solid-state EV batteries in 2026.",               # 3
+         "Which companies are closest to mass production, and what hurdles remain?",
+         "Summarize the investment outlook."],
+        ["Research recent advances in direct-air carbon capture.",                # 3
+         "Compare it with point-source capture on cost and scalability.",
+         "Which approach is more likely to scale this decade, and why?"],
+        ["Research the latest in efficient transformer architectures.",           # 4
+         "Which techniques work best for edge deployment?",
+         "How do quantization and distillation compare there?",
+         "Summarize the practical recommendation."],
+        ["Research the RAG vs long-context-window tradeoff for enterprise search.",  # 4
+         "What are the cost implications of each?",
+         "When does hybrid (keyword + vector) retrieval help?",
+         "Give a recommended architecture for a 10M-document corpus."],
     ],
-    "multi_agent_orchestrator": [  # 2-5 turns; multi-step analyses
-        ["Analyze last quarter's support-ticket volume trend and recommend actions.",
+    "multi_agent_orchestrator": [
+        ["Analyze last quarter's support-ticket volume trend and recommend actions.",  # 2
          "Now draft an executive summary, open a follow-up ticket, and send an update to the ops channel."],
-        ["Pull our key product metrics for the last 30 days and analyze the trend.",
+        ["Pull our key product metrics for the last 30 days and analyze the trend.",   # 3
          "Fetch the related customer records.",
          "Summarize the findings, create a ticket for the biggest issue, and notify the team."],
-        ["Gather sales metrics and the internal playbook on churn.",
+        ["Gather sales metrics and the internal playbook on churn.",              # 5
          "Analyze the churn trend.",
          "Cross-reference it with recent support tickets.",
          "Draft an executive summary of what's driving churn.",
          "Open a remediation ticket and send an update to the ops channel."],
+        ["Look at activation-rate metrics for the last 30 days.",                 # 4
+         "Compare against the prior period and detect the trend.",
+         "Check the onboarding playbook for known friction points.",
+         "Draft recommendations and open a ticket."],
+        ["Pull weekly active accounts and ticket volume per 100 accounts.",       # 4
+         "Analyze whether support load is tracking growth.",
+         "Summarize the finding with the key numbers.",
+         "Notify the ops channel with the summary."],
     ],
 }
 

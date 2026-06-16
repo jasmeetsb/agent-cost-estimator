@@ -8,13 +8,16 @@ where it makes sense" per the agreed plan.
 Run once: python scripts/setup_rag.py
 """
 
+import json
 import time
 
 from google.api_core.client_options import ClientOptions
 from google.cloud import discoveryengine_v1 as de
+from google.cloud import storage
 
 PROJECT = "jsb-genai-sa"
 LOCATION = "global"
+STAGING_BUCKET = "jsb-genai-sa-staging"      # holds the .txt corpus + import manifest
 DATA_STORE_ID = "agent-knowledge"            # full/internal — researcher + orchestrator
 PUBLIC_DATA_STORE_ID = "agent-knowledge-public"  # customer-safe — chatbot only
 # Customer-safe docs (support KB + product). Internal docs (ops-/res-/policy-)
@@ -73,37 +76,90 @@ def _ensure_datastore(ds_client, parent, ds_id, display):
     return path
 
 
-def _import(doc_client, ds_path, corpus_subset):
+def _import(doc_client, bucket, ds_path, corpus_subset):
+    """Ingest unstructured docs via GCS + a JSONL manifest (data_schema="document").
+
+    Inline raw_bytes import is rejected by these GENERIC/CONTENT_REQUIRED datastores
+    ("document.data is a required field"). The reliable path for unstructured text is:
+    upload each doc as a .txt to GCS, then import a JSONL manifest whose lines carry
+    each doc's id + content.uri. Title is carried in struct_data for richer ranking.
+    """
+    ds_id = ds_path.split("/")[-1]
+    prefix = f"rag_corpus/{ds_id}"
+    manifest_lines = []
+    for did, title, text in corpus_subset:
+        blob_name = f"{prefix}/{did}.txt"
+        bucket.blob(blob_name).upload_from_string(text, content_type="text/plain")
+        gcs_uri = f"gs://{STAGING_BUCKET}/{blob_name}"
+        manifest_lines.append(json.dumps({
+            "id": did,
+            "structData": {"title": title},
+            "content": {"mimeType": "text/plain", "uri": gcs_uri},
+        }))
+    manifest_name = f"{prefix}/_import.jsonl"
+    bucket.blob(manifest_name).upload_from_string(
+        "\n".join(manifest_lines), content_type="application/jsonl")
+    manifest_uri = f"gs://{STAGING_BUCKET}/{manifest_name}"
+
     branch = f"{ds_path}/branches/default_branch"
-    docs = [de.Document(id=did, content=de.Document.Content(
-                mime_type="text/plain", raw_bytes=text.encode("utf-8")))
-            for did, _, text in corpus_subset]
     op = doc_client.import_documents(request=de.ImportDocumentsRequest(
         parent=branch,
-        inline_source=de.ImportDocumentsRequest.InlineSource(documents=docs),
+        gcs_source=de.GcsSource(input_uris=[manifest_uri], data_schema="document"),
         reconciliation_mode=de.ImportDocumentsRequest.ReconciliationMode.INCREMENTAL,
     ))
-    print(f"importing {len(docs)} docs into {ds_path.split('/')[-1]}...")
-    op.result(timeout=600)
+    print(f"importing {len(corpus_subset)} docs into {ds_id} (manifest={manifest_uri})...")
+    resp = op.result(timeout=600)
+    meta = op.metadata
+    errs = list(resp.error_samples)
+    print(f"  success={getattr(meta, 'success_count', '?')} "
+          f"failure={getattr(meta, 'failure_count', '?')}")
+    for e in errs[:5]:
+        print("  ERROR:", e.message)
+    if errs:
+        raise RuntimeError(f"{ds_id}: import reported {len(errs)} error sample(s)")
+
+
+def _verify(doc_client, search_client, ds_path, sample_query, expected):
+    """List documents and run a sample search so the script self-verifies ingestion."""
+    ds_id = ds_path.split("/")[-1]
+    branch = f"{ds_path}/branches/default_branch"
+    docs = list(doc_client.list_documents(
+        request=de.ListDocumentsRequest(parent=branch, page_size=100)))
+    serving = f"{ds_path}/servingConfigs/default_search"
+    try:
+        resp = search_client.search(de.SearchRequest(
+            serving_config=serving, query=sample_query, page_size=3))
+        hits = [h.document.id for h in resp.results]
+    except Exception as e:  # serving config may take a moment to become queryable
+        hits = f"search-pending ({type(e).__name__})"
+    status = "OK" if len(docs) == expected else "MISMATCH"
+    print(f"  verify[{ds_id}]: {len(docs)}/{expected} docs ({status}); "
+          f"sample q='{sample_query}' -> {hits}")
+    return len(docs)
 
 
 def main():
     ds_client = de.DataStoreServiceClient(client_options=_CO)
     doc_client = de.DocumentServiceClient(client_options=_CO)
+    search_client = de.SearchServiceClient(client_options=_CO)
+    bucket = storage.Client(project=PROJECT).bucket(STAGING_BUCKET)
     parent = f"projects/{PROJECT}/locations/{LOCATION}/collections/default_collection"
 
     public = [d for d in CORPUS if d[0].startswith(PUBLIC_PREFIXES)]
 
     # Full/internal datastore — researcher + orchestrator (all docs).
     full_path = _ensure_datastore(ds_client, parent, DATA_STORE_ID, "Agent Knowledge (synthetic, internal)")
-    _import(doc_client, full_path, CORPUS)
+    _import(doc_client, bucket, full_path, CORPUS)
 
     # Customer-safe datastore — chatbot only (KB + product docs; NO internal ops/policy/research).
     pub_path = _ensure_datastore(ds_client, parent, PUBLIC_DATA_STORE_ID, "Agent Knowledge (synthetic, customer-safe)")
-    _import(doc_client, pub_path, public)
+    _import(doc_client, bucket, pub_path, public)
 
-    print(f"done. full={DATA_STORE_ID} ({len(CORPUS)} docs), "
+    print(f"imported. full={DATA_STORE_ID} ({len(CORPUS)} docs), "
           f"public={PUBLIC_DATA_STORE_ID} ({len(public)} docs)")
+    print("verifying (indexing may lag a few minutes before search returns hits):")
+    _verify(doc_client, search_client, full_path, "churn analysis playbook", len(CORPUS))
+    _verify(doc_client, search_client, pub_path, "how do I reset my password", len(public))
 
 
 if __name__ == "__main__":

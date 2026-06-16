@@ -86,7 +86,8 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Agent Runtime | 0.0010 |
 | Memory Bank + Sessions | 0.0015 |
 | Firestore (0w/36r over 40 runs) | 0.0000000 |
-| **Total (measured SKUs)** | **0.0048** (range 0.0033–0.0150) |
+| Model Armor (derived: 2276 tok scanned @ $0.10/1M) | 0.000228 |
+| **Total (measured SKUs)** | **0.0050** (range 0.0033–0.0150) |
 
 ## 7. Test workload & sample interactions
 

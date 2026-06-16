@@ -5,7 +5,7 @@
 ## Executive summary
 
 - **13 agents deployed** on Vertex AI Agent Engine (Gemini Enterprise Agent Platform).
-- **Cost spans $0.0011–$0.0843 per interaction** at catalog list price (75× spread), driven by architecture (sub-agent fan-out, analysis depth) more than the prompt.
+- **Cost spans $0.0011–$0.0934 per interaction** at catalog list price (83× spread), driven by architecture (sub-agent fan-out, analysis depth) more than the prompt.
 - **Architecture matters more than prompt:** financial-advisor consumes ~7× more input tokens than the lightest agent and is the only **runtime-dominated** one.
 - **Run-to-run variability is real:** identical task can swing total cost ~2× (output/thinking tokens are the noisy SKU).
 - **Memory + session SKUs are a meaningful slice** even when memories are never read back — always present for any session-persisted agent.
@@ -124,18 +124,18 @@ Reference only — list price, not actual billed. The usage tables above are the
 
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
-| [on-brand-genmedia](on_brand_genmedia.md) | 0.0434 | 0.0086 | 0.0015 | 0.0843 (0.0549–0.1254) | Medium |
-| [financial-advisor](financial_advisor.md) | 0.0134 | 0.0145 | 0.0010 | 0.0289 (0.0215–0.0710) | High |
-| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0166 | 0.0043 | 0.0060 | 0.0269 (0.0136–0.0541) | High |
+| [on-brand-genmedia](on_brand_genmedia.md) | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
+| [financial-advisor](financial_advisor.md) | 0.0134 | 0.0145 | 0.0010 | 0.0313 (0.0215–0.0710) | High |
+| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0166 | 0.0043 | 0.0060 | 0.0293 (0.0136–0.0541) | High |
+| [marketing-agency](marketing_agency.md) | 0.0099 | 0.0055 | 0.0008 | 0.0170 (0.0090–0.1671) | Very high |
 | [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
-| [marketing-agency](marketing_agency.md) | 0.0099 | 0.0055 | 0.0008 | 0.0163 (0.0090–0.1671) | Very high |
-| [workflow-operator (archetype)](workflow_operator.md) | 0.0067 | 0.0019 | 0.0048 | 0.0134 (0.0074–0.0357) | Very high |
-| [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0127 (0.0099–0.0172) | Medium |
-| [blog-writer](blogger_agent.md) | 0.0072 | 0.0033 | 0.0011 | 0.0116 (0.0068–0.0156) | Medium |
-| [academic-research](academic_research.md) | 0.0042 | 0.0024 | 0.0008 | 0.0074 (0.0049–0.0203) | Very high |
-| [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0019 | 0.0011 | 0.0028 | 0.0058 (0.0051–0.0078) | High |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0022 | 0.0010 | 0.0015 | 0.0048 (0.0033–0.0150) | Very high |
-| [fomc-research](fomc_research.md) | 0.0017 | 0.0009 | 0.0007 | 0.0033 (0.0025–0.0048) | Medium |
+| [workflow-operator (archetype)](workflow_operator.md) | 0.0067 | 0.0019 | 0.0048 | 0.0148 (0.0074–0.0357) | Very high |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
+| [blog-writer](blogger_agent.md) | 0.0072 | 0.0033 | 0.0011 | 0.0121 (0.0068–0.0156) | Medium |
+| [academic-research](academic_research.md) | 0.0042 | 0.0024 | 0.0008 | 0.0078 (0.0049–0.0203) | Very high |
+| [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0019 | 0.0011 | 0.0028 | 0.0062 (0.0051–0.0078) | High |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0022 | 0.0010 | 0.0015 | 0.0050 (0.0033–0.0150) | Very high |
+| [fomc-research](fomc_research.md) | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
 | [nexshift-agent](nexshift_agent.md) | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 
 ## 5. Usage-pattern observations

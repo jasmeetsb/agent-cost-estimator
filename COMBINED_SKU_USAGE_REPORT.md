@@ -84,18 +84,18 @@ Reference only — list price, not actual billed. The usage tables above are the
 
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
-| on-brand-genmedia | 0.0434 | 0.0086 | 0.0015 | 0.0843 (0.0549–0.1254) | Medium |
-| financial-advisor | 0.0134 | 0.0145 | 0.0010 | 0.0289 (0.0215–0.0710) | High |
-| multi-agent-orchestrator (archetype) | 0.0166 | 0.0043 | 0.0060 | 0.0269 (0.0136–0.0541) | High |
+| on-brand-genmedia | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
+| financial-advisor | 0.0134 | 0.0145 | 0.0010 | 0.0313 (0.0215–0.0710) | High |
+| multi-agent-orchestrator (archetype) | 0.0166 | 0.0043 | 0.0060 | 0.0293 (0.0136–0.0541) | High |
+| marketing-agency | 0.0099 | 0.0055 | 0.0008 | 0.0170 (0.0090–0.1671) | Very high |
 | memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
-| marketing-agency | 0.0099 | 0.0055 | 0.0008 | 0.0163 (0.0090–0.1671) | Very high |
-| workflow-operator (archetype) | 0.0067 | 0.0019 | 0.0048 | 0.0134 (0.0074–0.0357) | Very high |
-| plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0127 (0.0099–0.0172) | Medium |
-| blog-writer | 0.0072 | 0.0033 | 0.0011 | 0.0116 (0.0068–0.0156) | Medium |
-| academic-research | 0.0042 | 0.0024 | 0.0008 | 0.0074 (0.0049–0.0203) | Very high |
-| conversational-chatbot (archetype) | 0.0019 | 0.0011 | 0.0028 | 0.0058 (0.0051–0.0078) | High |
-| autonomous-researcher (archetype) | 0.0022 | 0.0010 | 0.0015 | 0.0048 (0.0033–0.0150) | Very high |
-| fomc-research | 0.0017 | 0.0009 | 0.0007 | 0.0033 (0.0025–0.0048) | Medium |
+| workflow-operator (archetype) | 0.0067 | 0.0019 | 0.0048 | 0.0148 (0.0074–0.0357) | Very high |
+| plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
+| blog-writer | 0.0072 | 0.0033 | 0.0011 | 0.0121 (0.0068–0.0156) | Medium |
+| academic-research | 0.0042 | 0.0024 | 0.0008 | 0.0078 (0.0049–0.0203) | Very high |
+| conversational-chatbot (archetype) | 0.0019 | 0.0011 | 0.0028 | 0.0062 (0.0051–0.0078) | High |
+| autonomous-researcher (archetype) | 0.0022 | 0.0010 | 0.0015 | 0.0050 (0.0033–0.0150) | Very high |
+| fomc-research | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
 | nexshift-agent | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 
 ## 5. Usage-pattern observations
