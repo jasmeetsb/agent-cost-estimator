@@ -49,9 +49,9 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 79 | 253 | 44234 | 8482 | 7.8 | 171.2 | 201 | 15.6 | 7999 | 0.38 | 1.34/2.06 | 1.18 | 1.62 | 0 | 0.0810 |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 120 | 432 | 149080 | 6080 | 18.9 | 90.6 | 100 | 37.9 | 2793 | 0.20 | 0.29/0.63 | 0.42 | 0.00 | 0 | 0.0932 |
 | [financial-advisor](financial_advisor.md) | 40 | 80 | 27586 | 1724 | 3.6 | 347.5 | 420 | 7.3 | 3377 | 0.00 | 0.00/0.93 | 0.17 | 0.95 | 0 | 0.0413 |
-| [academic-research](academic_research.md) | 40 | 80 | 4058 | 890 | 3.1 | 72.7 | 125 | 6.2 | 2555 | 0.00 | 0.05/0.68 | 0.38 | 0.68 | 0 | 0.0183 |
+| [academic-research](academic_research.md) | 80 | 160 | 4055 | 958 | 3.0 | 66.5 | 85 | 6.0 | 2480 | 0.00 | 0.04/0.56 | 0.34 | 0.70 | 0 | 0.0195 |
 | [marketing-agency](marketing_agency.md) | 40 | 80 | 6206 | 1031 | 4.2 | 79.7 | 138 | 8.3 | 2753 | 0.00 | 0.00/1.00 | 2.00 | 0.00 | 0 | 0.0133 |
-| [blog-writer](blogger_agent.md) | 40 | 80 | 8121 | 5334 | 5.0 | 225.9 | 259 | 11.5 | 5386 | 0.00 | 0.00/1.00 | 0.72 | 0.00 | 0 | 0.0638 |
+| [blog-writer](blogger_agent.md) | 80 | 160 | 8882 | 4135 | 4.8 | 101.3 | 138 | 11.1 | 4603 | 0.31 | 0.00/0.95 | 0.80 | 0.50 | 0 | 0.0595 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 35 | — | 83460 | 7349 | 17.2 | 322.7 | 329 | 31.6 | 4191 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 27 | 0.0934 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 35 | — | 13800 | 1958 | 4.0 | 104.1 | 127 | 8.0 | 2853 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0143 |
 | [memory_assistant](memory_assistant.md) | — | — | 3398 | 1605 | 5.8 | 39.0 | 560 | 11.5 | 2493 | 2.50 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0165 |
@@ -83,6 +83,39 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 - **Not a billing unit:** **Model calls** — Gemini bills tokens, not calls (shown as a usage driver).
 - **$/intxn is catalog list price, not billed dollars** (no account discounts/CUDs). Uncaptured SKUs: Cloud Logging/Trace/Monitoring, Cloud Storage, networking, RAG datastore storage/indexing. True spend requires BigQuery billing export (not set up).
 
+## 0b. Calculator SKU coverage — columns vs. the GE AP pricing calculator
+
+How the §0 columns map to the rows in the GE AP pricing calculator (the reference cost model). The columns cover the calculator's core, currently-deployable **per-interaction** SKUs — it is **not** a 1:1 of every calculator row: parked/deferred/monthly-storage SKUs have no column, the three Gemini token buckets are collapsed into one Input/Output total, and Firestore is an addition (the calculator models the data layer as BigQuery, not Firestore).
+
+**Mapping — calculator SKU → master-table column:**
+
+| Calculator SKU row | Calculator unit | Master-table column | Status |
+|---|---|---|---|
+| Gemini — User Query | input / output tokens | Input tok / Output tok | ✅ aligned |
+| Gemini — Tools & API Calls | input / output tokens | _(folded into Input/Output tok)_ | ⚠️ not broken out |
+| Gemini — Agent Calls | input / output tokens | _(folded into Input/Output tok)_ | ⚠️ not broken out |
+| Agent Runtime | $/vCPU-hr + $/GiB-hr | vCPU-s / GiB-s | ✅ aligned (allocation-time) |
+| Agent Sessions | $/1K events | Session events | ✅ aligned |
+| Memory Bank — generation | $/1K stored/mo + LLM MTOK | Mem-gen tok | ✅ MTOK part (monthly storage excluded) |
+| Memory Bank — retrieval | $/1K returned | Mem retrieved | ✅ aligned |
+| Agent Search (RAG) | $/1K queries (+ $/GB indexed/mo) | RAG queries | ✅ queries (indexed-storage not columned) |
+| Grounding — Google Search | $/1K | Web grounding | ✅ aligned |
+| Imagen | per image | Imagen | ✅ aligned |
+| Model Armor | $/1M tokens scanned | _(folded into $/intxn)_ | ✅ in cost, no column |
+| # Queries / # Turns / # Tools per turn | scale inputs (not billed) | Interactions / Total turns / Model calls | ✅ driver inputs |
+| _(none — not a calculator SKU)_ | — | Firestore W/R | ➕ added (representative op-DB) |
+
+**Calculator SKUs with no column (and why):**
+
+| Calculator SKU | Reason not columned |
+|---|---|
+| Apigee, BigQuery, Veo, Google Maps grounding | Parked — tools mocked / not deployed |
+| Agent Sandbox (Code Execution, Computer Use) | Deferred (no per-agent metric) / Not Launched |
+| Agent Gateway, Semantic Policies, Anomaly Detection | Not Launched / unavailable |
+| Agent Evaluation, Cloud Logging / Trace / Monitoring | Pending (separate collection task) |
+| RAG indexed-data storage ($/GB/mo), Memory storage ($/1K/mo) | Monthly storage — not a per-interaction unit |
+| Security Command Center, Identity, Registry | TBD / included at no cost |
+
 ## 1. SKU usage per interaction — model & compute (PRIMARY)
 
 | Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
@@ -92,9 +125,9 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 44234 (16990–166168) | 8482 (4524–14742) | 7.8 | 171.2 | 201 |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 149080 (6076–8349717) | 6080 (1140–106637) | 18.9 | 90.6 | 100 |
 | [financial-advisor](financial_advisor.md) | 27586 (3667–139557) | 1724 (780–8097) | 3.6 | 347.5 | 420 |
-| [academic-research](academic_research.md) | 4058 (2367–8369) | 890 (393–3026) | 3.1 | 72.7 | 125 |
+| [academic-research](academic_research.md) | 4055 (2367–8369) | 958 (341–3193) | 3.0 | 66.5 | 85 |
 | [marketing-agency](marketing_agency.md) | 6206 (3386–18972) | 1031 (578–2626) | 4.2 | 79.7 | 138 |
-| [blog-writer](blogger_agent.md) | 8121 (3278–13401) | 5334 (451–8595) | 5.0 | 225.9 | 259 |
+| [blog-writer](blogger_agent.md) | 8882 (3278–17842) | 4135 (257–8595) | 4.8 | 101.3 | 138 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
 | [memory_assistant](memory_assistant.md) | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
@@ -110,9 +143,9 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 15.6 | 7999 | 0.6 | 0.4 |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 37.9 | 2793 | 1.2 | 0.2 |
 | [financial-advisor](financial_advisor.md) | 7.3 | 3377 | 0.8 | 0.0 |
-| [academic-research](academic_research.md) | 6.2 | 2555 | 0.1 | 0.0 |
+| [academic-research](academic_research.md) | 6.0 | 2480 | 0.0 | 0.0 |
 | [marketing-agency](marketing_agency.md) | 8.3 | 2753 | 0.7 | 0.0 |
-| [blog-writer](blogger_agent.md) | 11.5 | 5386 | 0.2 | 0.0 |
+| [blog-writer](blogger_agent.md) | 11.1 | 4603 | 0.3 | 0.3 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 31.6 | 4191 | 0.5 | 0.0 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 8.0 | 2853 | 0.6 | 0.0 |
 | [memory_assistant](memory_assistant.md) | 11.5 | 2493 | 3.2 | 2.5 |
@@ -134,7 +167,7 @@ Collectors: **`extract_grounding_from_events`** (per-interaction, attributable �
 | [financial-advisor](financial_advisor.md) | 0 | 0 |
 | [academic-research](academic_research.md) | 0 | 0 |
 | [marketing-agency](marketing_agency.md) | 0 | 0 |
-| [blog-writer](blogger_agent.md) | 40 | 0 |
+| [blog-writer](blogger_agent.md) | 61 | 0 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 0 | 27 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0 | 0 |
 | [memory_assistant](memory_assistant.md) | 0 | 0 |
@@ -172,10 +205,10 @@ Reference only — list price, not actual billed. The usage tables above are the
 | [on-brand-genmedia](on_brand_genmedia.md) | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0345 | 0.0101 | 0.0065 | 0.0810 (0.0340–0.1005) | Medium |
-| [blog-writer](blogger_agent.md) | 0.0158 | 0.0061 | 0.0045 | 0.0638 (0.0477–0.0690) | Medium |
+| [blog-writer](blogger_agent.md) | 0.0130 | 0.0058 | 0.0043 | 0.0595 (0.0385–0.0603) | High |
 | [financial-advisor](financial_advisor.md) | 0.0126 | 0.0094 | 0.0029 | 0.0413 (0.0160–0.0587) | Very high |
 | [workflow-operator (archetype)](workflow_operator.md) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
-| [academic-research](academic_research.md) | 0.0034 | 0.0021 | 0.0023 | 0.0183 (0.0061–0.0131) | High |
+| [academic-research](academic_research.md) | 0.0036 | 0.0028 | 0.0023 | 0.0195 (0.0067–0.0143) | High |
 | [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0036 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0160) | High |
@@ -201,9 +234,9 @@ Each agent's test consists of N **interactions**, each = a 2-turn conversation +
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 85 | 2–40 | **432** | EXP-008 (archetype) |
 | [workflow-operator (archetype)](workflow_operator.md) | 85 | 2–35 | **426** | EXP-008 (archetype) |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 45 | 2–32 | **253** | EXP-008 (archetype) |
+| [academic-research](academic_research.md) | 45 | 2–16 | **160** | EXP-006 |
+| [blog-writer](blogger_agent.md) | 45 | 2–16 | **160** | EXP-006 |
 | [financial-advisor](financial_advisor.md) | 40 | 2 | **80** | EXP-006 |
-| [academic-research](academic_research.md) | 40 | 2 | **80** | EXP-006 |
-| [blog-writer](blogger_agent.md) | 40 | 2 | **80** | EXP-006 |
 | [marketing-agency](marketing_agency.md) | 40 | 2 | **80** | EXP-006 |
 | [nexshift-agent](nexshift_agent.md) | 35 | 2 | **70** | EXP-007 |
 | [fomc-research](fomc_research.md) | 35 | 2 | **70** | EXP-007 |
@@ -211,7 +244,7 @@ Each agent's test consists of N **interactions**, each = a 2-turn conversation +
 | [on-brand-genmedia](on_brand_genmedia.md) | 35 | 2 | **70** | EXP-007 |
 | [memory_assistant](memory_assistant.md) | 4 | 3 | **12** | EXP-005 |
 | grounded_news (validation) | 2 | 1 | **2** | collector-validation |
-| **TOTAL** | — | — | **2157** | all experiments combined |
+| **TOTAL** | — | — | **2317** | all experiments combined |
 
 Full per-turn transcripts (input, output_text, tool calls/responses, per-step usage) live at `data/transcript_<agent>.jsonl` locally. **Not committed** — `data/` is gitignored as runtime artifact. Each per-agent doc's §7 shows the workload prompts + one sample interaction inline.
 

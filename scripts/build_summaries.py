@@ -1102,6 +1102,37 @@ def master(ds):
           "- **$/intxn is catalog list price, not billed dollars** (no account discounts/CUDs). Uncaptured "
           "SKUs: Cloud Logging/Trace/Monitoring, Cloud Storage, networking, RAG datastore storage/indexing. "
           "True spend requires BigQuery billing export (not set up).", "",
+          "## 0b. Calculator SKU coverage — columns vs. the GE AP pricing calculator", "",
+          "How the §0 columns map to the rows in the GE AP pricing calculator (the reference cost model). "
+          "The columns cover the calculator's core, currently-deployable **per-interaction** SKUs — it is "
+          "**not** a 1:1 of every calculator row: parked/deferred/monthly-storage SKUs have no column, the "
+          "three Gemini token buckets are collapsed into one Input/Output total, and Firestore is an "
+          "addition (the calculator models the data layer as BigQuery, not Firestore).", "",
+          "**Mapping — calculator SKU → master-table column:**", "",
+          "| Calculator SKU row | Calculator unit | Master-table column | Status |",
+          "|---|---|---|---|",
+          "| Gemini — User Query | input / output tokens | Input tok / Output tok | ✅ aligned |",
+          "| Gemini — Tools & API Calls | input / output tokens | _(folded into Input/Output tok)_ | ⚠️ not broken out |",
+          "| Gemini — Agent Calls | input / output tokens | _(folded into Input/Output tok)_ | ⚠️ not broken out |",
+          "| Agent Runtime | $/vCPU-hr + $/GiB-hr | vCPU-s / GiB-s | ✅ aligned (allocation-time) |",
+          "| Agent Sessions | $/1K events | Session events | ✅ aligned |",
+          "| Memory Bank — generation | $/1K stored/mo + LLM MTOK | Mem-gen tok | ✅ MTOK part (monthly storage excluded) |",
+          "| Memory Bank — retrieval | $/1K returned | Mem retrieved | ✅ aligned |",
+          "| Agent Search (RAG) | $/1K queries (+ $/GB indexed/mo) | RAG queries | ✅ queries (indexed-storage not columned) |",
+          "| Grounding — Google Search | $/1K | Web grounding | ✅ aligned |",
+          "| Imagen | per image | Imagen | ✅ aligned |",
+          "| Model Armor | $/1M tokens scanned | _(folded into $/intxn)_ | ✅ in cost, no column |",
+          "| # Queries / # Turns / # Tools per turn | scale inputs (not billed) | Interactions / Total turns / Model calls | ✅ driver inputs |",
+          "| _(none — not a calculator SKU)_ | — | Firestore W/R | ➕ added (representative op-DB) |", "",
+          "**Calculator SKUs with no column (and why):**", "",
+          "| Calculator SKU | Reason not columned |",
+          "|---|---|",
+          "| Apigee, BigQuery, Veo, Google Maps grounding | Parked — tools mocked / not deployed |",
+          "| Agent Sandbox (Code Execution, Computer Use) | Deferred (no per-agent metric) / Not Launched |",
+          "| Agent Gateway, Semantic Policies, Anomaly Detection | Not Launched / unavailable |",
+          "| Agent Evaluation, Cloud Logging / Trace / Monitoring | Pending (separate collection task) |",
+          "| RAG indexed-data storage ($/GB/mo), Memory storage ($/1K/mo) | Monthly storage — not a per-interaction unit |",
+          "| Security Command Center, Identity, Registry | TBD / included at no cost |", "",
           "## 1. SKU usage per interaction — model & compute (PRIMARY)", "",
           "| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |",
           "|---|---|---|---|---|---|"]
