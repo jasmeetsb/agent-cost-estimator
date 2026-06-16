@@ -12,7 +12,7 @@ model tier: Gemini 3.1 Pro (≤200k). Deployed on gemini-2.5-flash for parity.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools import google_search, VertexAiSearchTool
+from google.adk.tools import google_search, VertexAiSearchTool, preload_memory
 from google.adk.tools.agent_tool import AgentTool
 
 from .fs_state import save_note, load_note
@@ -57,5 +57,5 @@ root_agent = Agent(
         "sections, an executive summary, and cited sources, and (5) persist the key findings with "
         "save_note (topic = the subject). Be comprehensive and detailed — depth is expected."
     ),
-    tools=[save_note, load_note, corpus_rag, web_research_tool],
+    tools=[save_note, load_note, corpus_rag, web_research_tool, preload_memory],
 )

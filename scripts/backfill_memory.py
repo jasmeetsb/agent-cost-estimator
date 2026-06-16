@@ -30,17 +30,35 @@ def backfill(pkg, pb):
     if not rpt.exists():
         print(f"{pkg}: no cost report, skip"); return
     r = json.loads(rpt.read_text())
-    engine_id = r["engine"].rstrip("/").split("/")[-1]
+    cur_engine = r["engine"].rstrip("/").split("/")[-1]
     cum = r.get("cumulative", {})
     cum_n = max(cum.get("interactions", len(r.get("runs", []))) or 1, 1)
     batches = r.get("batches", [])
-    w0 = batches[0]["window"][0] if batches else r.get("window", [None])[0]
     w1 = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    m = collect_memory_usage(PROJECT, engine_id, w0, w1)
-    gen = int(m.get("generate_memories_token_count", 0) or 0)
-    mut = int(m.get("memory_mutation_count", 0) or 0)
-    retr = int(m.get("memory_retrieval_count", 0) or 0)
+    # Memory Bank metrics are PER-ENGINE. Adding preload_memory (or any code change)
+    # redeploys to a new engine, so a --append'd dataset spans multiple engines. Group
+    # batches by their engine and query each over [its earliest batch start, now], then
+    # sum — each engine only has traffic during its own active window, so no double-count.
+    if batches:
+        first_w0 = {}
+        for b in batches:
+            eng = b.get("engine") or cur_engine
+            w0b = b["window"][0]
+            if eng not in first_w0 or w0b < first_w0[eng]:
+                first_w0[eng] = w0b
+    else:
+        first_w0 = {cur_engine: r.get("window", [w1])[0]}
+
+    gen = mut = retr = 0
+    segs = []
+    for eng, w0 in first_w0.items():
+        m = collect_memory_usage(PROJECT, eng, w0, w1)
+        g = int(m.get("generate_memories_token_count", 0) or 0)
+        mm = int(m.get("memory_mutation_count", 0) or 0)
+        rr = int(m.get("memory_retrieval_count", 0) or 0)
+        gen += g; mut += mm; retr += rr
+        segs.append({"engine": eng, "window": [w0, w1], "gen_tokens": g, "mutations": mm, "retrievals": rr})
 
     cum["generate_memories_tokens"] = gen
     cum["memory_mutations"] = mut
@@ -57,11 +75,12 @@ def backfill(pkg, pb):
     pa["memory_session_usd"] = mem_priced["per_run_memory_usd"] / cum_n
     pa["total_usd"] = (pa.get("model_usd", 0) + pa.get("runtime_usd", 0)
                        + pa["memory_session_usd"] + pa.get("firestore_usd", 0))
-    r["memory_backfilled"] = {"window": [w0, w1], "gen_tokens": gen,
-                              "mutations": mut, "retrieved": retr, "interactions": cum_n}
+    r["memory_backfilled"] = {"segments": segs, "gen_tokens": gen, "mutations": mut,
+                              "retrieved": retr, "interactions": cum_n}
     rpt.write_text(json.dumps(r, indent=2))
+    nseg = f" across {len(segs)} engines" if len(segs) > 1 else ""
     print(f"{pkg:26} gen_tokens={gen:>8} ({gen/cum_n:>7.0f}/intxn) mutations={mut:>4} "
-          f"retr={retr:>3} -> mem_session=${pa['memory_session_usd']:.5f}/intxn "
+          f"retr={retr:>3}{nseg} -> mem_session=${pa['memory_session_usd']:.5f}/intxn "
           f"base_total=${pa['total_usd']:.5f}")
 
 

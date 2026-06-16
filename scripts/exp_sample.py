@@ -278,6 +278,11 @@ def main():
     ap.add_argument("--append", action="store_true",
                     help="accumulate onto the existing cost report + transcript "
                          "instead of overwriting (additive dataset across batches)")
+    ap.add_argument("--user-pool", type=int, default=0, dest="user_pool",
+                    help="reuse a fixed pool of N user_ids round-robin (RETURNING users) so "
+                         "preload_memory retrieves prior memories — exercises the Memory Bank "
+                         "retrieval SKU. Default 0 = a fresh user per interaction (new users, no "
+                         "retrieval). Smaller N = more revisits per user.")
     args = ap.parse_args()
     _AGENT = args.package
 
@@ -291,9 +296,13 @@ def main():
     stamp = int(time.time())
     win_start = datetime.now(timezone.utc) - timedelta(seconds=60)
     rows, transcripts = [], []
+    pool = args.user_pool if args.user_pool and args.user_pool > 0 else args.runs
     for i in range(args.runs):
         scenario = scenarios[i % len(scenarios)]
-        user = f"{USER}-{stamp}-{i}"
+        # Default: fresh user per interaction (i % runs == i). --user-pool N cycles N
+        # returning users round-robin, so revisits (i >= N) carry prior memories that
+        # preload_memory retrieves.
+        user = f"{USER}-{stamp}-{i % pool}"
         print(f"Run {i+1}/{args.runs} ({args.package}, {len(scenario)} turns)...")
         try:
             r = one_run(engine, pb, user, transcripts, scenario)
@@ -363,7 +372,7 @@ def main():
     cum_fs_reads = cum.get("fs_reads", 0) + batch_fs_reads
     cum_fs_writes = cum.get("fs_writes", 0) + batch_fs_writes
     batches = prior.get("batches", []) if args.append else []
-    batches.append({"window": [w0, w1], "interactions": batch_n,
+    batches.append({"window": [w0, w1], "interactions": batch_n, "engine": engine_id,
                     "runtime_usd": round(batch_runtime_usd, 6),
                     "turns_per_interaction": sorted(set(r.get("turns", 0) for r in rows))})
 

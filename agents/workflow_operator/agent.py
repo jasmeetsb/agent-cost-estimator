@@ -11,6 +11,7 @@ BigQuery in production); implemented locally so the agent is deployable.
 """
 
 from google.adk.agents import Agent
+from google.adk.tools import preload_memory
 
 from .fs_state import save_note, load_note
 
@@ -88,5 +89,5 @@ root_agent = Agent(
     ),
     tools=[lookup_order, check_inventory, validate_address, calculate_shipping,
            apply_discount, update_order_status, send_notification, log_transaction,
-           save_note, load_note],
+           save_note, load_note, preload_memory],
 )

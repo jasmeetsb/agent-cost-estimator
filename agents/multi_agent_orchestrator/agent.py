@@ -13,7 +13,7 @@ BigQuery / RAG / action APIs (those SKUs would bill in production).
 """
 
 from google.adk.agents import Agent
-from google.adk.tools import VertexAiSearchTool
+from google.adk.tools import VertexAiSearchTool, preload_memory
 
 from .fs_state import save_note, load_note
 
@@ -122,6 +122,6 @@ root_agent = Agent(
         "actions taken. Persist the final analysis with save_note (topic = the subject) "
         "and use load_note at the start to recall prior runs on the same subject."
     ),
-    tools=[save_note, load_note],
+    tools=[save_note, load_note, preload_memory],
     sub_agents=[data_specialist, analysis_specialist, action_specialist],
 )
