@@ -10015,3 +10015,4 @@ service-account*.json
 .venv/lib/python3.12/site-packages/google/cloud/trace_v2/services/trace_service/__pycache__/__init__.cpython-312.pyc
 .venv/lib/python3.12/site-packages/google/cloud/trace_v2/services/trace_service/__pycache__/async_client.cpython-312.pyc
 .venv/lib/python3.12/site-packages/google/cloud/trace_v2/services/trace_service/__pycache__/client.cpython-312.pyc
+*.docx
