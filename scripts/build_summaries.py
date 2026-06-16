@@ -32,6 +32,27 @@ RAG_SEARCH_USD_PER_QUERY = 1.5 / 1000
 # Tool names emitted by ADK's VertexAiSearchTool in the event stream.
 _RAG_TOOLS = {"discovery_engine_search", "vertex_ai_search"}
 
+# Google Search grounding price. Source: GE AP calculator "Grounding with Google
+# Search" = $14 / 1K grounded query-turns. We count web-research invocations
+# (the `web_researcher` AgentTool call) as the grounded-turn unit — this matches
+# the calculator's "# of query turns requiring Google Search grounding". Native
+# google_search grounding_metadata is encapsulated inside the AgentTool (not in
+# the parent stream) and the Monitoring web_search_requests metric does not track
+# native ADK google_search, so the AgentTool call count is the measurable proxy.
+WEB_GROUNDING_USD_PER_TURN = 14.0 / 1000
+_WEB_GROUNDING_TOOLS = {"web_researcher"}
+
+
+def count_tool_calls(pkg, toolset):
+    """Count tool_call steps in a transcript whose tool name is in `toolset`.
+    Returns (total_calls, n_interactions)."""
+    total = 0
+    for r in load_transcript(pkg):
+        for s in r.get("steps", []):
+            if s.get("type") == "tool_call" and (s.get("tool") or "") in toolset:
+                total += 1
+    return total, len(transcript_interactions(pkg))
+
 META = {
     "financial_advisor": {
         "title": "financial-advisor", "use_case": "Stock analysis & trading-strategy advisor",
@@ -533,13 +554,7 @@ def count_rag_searches(pkg):
     rate. Counts function_call steps (the query), not function_response, to avoid
     double-counting. Data source: transcript_<pkg>.jsonl (all 80 interactions
     after the --append batch)."""
-    total = 0
-    for r in load_transcript(pkg):
-        for s in r.get("steps", []):
-            if s.get("type") == "tool_call" and (s.get("tool") or "") in _RAG_TOOLS:
-                total += 1
-    inters = len(transcript_interactions(pkg))
-    return total, inters
+    return count_tool_calls(pkg, _RAG_TOOLS)
 
 
 def workload_profile(pkg, max_chars=200):
@@ -574,6 +589,7 @@ def derive(pkg):
     r = load(pkg); v = r["variability"]; rt = r["runtime"]; mem = r["memory_and_session"]
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
     rag_total, rag_inters = count_rag_searches(pkg)
+    web_ground_total, web_ground_inters = count_tool_calls(pkg, _WEB_GROUNDING_TOOLS)
     gm = r.get("grounding_and_media") or {}
     image_per_run = (gm.get("image_gen_usd", 0) or 0) / n
     grounding_per_run = (gm.get("search_grounding_usd", 0) or 0) / n
@@ -613,6 +629,11 @@ def derive(pkg):
         "rag_total": rag_total,
         "rag_pi": rag_total / max(rag_inters, 1),
         "c_rag": (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY,
+        # Google Search grounding — measured as web_researcher AgentTool calls
+        # (grounded query-turns). Primary usage; cost @ $14/1K is the derived view.
+        "web_ground_total": web_ground_total,
+        "web_ground_pi": web_ground_total / max(web_ground_inters, 1),
+        "c_web_ground": (web_ground_total / max(web_ground_inters, 1)) * WEB_GROUNDING_USD_PER_TURN,
         # secondary derived cost ($/interaction)
         "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
         "c_firestore": avg.get("firestore_usd", 0),
@@ -620,7 +641,8 @@ def derive(pkg):
         "c_rag_total": (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY,
         "c_total": avg["total_usd"] + image_per_run + grounding_per_run
         + (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6
-        + (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY,
+        + (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY
+        + (web_ground_total / max(web_ground_inters, 1)) * WEB_GROUNDING_USD_PER_TURN,
         "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "cost_var": var_word(v["model_usd"]["cv_pct"]),
@@ -668,11 +690,18 @@ def agent_md(d):
          if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
         (f"| Vertex AI Search (RAG) — queries | searches | {d['rag_pi']:.2f} | — | — |"
          if d.get('rag_total', 0) else None),
+        (f"| Google Search grounding — query turns | grounded turns | {d['web_ground_pi']:.2f} | — | — |"
+         if d.get('web_ground_total', 0) else None),
         retr_note, "",
-        "## 5. Grounding & media usage (now collected)", "",
-        f"- **Google Search grounding:** {d['web_searches']:.0f} grounded web-search requests measured "
-        "(Cloud Monitoring, project-wide). The agent *can* ground on Search but this workload did not "
-        "trigger it; would bill ~$0.035/request if used.",
+        "## 5. Grounding & media usage", "",
+        (f"- **Google Search grounding:** {d['web_ground_pi']:.2f} grounded query-turns per interaction "
+         f"measured (web_researcher AgentTool invocations; each runs ≥1 native google_search "
+         f"generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is "
+         f"encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not "
+         f"track native ADK google_search — so the AgentTool call count is the measurable unit."
+         if d.get('web_ground_total', 0) else
+         f"- **Google Search grounding:** {d['web_searches']:.0f} measured. The agent does not use "
+         "google_search in this workload; would bill ~$14/1K grounded turns if used."),
         f"- **Image generation (Imagen):** {d['images']:.0f} images measured (from response events). "
         "Would bill ~$0.04/image if used.", "",
         "## 5b. Caveats on usage capture", "",
@@ -690,6 +719,8 @@ def agent_md(d):
          if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
         (f"| Vertex AI Search (RAG: {d['rag_pi']:.2f} queries/intxn @ $1.50/1K) | {d['c_rag']:.6f} |"
          if d.get('rag_total', 0) else None),
+        (f"| Google Search grounding ({d['web_ground_pi']:.2f} grounded turns/intxn @ $14/1K) | {d['c_web_ground']:.6f} |"
+         if d.get('web_ground_total', 0) else None),
         f"| Model Armor (derived: {d['armor_tokens']:.0f} tok scanned @ $0.10/1M) | {d['c_model_armor']:.6f} |",
         (f"| Imagen (image generation) | {d['c_image']:.4f} |" if d['c_image'] else None),
         (f"| Search grounding | {d['c_grounding']:.4f} |" if d['c_grounding'] else None),
@@ -776,15 +807,18 @@ def combined(ds):
           "Per-interaction quantities for the archetype agents (Firestore document ops via ADK note "
           "tools; RAG queries via VertexAiSearchTool against the synthetic corpus). Measured from the "
           "event stream / transcript.", "",
-          "| Agent | Firestore writes | Firestore reads | Vertex AI Search (RAG) queries |",
-          "|---|---|---|---|"]
+          "| Agent | Firestore writes | Firestore reads | Vertex AI Search (RAG) queries | Google Search grounded turns |",
+          "|---|---|---|---|---|"]
     for r in sorted(rows, key=sortk):
-        if r.get("fs_writes", 0) or r.get("fs_reads", 0) or r.get("rag_total", 0):
+        if r.get("fs_writes", 0) or r.get("fs_reads", 0) or r.get("rag_total", 0) or r.get("web_ground_total", 0):
             L.append(f"| {r['title']} | {r.get('fs_writes_pi', 0):.2f} | {r.get('fs_reads_pi', 0):.2f} "
-                     f"| {r.get('rag_pi', 0):.2f} |")
+                     f"| {r.get('rag_pi', 0):.2f} | {r.get('web_ground_pi', 0):.2f} |")
     L += ["",
-          "_RAG priced at $1.50/1K queries, Firestore at catalog read/write rates (GE AP calculator). "
-          "Usage counts are the deliverable; cost is the secondary view in §4._", "",
+          "_RAG priced at $1.50/1K queries, Google Search grounding at $14/1K grounded turns, Firestore "
+          "at catalog read/write rates (GE AP calculator). Usage counts are the deliverable; cost is the "
+          "secondary view in §4. Google Search grounding = web_researcher AgentTool invocations "
+          "(native google_search grounding_metadata is encapsulated by the tool; Monitoring does not "
+          "track native ADK google_search)._", "",
           "## 3. SKU presence matrix (which agents touch which SKUs)", "",
           "| Agent | Gemini tokens | Agent Runtime | Sessions | Memory Bank | Search grounding | Image gen |",
           "|---|---|---|---|---|---|---|"]
