@@ -54,7 +54,7 @@ Measured usage quantities per interaction (avg over 80 runs), with run-to-run ra
 | Agent Runtime — vCPU | vCPU-seconds | 28.9 | — | — |
 | Agent Runtime — memory | GiB-seconds | 57.1 | — | — |
 | Sessions | events appended | 14.9 | — | Medium |
-| Memory Bank — generation | tokens | 0 | — | — |
+| Memory Bank — generation | tokens | 2461 | — | — |
 | Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
 | Firestore — document writes | writes | 0.03 | — | — |
@@ -83,11 +83,11 @@ Provided for reference only. List price, not actual billed; **usage above is the
 |---|---|
 | Gemini tokens | 0.0035 |
 | Agent Runtime | 0.0019 |
-| Memory Bank + Sessions | 0.0037 |
+| Memory Bank + Sessions | 0.0045 |
 | Firestore (2w/0r over 80 runs) | 0.0000000 |
 | Vertex AI Search (RAG: 2.24 queries/intxn @ $1.50/1K) | 0.003356 |
 | Model Armor (derived: 6703 tok scanned @ $0.10/1M) | 0.000670 |
-| **Total (measured SKUs)** | **0.0131** (range 0.0067–0.0152) |
+| **Total (measured SKUs)** | **0.0139** (range 0.0074–0.0159) |
 
 ## 7. Test workload & sample interactions
 

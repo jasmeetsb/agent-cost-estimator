@@ -91,6 +91,13 @@ python scripts/harness.py --mode remote --iters 5             # query deployed e
 - **Redirected stdout is block-buffered.** A long `exp_sample.py` run writing to a file shows 0 bytes until
   it exits (flush on exit), so progress looks stuck. Run with `python -u` for live progress; to check a
   detached run is alive, watch `/proc/<pid>/stat` CPU ticks, not the log size.
+- **Memory Bank usage reads 0 unless you use the right key AND let generation settle.** The Cloud
+  Monitoring metric is `reasoning_engine/memory_bank/generate_memories_token_count` (NOT
+  `..._tokens`) and `..._mutation_count` for memories written. `exp_sample` had the wrong gen key and
+  hardcoded mutations to 0, so Memory Bank showed $0 for every agent. Also: `add_session_to_memory`
+  triggers generation **asynchronously** — it lags the 300s settle, so collecting immediately
+  undercounts. Run `scripts/backfill_memory.py <pkg>` after a run (generation settles within minutes)
+  to re-query the per-engine metric and rewrite the report. Real usage is ~2.5k–8k gen-tokens/interaction.
 
 ## PROTECTED RESOURCES — DO NOT DELETE
 - **`reasoningEngines/105003910208421888` ("Beads Issue Tracker")** belongs to separate work and

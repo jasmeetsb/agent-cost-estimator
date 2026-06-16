@@ -60,13 +60,13 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 
 | Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |
 |---|---|---|---|---|
-| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 35.7 | 0 | 0.0 | 0.0 |
+| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 35.7 | 2797 | 1.3 | 0.0 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 31.6 | 4191 | 0.5 | 0.0 |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 15.5 | 0 | 0.0 | 0.0 |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 15.5 | 8202 | 0.8 | 0.0 |
 | [financial-advisor](financial_advisor.md) | 7.1 | 3087 | 0.9 | 0.0 |
-| [workflow-operator (archetype)](workflow_operator.md) | 30.6 | 0 | 0.0 | 0.0 |
+| [workflow-operator (archetype)](workflow_operator.md) | 30.6 | 2552 | 1.2 | 0.0 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 8.0 | 2853 | 0.6 | 0.0 |
-| [conversational-chatbot (archetype)](conversational_chatbot.md) | 14.9 | 0 | 0.0 | 0.0 |
+| [conversational-chatbot (archetype)](conversational_chatbot.md) | 14.9 | 2461 | 0.0 | 0.0 |
 | [marketing-agency](marketing_agency.md) | 6.0 | 2671 | 0.5 | 0.0 |
 | [memory_assistant](memory_assistant.md) | 11.5 | 2493 | 3.2 | 2.5 |
 | [blog-writer](blogger_agent.md) | 4.0 | 3540 | 0.4 | 0.0 |
@@ -125,14 +125,14 @@ Reference only — list price, not actual billed. The usage tables above are the
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
 | [on-brand-genmedia](on_brand_genmedia.md) | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0352 | 0.0109 | 0.0039 | 0.0769 (0.0322–0.0749) | Medium |
-| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0462 | 0.0064 | 0.0089 | 0.0734 (0.0227–2.1220) | Very high |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0352 | 0.0109 | 0.0063 | 0.0793 (0.0347–0.0773) | Medium |
+| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0462 | 0.0064 | 0.0098 | 0.0742 (0.0236–2.1228) | Very high |
 | [financial-advisor](financial_advisor.md) | 0.0134 | 0.0145 | 0.0010 | 0.0313 (0.0215–0.0710) | High |
-| [workflow-operator (archetype)](workflow_operator.md) | 0.0102 | 0.0033 | 0.0077 | 0.0234 (0.0141–0.0415) | High |
+| [workflow-operator (archetype)](workflow_operator.md) | 0.0102 | 0.0033 | 0.0084 | 0.0242 (0.0148–0.0422) | High |
 | [marketing-agency](marketing_agency.md) | 0.0099 | 0.0055 | 0.0008 | 0.0170 (0.0090–0.1671) | Very high |
 | [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
-| [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0035 | 0.0019 | 0.0037 | 0.0131 (0.0067–0.0152) | High |
+| [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0035 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0159) | High |
 | [academic-research](academic_research.md) | 0.0042 | 0.0024 | 0.0008 | 0.0126 (0.0049–0.0203) | Very high |
 | [blog-writer](blogger_agent.md) | 0.0072 | 0.0033 | 0.0011 | 0.0121 (0.0068–0.0156) | Medium |
 | [fomc-research](fomc_research.md) | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |

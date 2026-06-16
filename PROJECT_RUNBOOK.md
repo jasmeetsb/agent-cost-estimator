@@ -450,13 +450,21 @@ grounding for researcher).
   `web_search_requests` metric does not track it, so we count the AgentTool invocation as the grounded
   query-turn unit (priced $14/1K, calculator).
 - **Also fixed:** Firestore client used project *number* (404) → project ID.
+- **Memory Bank metric bug (found post-run):** Memory Bank usage was reported as 0 for ALL agents
+  due to (a) `exp_sample` reading the wrong metric key (`generate_memories_tokens` vs the real
+  `generate_memories_token_count`) and (b) `memory_mutation_count` hardcoded to 0 — compounded by
+  Memory Bank generation being **async** (lags the 300s settle). The metric *does* capture it: a
+  later query shows ~2,500–8,200 gen-tokens/interaction. Fixed the keys in `exp_sample`; added
+  `scripts/backfill_memory.py` to re-query the settled per-engine metric and rewrite reports.
+  Backfilled all 4 (and the EXP-011 samples). Memory Bank generation is a real ~$0.004–0.008/intxn
+  SKU that was previously shown as $0.
 
-| Agent | Intxns | RAG q/intxn | Search grounded turns | Firestore w/r | $/interaction |
-|-------|--------|-------------|------------------------|----------------|----------------|
-| conversational-chatbot | 80 | 2.24 | – | 0.03 / 0 | $0.0131 |
-| workflow-operator | 80 | – | – | 1.50 / 1.00 | $0.0234 |
-| multi-agent-orchestrator | 80 | 0.41 | – | 0.28 / 0.61 | $0.0734 |
-| autonomous-researcher | 40 | 1.23 | **1.43** | 1.27 / 1.95 | $0.0769 |
+| Agent | Intxns | RAG q/intxn | Search grounded turns | Mem-gen tok/intxn | Firestore w/r | $/interaction |
+|-------|--------|-------------|------------------------|--------------------|----------------|----------------|
+| conversational-chatbot | 80 | 2.24 | – | 2,461 | 0.03 / 0 | $0.0139 |
+| workflow-operator | 80 | – | – | 2,552 | 1.50 / 1.00 | $0.0242 |
+| multi-agent-orchestrator | 80 | 0.41 | – | 2,797 | 0.28 / 0.61 | $0.0742 |
+| autonomous-researcher | 40 | 1.23 | **1.43** | 8,202 | 1.27 / 1.95 | $0.0793 |
 
 **Findings:** all 4 archetypes now measure the full P0/P1 SKU set (Gemini tokens, Agent Runtime,
 Sessions, Memory Bank, Firestore, Vertex AI Search/RAG, Model Armor [derived], + Google Search

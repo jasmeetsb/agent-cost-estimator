@@ -321,7 +321,12 @@ def main():
     # This batch's window-total cost components (priced).
     batch_n = len(rows)
     batch_runtime_usd = rt_priced["runtime_total_usd"]
-    batch_gen_tokens = memory.get("generate_memories_tokens", 0) or 0
+    # NOTE: the metric key is generate_memories_token_count (NOT ..._tokens) — using
+    # the wrong key silently zeroed Memory Bank usage. Memory Bank generation is also
+    # ASYNC and lags this 300s settle, so values here can undercount; run
+    # scripts/backfill_memory.py after generation settles for authoritative numbers.
+    batch_gen_tokens = memory.get("generate_memories_token_count", 0) or 0
+    batch_mutations = memory.get("memory_mutation_count", 0) or 0
     batch_session_events = sum(r.get("session_events", 0) for r in rows)
     batch_mem_retrieved = memory.get("memory_retrieval_count", 0) or 0
     batch_images = int(imagen["images_generated"])
@@ -350,6 +355,7 @@ def main():
     cum_n = cum.get("interactions", 0) + batch_n
     cum_runtime_usd = cum.get("runtime_usd_total", 0.0) + batch_runtime_usd
     cum_gen_tokens = cum.get("generate_memories_tokens", 0) + batch_gen_tokens
+    cum_mutations = cum.get("memory_mutations", 0) + batch_mutations
     cum_session_events = cum.get("session_events", 0) + batch_session_events
     cum_mem_retrieved = cum.get("memory_retrieved", 0) + batch_mem_retrieved
     cum_grounded = cum.get("grounded_responses", 0) + grounded_events_total
@@ -367,7 +373,7 @@ def main():
 
     # Priced cumulative memory+session and grounding/media (over cumulative counts).
     cum_memory = {"generate_memories_token_count": cum_gen_tokens,
-                  "memory_retrieval_count": cum_mem_retrieved, "memory_mutation_count": 0}
+                  "memory_retrieval_count": cum_mem_retrieved, "memory_mutation_count": cum_mutations}
     mem_priced = price_memory_usage(cum_memory, pb, session_events=cum_session_events)
     media = price_grounding_and_media(cum_grounded, cum_images)
     media["grounded_responses_source"] = "response events (grounding_metadata)"
@@ -386,7 +392,7 @@ def main():
         "agent": args.package, "engine": name, "runs": all_rows, "variability": var,
         "window": [w0, w1],
         "cumulative": {"interactions": cum_n, "runtime_usd_total": cum_runtime_usd,
-                       "generate_memories_tokens": cum_gen_tokens,
+                       "generate_memories_tokens": cum_gen_tokens, "memory_mutations": cum_mutations,
                        "session_events": cum_session_events, "memory_retrieved": cum_mem_retrieved,
                        "grounded_responses": cum_grounded, "images_generated": cum_images,
                        "fs_reads": cum_fs_reads, "fs_writes": cum_fs_writes},
