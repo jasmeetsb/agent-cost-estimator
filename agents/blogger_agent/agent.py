@@ -15,9 +15,10 @@
 import datetime
 
 from google.adk.agents import Agent
-from google.adk.tools import FunctionTool
+from google.adk.tools import FunctionTool, VertexAiSearchTool
 
 from .config import config
+from .fs_state import save_note, load_note
 from .sub_agents import (
     blog_editor,
     robust_blog_planner,
@@ -25,6 +26,13 @@ from .sub_agents import (
     social_media_writer,
 )
 from .tools import analyze_codebase, save_blog_post_to_file
+
+# Shared synthetic knowledge corpus (Vertex AI Search / RAG) — the tech briefs
+# (RAG, vector DBs, transformers, etc.) in `agent-knowledge` are relevant source
+# material for technical blog posts.
+_DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
+               "default_collection/dataStores/agent-knowledge")
+blog_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
 
 # --- AGENT DEFINITIONS ---
 
@@ -50,6 +58,11 @@ interactive_blogger_agent = Agent(
     7.  **Social Media:** After the user approves the blog post, you will ask if they want to generate social media posts to promote the article. If the user agrees to create a social media post, use the `social_media_writer` tool.
     8.  **Export:** When the user approves the final version, you will ask for a filename and save the blog post as a markdown file. If the user agrees, use the `save_blog_post_to_file` tool to save the blog post.
 
+    Before planning, call `load_note` (topic = the blog title or subject) to recall any prior draft,
+    and use the Vertex AI Search tool to retrieve relevant technical reference material from the
+    internal corpus. After the final version is approved, persist a short summary with `save_note`
+    (topic = the blog title).
+
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
     """,
     sub_agents=[
@@ -61,6 +74,9 @@ interactive_blogger_agent = Agent(
     tools=[
         FunctionTool(save_blog_post_to_file),
         FunctionTool(analyze_codebase),
+        load_note,
+        save_note,
+        blog_rag,
     ],
     output_key="blog_outline",
 )

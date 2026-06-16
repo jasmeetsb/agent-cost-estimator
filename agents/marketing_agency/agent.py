@@ -16,14 +16,31 @@
 
 from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool
+from google.adk.tools import VertexAiSearchTool
 
 from . import prompt
+from .fs_state import save_note, load_note
 from .sub_agents.domain_create import domain_create_agent
 from .sub_agents.logo_create import logo_create_agent
 from .sub_agents.marketing_create import marketing_create_agent
 from .sub_agents.website_create import website_create_agent
 
-MODEL = "gemini-2.5-pro"
+MODEL = "gemini-2.5-flash"
+
+# Shared synthetic knowledge corpus (Vertex AI Search / RAG) — brand/marketing
+# briefs (brand strategy, naming, channels, landing pages, SEO, social) were added
+# to `agent-knowledge`.
+_DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
+               "default_collection/dataStores/agent-knowledge")
+brand_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
+
+# Addendum so the coordinator exercises the state + retrieval SKUs.
+_SKU_ADDENDUM = (
+    "\n\nAdditionally: at the start, call load_note (topic = the brand/project name) to recall prior "
+    "work. Use the Vertex AI Search tool to retrieve relevant brand/marketing best-practice briefs "
+    "(brand strategy, naming, channels, landing pages, SEO, social) before advising. When done, "
+    "persist a concise brand summary with save_note (topic = the brand/project name)."
+)
 
 marketing_coordinator = LlmAgent(
     name="marketing_coordinator",
@@ -35,12 +52,15 @@ marketing_coordinator = LlmAgent(
         "website, to strategizing online marketing campaigns, "
         "designing a memorable logo, and creating engaging short videos"
     ),
-    instruction=prompt.MARKETING_COORDINATOR_PROMPT,
+    instruction=prompt.MARKETING_COORDINATOR_PROMPT + _SKU_ADDENDUM,
     tools=[
         AgentTool(agent=domain_create_agent),
         AgentTool(agent=website_create_agent),
         AgentTool(agent=marketing_create_agent),
         AgentTool(agent=logo_create_agent),
+        save_note,
+        load_note,
+        brand_rag,
     ],
 )
 

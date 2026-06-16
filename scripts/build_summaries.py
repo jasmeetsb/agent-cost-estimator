@@ -40,7 +40,8 @@ _RAG_TOOLS = {"discovery_engine_search", "vertex_ai_search"}
 # the parent stream) and the Monitoring web_search_requests metric does not track
 # native ADK google_search, so the AgentTool call count is the measurable proxy.
 WEB_GROUNDING_USD_PER_TURN = 14.0 / 1000
-_WEB_GROUNDING_TOOLS = {"web_researcher"}
+# AgentTool names that wrap a google_search agent (each call = ≥1 grounded turn).
+_WEB_GROUNDING_TOOLS = {"web_researcher", "academic_websearch_agent"}
 
 
 def count_tool_calls(pkg, toolset):

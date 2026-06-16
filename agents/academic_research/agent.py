@@ -16,12 +16,29 @@
 
 from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool
+from google.adk.tools import VertexAiSearchTool
 
 from . import prompt
+from .fs_state import save_note, load_note
 from .sub_agents.academic_newresearch import academic_newresearch_agent
 from .sub_agents.academic_websearch import academic_websearch_agent
 
-MODEL = "gemini-2.5-pro"
+MODEL = "gemini-2.5-flash"
+
+# Shared synthetic knowledge corpus (Vertex AI Search / RAG) — the research/tech
+# briefs (transformers, RAG, vector DBs, batteries, etc.) live in `agent-knowledge`.
+_DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
+               "default_collection/dataStores/agent-knowledge")
+corpus_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
+
+# Addendum so the coordinator exercises the state + retrieval SKUs (web search via
+# the academic_websearch AgentTool already grounds on Google Search).
+_SKU_ADDENDUM = (
+    "\n\nAdditionally: at the start, call load_note (topic = the paper/research subject) to recall "
+    "prior work. Consult the internal corpus via the Vertex AI Search tool for relevant reference "
+    "briefs, and use the academic_websearch tool for current papers. When done, persist the key "
+    "findings with save_note (topic = the subject)."
+)
 
 
 academic_coordinator = LlmAgent(
@@ -34,11 +51,14 @@ academic_coordinator = LlmAgent(
         "for new research directions, and accessing web resources "
         "to acquire knowledge"
     ),
-    instruction=prompt.ACADEMIC_COORDINATOR_PROMPT,
+    instruction=prompt.ACADEMIC_COORDINATOR_PROMPT + _SKU_ADDENDUM,
     output_key="seminal_paper",
     tools=[
         AgentTool(agent=academic_websearch_agent),
         AgentTool(agent=academic_newresearch_agent),
+        save_note,
+        load_note,
+        corpus_rag,
     ],
 )
 

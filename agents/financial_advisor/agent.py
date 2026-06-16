@@ -16,14 +16,30 @@
 
 from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool
+from google.adk.tools import VertexAiSearchTool
 
 from . import prompt
+from .fs_state import save_note, load_note
 from .sub_agents.data_analyst import data_analyst_agent
 from .sub_agents.execution_analyst import execution_analyst_agent
 from .sub_agents.risk_analyst import risk_analyst_agent
 from .sub_agents.trading_analyst import trading_analyst_agent
 
-MODEL = "gemini-2.5-pro"
+MODEL = "gemini-2.5-flash"
+
+# Shared synthetic knowledge corpus (Vertex AI Search / RAG) — finance briefs
+# (valuation, risk, strategies, macro, sectors) were added to `agent-knowledge`.
+_DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
+               "default_collection/dataStores/agent-knowledge")
+market_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
+
+# Addendum so the coordinator exercises the state + retrieval SKUs.
+_SKU_ADDENDUM = (
+    "\n\nAdditionally: at the start, call load_note (topic = the ticker symbol) to recall any "
+    "prior analysis. Use the Vertex AI Search tool to retrieve relevant background market/finance "
+    "knowledge (valuation, risk, strategy, macro, sector briefs) before advising. When the analysis "
+    "is complete, persist a concise summary with save_note (topic = the ticker symbol)."
+)
 
 
 financial_coordinator = LlmAgent(
@@ -35,13 +51,16 @@ financial_coordinator = LlmAgent(
         "analyze a market ticker, develop trading strategies, define "
         "execution plans, and evaluate the overall risk."
     ),
-    instruction=prompt.FINANCIAL_COORDINATOR_PROMPT,
+    instruction=prompt.FINANCIAL_COORDINATOR_PROMPT + _SKU_ADDENDUM,
     output_key="financial_coordinator_output",
     tools=[
         AgentTool(agent=data_analyst_agent),
         AgentTool(agent=trading_analyst_agent),
         AgentTool(agent=execution_analyst_agent),
         AgentTool(agent=risk_analyst_agent),
+        save_note,
+        load_note,
+        market_rag,
     ],
 )
 

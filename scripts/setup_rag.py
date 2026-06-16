@@ -52,6 +52,20 @@ CORPUS = [
     ("res-vectordb", "Brief: vector databases", "Vector databases index embeddings for similarity search (ANN). Used in RAG, recommendations, dedup. Trade-offs: recall vs latency, index build cost, memory."),
     ("policy-security", "Security policy", "All data encrypted in transit (TLS 1.2+) and at rest. Least-privilege IAM. Secrets in a managed vault. Quarterly access reviews. SOC 2 Type II certified."),
     ("policy-data", "Data handling policy", "PII is classified and access-logged. Data residency available on Enterprise. Retention default 13 months; configurable. Deletion requests honored within 30 days."),
+    # ---- finance domain (financial_advisor RAG) ----
+    ("fin-valuation", "Equity valuation methods", "Common valuation approaches: discounted cash flow (DCF) on free cash flow, comparable-company multiples (P/E, EV/EBITDA, P/S), and dividend discount models. DCF is sensitive to the discount rate and terminal growth assumptions."),
+    ("fin-risk", "Portfolio risk concepts", "Key risk measures: beta (market sensitivity), volatility (standard deviation of returns), Sharpe ratio (excess return per unit risk), max drawdown, and value-at-risk (VaR). Diversification reduces idiosyncratic risk, not market risk."),
+    ("fin-strategies", "Trading strategy archetypes", "Strategy families: momentum (trend-following), mean-reversion, value, and dollar-cost averaging. Position sizing and stop-losses manage downside. Backtesting must account for transaction costs and survivorship bias."),
+    ("fin-execution", "Order execution and costs", "Execution venues and order types (market, limit, VWAP/TWAP algos) affect slippage. Implementation shortfall measures the gap between decision price and realized price. Spreads widen in low-liquidity names."),
+    ("fin-macro", "Macro indicators for investors", "Watch the Fed funds rate, CPI/PCE inflation, yield-curve shape (inversion signals recession risk), unemployment, and earnings revisions. Rate cuts tend to support equity multiples; rate hikes compress them."),
+    ("fin-semis", "Sector brief: semiconductors", "Semiconductor demand is driven by AI accelerators, data-center capex, and inventory cycles. Risks: cyclicality, customer concentration, export controls, and capital intensity of fabs. Leaders compete on process-node leadership and packaging."),
+    # ---- marketing / branding domain (marketing_agency RAG) ----
+    ("mkt-brand", "Brand strategy basics", "A brand strategy defines positioning, target audience, value proposition, voice/tone, and visual identity. Consistency across touchpoints builds recognition. A positioning statement names the audience, category, benefit, and reason-to-believe."),
+    ("mkt-naming", "Naming and domains", "Good product names are short, pronounceable, distinctive, and trademark-clearable. Check domain availability (.com first) and social handles. Avoid names that limit future expansion or carry negative connotations in key markets."),
+    ("mkt-channels", "Marketing channels & funnel", "Channels map to the funnel: awareness (social, content, PR), consideration (email, retargeting, webinars), conversion (landing pages, promos), retention (lifecycle email, loyalty). Track CAC, LTV, and channel ROAS."),
+    ("mkt-landing", "Landing page best practices", "A high-converting hero section has one clear value proposition, a single primary CTA, social proof, and minimal friction. Above-the-fold clarity and fast load times drive conversion; test headlines and CTAs with A/B experiments."),
+    ("mkt-content", "Content & SEO guidance", "Content marketing targets search intent with pillar pages + clusters. Optimize titles, meta descriptions, and internal links. Repurpose long-form into social snippets. Measure organic traffic, dwell time, and assisted conversions."),
+    ("mkt-social", "Social campaign guidance", "Match format to platform (short video, carousels, threads). A campaign needs a hook, a consistent visual system, a hashtag, and a clear CTA. Post timing and frequency depend on audience; measure engagement rate and shares, not just reach."),
 ]
 
 

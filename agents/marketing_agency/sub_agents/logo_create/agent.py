@@ -20,7 +20,7 @@ from google.genai import Client, types
 
 from . import prompt
 
-MODEL = "gemini-2.5-pro"
+MODEL = "gemini-2.5-flash"
 MODEL_IMAGE = "imagen-3.0-generate-002"
 
 
