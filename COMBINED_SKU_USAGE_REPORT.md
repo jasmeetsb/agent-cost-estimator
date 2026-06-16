@@ -8,13 +8,13 @@ Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3
 
 | Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
 |---|---|---|---|---|---|
+| multi-agent-orchestrator (archetype) | 106645 (8224–6403427) | 5680 (1576–74261) | 17.9 | 144.8 | 177 |
 | on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
-| multi-agent-orchestrator (archetype) | 22783 (8224–75848) | 4320 (1576–9662) | 13.1 | 180.1 | 234 |
+| autonomous-researcher (archetype) | 42348 (16990–92711) | 8993 (4939–14742) | 7.8 | 407.9 | 432 |
 | financial-advisor | 21786 (7979–81100) | 2753 (1072–12463) | 3.5 | 543.0 | 590 |
-| workflow-operator (archetype) | 21467 (4416–74345) | 1489 (583–3333) | 15.5 | 129.9 | 192 |
+| workflow-operator (archetype) | 21146 (3343–74345) | 1528 (583–3502) | 15.3 | 52.8 | 84 |
 | plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
-| autonomous-researcher (archetype) | 7853 (1577–32145) | 2436 (557–11690) | 5.0 | 91.4 | 153 |
-| conversational-chatbot (archetype) | 6232 (2505–17874) | 665 (195–1860) | 7.5 | 73.4 | 132 |
+| conversational-chatbot (archetype) | 6034 (2030–17874) | 669 (188–1860) | 7.5 | 28.9 | 57 |
 | marketing-agency | 3914 (1816–9947) | 3487 (846–63892) | 3.0 | 204.0 | 254 |
 | memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
 | blog-writer | 2856 (1803–3618) | 2538 (733–4087) | 2.0 | 118.5 | 178 |
@@ -26,13 +26,13 @@ Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3
 
 | Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |
 |---|---|---|---|---|
+| multi-agent-orchestrator (archetype) | 35.7 | 0 | 0.0 | 0.0 |
 | on-brand-genmedia | 31.6 | 4191 | 0.5 | 0.0 |
-| multi-agent-orchestrator (archetype) | 26.2 | 0 | 0.0 | 0.0 |
+| autonomous-researcher (archetype) | 15.5 | 0 | 0.0 | 0.0 |
 | financial-advisor | 7.1 | 3087 | 0.9 | 0.0 |
-| workflow-operator (archetype) | 31.1 | 0 | 0.0 | 0.0 |
+| workflow-operator (archetype) | 30.6 | 0 | 0.0 | 0.0 |
 | plumber-data-engineering-assistant | 8.0 | 2853 | 0.6 | 0.0 |
-| autonomous-researcher (archetype) | 12.4 | 0 | 0.0 | 0.0 |
-| conversational-chatbot (archetype) | 15.1 | 0 | 0.0 | 0.0 |
+| conversational-chatbot (archetype) | 14.9 | 0 | 0.0 | 0.0 |
 | marketing-agency | 6.0 | 2671 | 0.5 | 0.0 |
 | memory_assistant | 11.5 | 2493 | 3.2 | 2.5 |
 | blog-writer | 4.0 | 3540 | 0.4 | 0.0 |
@@ -48,12 +48,12 @@ Collectors added for Google Search grounding (Cloud Monitoring) and image genera
 
 | Agent | Web-search grounded requests | Images generated |
 |---|---|---|
-| on-brand-genmedia | 0 | 27 |
 | multi-agent-orchestrator (archetype) | 0 | 0 |
+| on-brand-genmedia | 0 | 27 |
+| autonomous-researcher (archetype) | 0 | 0 |
 | financial-advisor | 0 | 0 |
 | workflow-operator (archetype) | 0 | 0 |
 | plumber-data-engineering-assistant | 0 | 0 |
-| autonomous-researcher (archetype) | 0 | 0 |
 | conversational-chatbot (archetype) | 0 | 0 |
 | marketing-agency | 0 | 0 |
 | memory_assistant | 0 | 0 |
@@ -68,14 +68,14 @@ _Would bill ~$0.035 per grounded request (Gemini 2.x) and ~$0.04 per image (Imag
 
 Per-interaction quantities for the archetype agents (Firestore document ops via ADK note tools; RAG queries via VertexAiSearchTool against the synthetic corpus). Measured from the event stream / transcript.
 
-| Agent | Firestore writes | Firestore reads | Vertex AI Search (RAG) queries |
-|---|---|---|---|
-| multi-agent-orchestrator (archetype) | 0.15 | 0.35 | 0.45 |
-| workflow-operator (archetype) | 1.48 | 1.10 | 0.00 |
-| autonomous-researcher (archetype) | 0.12 | 1.57 | 1.32 |
-| conversational-chatbot (archetype) | 0.03 | 0.00 | 2.20 |
+| Agent | Firestore writes | Firestore reads | Vertex AI Search (RAG) queries | Google Search grounded turns |
+|---|---|---|---|---|
+| multi-agent-orchestrator (archetype) | 0.28 | 0.61 | 0.41 | 0.00 |
+| autonomous-researcher (archetype) | 1.27 | 1.95 | 1.23 | 1.43 |
+| workflow-operator (archetype) | 1.50 | 1.00 | 0.00 | 0.00 |
+| conversational-chatbot (archetype) | 0.03 | 0.00 | 2.24 | 0.00 |
 
-_RAG priced at $1.50/1K queries, Firestore at catalog read/write rates (GE AP calculator). Usage counts are the deliverable; cost is the secondary view in §4._
+_RAG priced at $1.50/1K queries, Google Search grounding at $14/1K grounded turns, Firestore at catalog read/write rates (GE AP calculator). Usage counts are the deliverable; cost is the secondary view in §4. Google Search grounding = web_researcher AgentTool invocations (native google_search grounding_metadata is encapsulated by the tool; Monitoring does not track native ADK google_search)._
 
 ## 3. SKU presence matrix (which agents touch which SKUs)
 
@@ -98,14 +98,14 @@ Reference only — list price, not actual billed. The usage tables above are the
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
 | on-brand-genmedia | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
-| multi-agent-orchestrator (archetype) | 0.0176 | 0.0049 | 0.0066 | 0.0324 (0.0189–0.0584) | High |
+| autonomous-researcher (archetype) | 0.0352 | 0.0109 | 0.0039 | 0.0769 (0.0322–0.0749) | Medium |
+| multi-agent-orchestrator (archetype) | 0.0462 | 0.0064 | 0.0089 | 0.0734 (0.0227–2.1220) | Very high |
 | financial-advisor | 0.0134 | 0.0145 | 0.0010 | 0.0313 (0.0215–0.0710) | High |
-| workflow-operator (archetype) | 0.0102 | 0.0036 | 0.0078 | 0.0239 (0.0145–0.0419) | High |
-| autonomous-researcher (archetype) | 0.0084 | 0.0026 | 0.0031 | 0.0171 (0.0077–0.0445) | Very high |
+| workflow-operator (archetype) | 0.0102 | 0.0033 | 0.0077 | 0.0234 (0.0141–0.0415) | High |
 | marketing-agency | 0.0099 | 0.0055 | 0.0008 | 0.0170 (0.0090–0.1671) | Very high |
 | memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
-| conversational-chatbot (archetype) | 0.0035 | 0.0021 | 0.0038 | 0.0133 (0.0072–0.0155) | High |
+| conversational-chatbot (archetype) | 0.0035 | 0.0019 | 0.0037 | 0.0131 (0.0067–0.0152) | High |
 | blog-writer | 0.0072 | 0.0033 | 0.0011 | 0.0121 (0.0068–0.0156) | Medium |
 | academic-research | 0.0042 | 0.0024 | 0.0008 | 0.0078 (0.0049–0.0203) | Very high |
 | fomc-research | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
@@ -113,7 +113,7 @@ Reference only — list price, not actual billed. The usage tables above are the
 
 ## 5. Usage-pattern observations
 
-1. **Input-token usage is the biggest differentiator** — financial-advisor consumes ~83460 input tokens/interaction vs ~0 for the lightest, a 83460× spread driven by depth of multi-specialist analysis.
+1. **Input-token usage is the biggest differentiator** — financial-advisor consumes ~106645 input tokens/interaction vs ~0 for the lightest, a 106645× spread driven by depth of multi-specialist analysis.
 2. **vCPU-seconds track analysis depth**, not just call count — the heaviest agent burns far more compute per interaction.
 3. **Output-token usage is the most variable SKU** run-to-run (the model varies how much it reasons), so token usage should be reported as a range, not a single number.
 4. **Memory generation + session events are consumed even when memories are never read back** — a real SKU footprint for any session-persisted agent.

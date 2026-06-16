@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6921160164791812096`
 - **Use case:** Decompose-and-delegate orchestration · **Complexity:** Archetype: Multi-Agent Orchestrator / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (13.1 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (17.9 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -40,33 +40,33 @@ Gemini tokens (coordinator + sub-agents); Agent Runtime (vCPU + memory); Session
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **40 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package multi_agent_orchestrator --runs 40 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **80 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package multi_agent_orchestrator --runs 80 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 40 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 80 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 22783 | 8224–75848 | High |
-| Gemini output tokens (incl. thinking) | tokens | 4320 | 1576–9662 | High |
-| Model calls | calls | 13.1 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 180.1 | — | — |
-| Agent Runtime — memory | GiB-seconds | 234.3 | — | — |
-| Sessions | events appended | 26.2 | — | Medium |
+| Gemini input tokens | tokens | 106645 | 8224–6403427 | Very high |
+| Gemini output tokens (incl. thinking) | tokens | 5680 | 1576–74261 | Very high |
+| Model calls | calls | 17.9 | — | Very high |
+| Agent Runtime — vCPU | vCPU-seconds | 144.8 | — | — |
+| Agent Runtime — memory | GiB-seconds | 177.3 | — | — |
+| Sessions | events appended | 35.7 | — | Very high |
 | Memory Bank — generation | tokens | 0 | — | — |
 | Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
-| Firestore — document writes | writes | 0.15 | — | — |
-| Firestore — document reads | reads | 0.35 | — | — |
-| Vertex AI Search (RAG) — queries | searches | 0.45 | — | — |
+| Firestore — document writes | writes | 0.28 | — | — |
+| Firestore — document reads | reads | 0.61 | — | — |
+| Vertex AI Search (RAG) — queries | searches | 0.41 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
-## 5. Grounding & media usage (now collected)
+## 5. Grounding & media usage
 
-- **Google Search grounding:** 0 grounded web-search requests measured (Cloud Monitoring, project-wide). The agent *can* ground on Search but this workload did not trigger it; would bill ~$0.035/request if used.
+- **Google Search grounding:** 0 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
 - **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
 
 ## 5b. Caveats on usage capture
@@ -82,17 +82,17 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0176 |
-| Agent Runtime | 0.0049 |
-| Memory Bank + Sessions | 0.0066 |
-| Firestore (6w/14r over 40 runs) | 0.0000001 |
-| Vertex AI Search (RAG: 0.45 queries/intxn @ $1.50/1K) | 0.000675 |
-| Model Armor (derived: 27103 tok scanned @ $0.10/1M) | 0.002710 |
-| **Total (measured SKUs)** | **0.0324** (range 0.0189–0.0584) |
+| Gemini tokens | 0.0462 |
+| Agent Runtime | 0.0064 |
+| Memory Bank + Sessions | 0.0089 |
+| Firestore (22w/49r over 80 runs) | 0.0000001 |
+| Vertex AI Search (RAG: 0.41 queries/intxn @ $1.50/1K) | 0.000619 |
+| Model Armor (derived: 112326 tok scanned @ $0.10/1M) | 0.011233 |
+| **Total (measured SKUs)** | **0.0734** (range 0.0227–2.1220) |
 
 ## 7. Test workload & sample interactions
 
-**40 interactions** (144 total user turns), fresh user_id per interaction. Interactions cycle **5 distinct conversation scenarios** of varying length (2-turn×8, 3-turn×8, 4-turn×16, 5-turn×8) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+**80 interactions** (288 total user turns), fresh user_id per interaction. Interactions cycle **5 distinct conversation scenarios** of varying length (2-turn×16, 3-turn×16, 4-turn×32, 5-turn×16) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
 **Scenario 1** (2 turns):
 

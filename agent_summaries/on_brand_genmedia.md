@@ -76,9 +76,9 @@ Measured usage quantities per interaction (avg over 35 runs), with run-to-run ra
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
-## 5. Grounding & media usage (now collected)
+## 5. Grounding & media usage
 
-- **Google Search grounding:** 0 grounded web-search requests measured (Cloud Monitoring, project-wide). The agent *can* ground on Search but this workload did not trigger it; would bill ~$0.035/request if used.
+- **Google Search grounding:** 0 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
 - **Image generation (Imagen):** 27 images measured (from response events). Would bill ~$0.04/image if used.
 
 ## 5b. Caveats on usage capture
