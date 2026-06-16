@@ -25,6 +25,13 @@ PB = load_or_build("gemini-2.5-flash")
 VCPU_RATE = PB.runtime_vcpu_core_sec_usd or 2.4e-5
 MEM_RATE = PB.runtime_mem_gib_sec_usd or 2.5e-6
 
+# Vertex AI Search (RAG) query price. Source: GE AP calculator "Agent Search
+# (for RAG)" = $1.50 / 1K queries. Usage (query count) is the primary measure;
+# this price is the secondary derived-cost view.
+RAG_SEARCH_USD_PER_QUERY = 1.5 / 1000
+# Tool names emitted by ADK's VertexAiSearchTool in the event stream.
+_RAG_TOOLS = {"discovery_engine_search", "vertex_ai_search"}
+
 META = {
     "financial_advisor": {
         "title": "financial-advisor", "use_case": "Stock analysis & trading-strategy advisor",
@@ -519,6 +526,22 @@ def transcript_interactions(pkg):
     return inters
 
 
+def count_rag_searches(pkg):
+    """Count Vertex AI Search (RAG) queries from the transcript (tool_call steps).
+
+    Returns (total_queries, interactions) so callers can derive per-interaction
+    rate. Counts function_call steps (the query), not function_response, to avoid
+    double-counting. Data source: transcript_<pkg>.jsonl (all 80 interactions
+    after the --append batch)."""
+    total = 0
+    for r in load_transcript(pkg):
+        for s in r.get("steps", []):
+            if s.get("type") == "tool_call" and (s.get("tool") or "") in _RAG_TOOLS:
+                total += 1
+    inters = len(transcript_interactions(pkg))
+    return total, inters
+
+
 def workload_profile(pkg, max_chars=200):
     """Summarize a transcript's workload for §7.
     Returns dict: n_interactions, turn_counts (Counter), scenarios (list of
@@ -550,6 +573,7 @@ def derive(pkg):
     """Per-interaction SKU usage quantities (+ secondary derived cost) for an agent."""
     r = load(pkg); v = r["variability"]; rt = r["runtime"]; mem = r["memory_and_session"]
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
+    rag_total, rag_inters = count_rag_searches(pkg)
     gm = r.get("grounding_and_media") or {}
     image_per_run = (gm.get("image_gen_usd", 0) or 0) / n
     grounding_per_run = (gm.get("search_grounding_usd", 0) or 0) / n
@@ -584,12 +608,19 @@ def derive(pkg):
         "fs_writes": (r.get("cumulative", {}) or {}).get("fs_writes", 0),
         "fs_reads_pi": (r.get("cumulative", {}) or {}).get("fs_reads", 0) / n,
         "fs_writes_pi": (r.get("cumulative", {}) or {}).get("fs_writes", 0) / n,
+        # Vertex AI Search (RAG) — measured from transcript tool_calls. Usage
+        # (queries/interaction) is primary; cost @ $1.50/1K is the derived view.
+        "rag_total": rag_total,
+        "rag_pi": rag_total / max(rag_inters, 1),
+        "c_rag": (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY,
         # secondary derived cost ($/interaction)
         "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
         "c_firestore": avg.get("firestore_usd", 0),
         "c_image": image_per_run, "c_grounding": grounding_per_run,
+        "c_rag_total": (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY,
         "c_total": avg["total_usd"] + image_per_run + grounding_per_run
-        + (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6,
+        + (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6
+        + (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY,
         "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "cost_var": var_word(v["model_usd"]["cv_pct"]),
@@ -635,6 +666,8 @@ def agent_md(d):
          if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
         (f"| Firestore — document reads | reads | {d['fs_reads_pi']:.2f} | — | — |"
          if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
+        (f"| Vertex AI Search (RAG) — queries | searches | {d['rag_pi']:.2f} | — | — |"
+         if d.get('rag_total', 0) else None),
         retr_note, "",
         "## 5. Grounding & media usage (now collected)", "",
         f"- **Google Search grounding:** {d['web_searches']:.0f} grounded web-search requests measured "
@@ -655,6 +688,8 @@ def agent_md(d):
         f"| Memory Bank + Sessions | {d['c_memsess']:.4f} |",
         (f"| Firestore ({d['fs_writes']:.0f}w/{d['fs_reads']:.0f}r over {d['n']} runs) | {d['c_firestore']:.7f} |"
          if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
+        (f"| Vertex AI Search (RAG: {d['rag_pi']:.2f} queries/intxn @ $1.50/1K) | {d['c_rag']:.6f} |"
+         if d.get('rag_total', 0) else None),
         f"| Model Armor (derived: {d['armor_tokens']:.0f} tok scanned @ $0.10/1M) | {d['c_model_armor']:.6f} |",
         (f"| Imagen (image generation) | {d['c_image']:.4f} |" if d['c_image'] else None),
         (f"| Search grounding | {d['c_grounding']:.4f} |" if d['c_grounding'] else None),
@@ -737,6 +772,19 @@ def combined(ds):
         L.append(f"| {r['title']} | {r.get('web_searches', 0):.0f} | {r.get('images', 0):.0f} |")
     L += ["",
           "_Would bill ~$0.035 per grounded request (Gemini 2.x) and ~$0.04 per image (Imagen) if triggered._", "",
+          "## 2c. State & retrieval usage — Firestore + Vertex AI Search/RAG (PRIMARY)", "",
+          "Per-interaction quantities for the archetype agents (Firestore document ops via ADK note "
+          "tools; RAG queries via VertexAiSearchTool against the synthetic corpus). Measured from the "
+          "event stream / transcript.", "",
+          "| Agent | Firestore writes | Firestore reads | Vertex AI Search (RAG) queries |",
+          "|---|---|---|---|"]
+    for r in sorted(rows, key=sortk):
+        if r.get("fs_writes", 0) or r.get("fs_reads", 0) or r.get("rag_total", 0):
+            L.append(f"| {r['title']} | {r.get('fs_writes_pi', 0):.2f} | {r.get('fs_reads_pi', 0):.2f} "
+                     f"| {r.get('rag_pi', 0):.2f} |")
+    L += ["",
+          "_RAG priced at $1.50/1K queries, Firestore at catalog read/write rates (GE AP calculator). "
+          "Usage counts are the deliverable; cost is the secondary view in §4._", "",
           "## 3. SKU presence matrix (which agents touch which SKUs)", "",
           "| Agent | Gemini tokens | Agent Runtime | Sessions | Memory Bank | Search grounding | Image gen |",
           "|---|---|---|---|---|---|---|"]
