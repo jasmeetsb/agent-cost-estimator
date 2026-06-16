@@ -20,6 +20,9 @@ average cost per query — broken down by the GCP products the agent consumes.
 | 2026-05-23 | Runtime cost = **prorated wall-clock × assumed 1 vCPU + 1 GiB** | Initial estimate; SUPERSEDED below. |
 | 2026-05-23 | Runtime usage = **actual, from Cloud Monitoring `reasoning_engine/*` allocation metrics** | Only needs project-level monitoring read (not billing admin); gives real vCPU-sec + GiB-sec per engine. Replaces the prorated guess (which was ~450× too low). |
 | 2026-05-23 | "Cost per query" **must include utilization (queries/hour)** | Agent Engine bills continuous allocation; idle runtime dominates at low QPS, tokens dominate at high QPS. |
+| 2026-06-15 | Map the calculator's 4 archetypes to **purpose-built, deployable GCP/ADK agents** | The calculator inputs are placeholders; representative agents let us replace them with *measured* per-SKU usage. Moderate complexity built first (EXP-008). |
+| 2026-06-16 | Test with **multi-scenario, variable-length, additive** workloads (`--append`) | Real interactions vary in length/topic; cycling 3–4 scenarios (2–5 turns) and accumulating batches gives a representative dataset rather than one repeated script. |
+| 2026-06-15 | **Pin `google-adk` to local + deploy sequentially + ADC for REST** | Hard-won deploy reliability (see Learnings 2026-06-15): unpinned ADK → empty-response crash; concurrent deploys → staging-race; gcloud-CLI token → auth-expiry failures. |
 
 ---
 
@@ -336,8 +339,67 @@ the *cost* is what's noisy. ⇒ A single run can misestimate by 2–3×; report 
 
 **Findings:** ~3× cost spread across agents; financial-advisor is the only runtime-dominated one
 (deep multi-specialist analysis). Search grounding + Imagen NOT yet metered (uncaptured). Per-agent
-summaries in `agent_summaries/`; cross-agent comparison in `COMBINED_COST_REPORT.md`. Tooling:
+summaries in `agent_summaries/`; cross-agent comparison in `COMBINED_SKU_USAGE_REPORT.md`. Tooling:
 `scripts/deploy_sample.py`, `scripts/exp_sample.py`, `scripts/build_summaries.py`.
+- **Parity rerun (2026-05-28):** re-ran all 4 at **35 iters** (were 3); averages settled lower as
+  noisy 3-run samples smoothed out — financial $0.0289, blog $0.0116, academic $0.0074,
+  marketing $0.0163. All 8 sample agents now at 35×2 = 70 user queries each.
+
+### EXP-007 — 4 MOST-complex adk-sample agents (35 runs each)
+- **Date:** 2026-05-28 | **Unit: $/interaction** (2-turn + memory-write)
+- **Goal:** deploy the highest-complexity GCP-only samples and extract per-SKU usage. Engines:
+  nexshift_agent, fomc_research, plumber_agent, on_brand_genmedia.
+
+| Agent | Total $/interaction | notable |
+|-------|--------------------|---------|
+| on-brand-genmedia | **$0.084** ($0.053 compute+tokens + **27 Imagen images ≈ $0.031**) | costliest; Loop+gen-media; ~83k in tok, 17 calls |
+| plumber-data-eng | $0.0127 | deepest hierarchy (6 sub-agents); broadest SKU *intent* (~10–11 GCP products) |
+| fomc-research | $0.0033 | multimodal pipeline; BigQuery/PDF capable but light on our prompts |
+| nexshift-agent | $0.0011 | 7 sub-agents + OR-Tools; returned **empty responses** to free-form prompts (needs structured input) — only memory-gen + runtime billed |
+
+**Findings:** on-brand-genmedia validated the **Imagen SKU** (27 `gemini-2.5-flash-image` invocations,
+captured via Monitoring `model_invocation_count`). nexshift shows even a non-responding agent still
+incurs Sessions + Memory Bank + Runtime cost. plumber has the broadest SKU intent but most are mocked/
+untriggered by 2-turn prompts. Per-agent summaries (with Mermaid architecture diagrams) in `agent_summaries/`.
+
+### EXP-008 — 4 calculator archetypes, purpose-built (Moderate complexity)
+- **Date:** 2026-06-15/16 | **Unit: $/interaction** | initially 35 runs, then **expanded to ~85** via
+  additive multi-turn batches (`--append`).
+- **Goal:** build representative GCP/ADK agents matching the calculator's 4 archetypes (see
+  `ARCHETYPE_ARCHITECTURES.md`) and measure their real per-SKU usage to replace placeholder inputs.
+- **Engines:** conversational_chatbot, workflow_operator, autonomous_researcher, multi_agent_orchestrator.
+
+| Archetype (Moderate) | $/interaction | interactions | turns | defining SKU signal |
+|----------------------|---------------|--------------|-------|---------------------|
+| Conversational Chatbot | $0.0059 | 88 | 2–4 | volume/cheap; light tools + Memory Bank |
+| Workflow Operator | $0.0204 | 85 | 2–4 | tool fan-out (8 tools → ~25 session events) |
+| Autonomous Researcher | $0.0265* | 85 | 2–3 | long outputs + **Google Search grounding** (measured non-zero) |
+| Multi-Agent Orchestrator | $0.0323 | 85 | 2–5 | agent-call fan-out (coord + 3 sub-agents); ~20k in tok |
+
+*researcher token+runtime only; with Search grounding folded in it was ~$0.09 at peak grounding rate.
+
+**Findings:** measured profiles match archetype theory (volume / tool-fan-out / output-depth+grounding /
+agent-fan-out). Researcher is the **first agent to materially exercise Search grounding**. Multi-turn
+expansion (2–5 turns, 3–4 distinct scenarios/agent) makes the dataset representative of varied real
+interactions, not one repeated script. **Corpus total now: 1,443 user turns across all experiments.**
+
+### EXP-008b — SKU coverage gap vs the reference calculator (2026-06-16)
+The calculator (`Reference/AGENT_CALCULATOR_INPUTS.md`) pre-populates **16–17 SKU sections per
+archetype** as placeholders. What our deployed archetype agents actually exercise is narrower:
+
+| SKU | Calculator (placeholder) | Our agents (measured) |
+|-----|--------------------------|-----------------------|
+| Gemini tokens, Agent Runtime, Sessions, Memory Bank | all 4 | ✅ measured all 4 |
+| BigQuery, Apigee, Agent Search/RAG | all 4 | ⚠️ architected but **mocked** (local stand-in tools; 0 billed) |
+| Google Search grounding | all 4 | ✅ measured (researcher only) |
+| Google Maps grounding | researcher + orchestrator | ❌ not built |
+| Agent Sandbox (Code Exec / Computer Use) | all 4 | ❌ not used by any agent |
+| Model Armor, Agent Evaluation, Cloud Logging, Cloud Trace | all 4 | ❌ not exercised (Trace enabled on deploy, not metered) |
+
+Calculator Sections defined but left blank for these archetypes: Gemini **Agent Calls**, **Imagen**,
+**Veo**, Security Command Center / Anomaly Detection / Semantic Policies (coming soon), Agent Identity
+& Registry (no cost), Cloud Monitoring (pricing TBD). **The placeholder→measured delta** = build agents
+that also exercise Sandbox, RAG, Maps, Model Armor, and Eval.
 
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
@@ -351,9 +413,17 @@ summaries in `agent_summaries/`; cross-agent comparison in `COMBINED_COST_REPORT
 ## 5. Open Questions / TODO
 - [done] Parameterize deploy + harness by `--agent` (EXP-002).
 - [done] Integrate actual runtime SKU extraction from Cloud Monitoring into the harness.
-- **Report runtime as a provisioned $/hour rate + marginal vCPU/query**, so cost/query is
-  `idle_rate ÷ QPS + token_cost + marginal_compute` — fixes the window-length comparability issue.
-- Make workloads config-driven (file/JSON) instead of the in-code `WORKLOADS` dict.
+- [done] Build + measure the 4 calculator archetypes (Moderate); multi-turn, multi-scenario,
+  additive (`--append`) datasets ~85 interactions each (EXP-008).
+- [done] Validate Search-grounding (researcher) + Imagen (on-brand-genmedia) collectors against
+  real non-zero usage.
+- **Close the placeholder→measured SKU gap (EXP-008b):** build agents that actually exercise
+  **Agent Sandbox (Code Exec / Computer Use), Vertex AI Search / RAG, Google Maps grounding,
+  Model Armor, and Agent Evaluation** — the SKUs the calculator assumes but we haven't billed.
+- Build the **Low + High** variants of each archetype (only Moderate done) to fill the calculator grid.
+- Un-mock BigQuery / Apigee / RAG in the archetype agents (provision real resources) so those SKUs
+  bill and get measured instead of stubbed.
+- **Report runtime as a provisioned $/hour rate + marginal vCPU/query** (`idle_rate ÷ QPS + token +
+  marginal`) to fix window-length comparability.
+- Make workloads config-driven (file/JSON) instead of the in-code `WORKLOADS`/`SCENARIOS` dicts.
 - If/when billing-account access allows: reconcile catalog estimate against BigQuery export.
-- Capture the other touched SKUs (Storage, Artifact Registry/Build, Logging, Trace, egress) via
-  their own Monitoring metrics for a full picture.
