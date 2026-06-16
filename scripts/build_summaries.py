@@ -660,8 +660,12 @@ def derive(pkg):
 
 def agent_md(d):
     m = META[d["pkg"]]
-    retr_note = ("\n_Memory retrievals = 0: this agent has no preload_memory tool — it writes "
-                 "memories from the session but doesn't read them back._" if d["mem_retrieved"] == 0 else "")
+    retr_note = ("\n_Memory retrievals = 0 by design: the harness mints a fresh user_id per "
+                 "interaction and writes memories only at session end, so no user ever has prior "
+                 "memories to retrieve. (Only the chatbot even has a `preload_memory` tool; the others "
+                 "write memories but have no retrieval tool.) The retrieval SKU is exercised by "
+                 "`memory_assistant`, whose workload reuses a user across sessions._"
+                 if d["mem_retrieved"] == 0 else "")
     lines = [
         f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",
         f"- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `{d['engine']}`",
