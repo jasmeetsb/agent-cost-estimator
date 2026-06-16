@@ -1,8 +1,8 @@
 # SKU Usage Summary — `marketing-agency` (marketing_agency)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6855475340148473856`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `7569678511133163520`
 - **Use case:** End-to-end website/branding launch suite · **Complexity:** Medium-High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (3.0 model calls avg), averaged over **35 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (4.2 model calls avg), averaged over **40 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -53,24 +53,27 @@ Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; Imagen / ge
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package marketing_agency --runs 35 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **40 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package marketing_agency --runs 40 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 40 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 3914 | 1816–9947 | High |
-| Gemini output tokens (incl. thinking) | tokens | 3487 | 846–63892 | Very high |
-| Model calls | calls | 3.0 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 204.0 | — | — |
-| Agent Runtime — memory | GiB-seconds | 253.8 | — | — |
-| Sessions | events appended | 6.0 | — | Medium |
-| Memory Bank — generation | tokens | 2671 | — | — |
-| Memory Bank — memories written | memories | 0.5 | — | — |
+| Gemini input tokens | tokens | 6206 | 3386–18972 | High |
+| Gemini output tokens (incl. thinking) | tokens | 1031 | 578–2626 | Medium |
+| Model calls | calls | 4.2 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 79.7 | — | — |
+| Agent Runtime — memory | GiB-seconds | 138.1 | — | — |
+| Sessions | events appended | 8.3 | — | Medium |
+| Memory Bank — generation | tokens | 2753 | — | — |
+| Memory Bank — memories written | memories | 0.7 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
+| Firestore — document writes | writes | 0.00 | — | — |
+| Firestore — document reads | reads | 1.00 | — | — |
+| Vertex AI Search (RAG) — queries | searches | 2.00 | — | — |
 
 _Memory retrievals = 0 by design: the harness mints a fresh user_id per interaction and writes memories only at session end, so no user ever has prior memories to retrieve. (Only the chatbot even has a `preload_memory` tool; the others write memories but have no retrieval tool.) The retrieval SKU is exercised by `memory_assistant`, whose workload reuses a user across sessions._
 
@@ -92,15 +95,17 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0099 |
-| Agent Runtime | 0.0055 |
-| Memory Bank + Sessions | 0.0008 |
-| Model Armor (derived: 7402 tok scanned @ $0.10/1M) | 0.000740 |
-| **Total (measured SKUs)** | **0.0170** (range 0.0090–0.1671) |
+| Gemini tokens | 0.0044 |
+| Agent Runtime | 0.0023 |
+| Memory Bank + Sessions | 0.0029 |
+| Firestore (0w/40r over 40 runs) | 0.0000000 |
+| Vertex AI Search (RAG: 2.00 queries/intxn @ $1.50/1K) | 0.003000 |
+| Model Armor (derived: 7237 tok scanned @ $0.10/1M) | 0.000724 |
+| **Total (measured SKUs)** | **0.0133** (range 0.0080–0.0174) |
 
 ## 7. Test workload & sample interactions
 
-**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
+**40 interactions** (80 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
 **Workload (turn-by-turn):**
 
@@ -111,9 +116,9 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 **Sample interaction (first run):**
 
-- **Turn 1** (2090 in / 984 out tokens) — user: *Create a brand concept for a new oat-milk startup called OatJoy.*
-  - reply preview: Of course! Let's start by securing the perfect domain name for your oat-milk startup, OatJoy.  I've used a specialized tool to find some creative and available options for you.  domain_create_agent to…
-- **Turn 2** (1832 in / 696 out tokens) — user: *Suggest a tagline and a simple landing-page hero section.*
-  - reply preview: Excellent ideas! We'll definitely get to crafting the perfect tagline and hero section for your landing page.  However, before we dive into the creative details of your website, we first need to secur…
+- **Turn 1** (3703 in / 667 out tokens) — user: *Create a brand concept for a new oat-milk startup called OatJoy.*
+  - reply preview: Welcome to establishing OatJoy's powerful online presence! I'm here to guide you through defining your digital identity.  First, let's talk about choosing the perfect domain name for OatJoy. To help m…
+- **Turn 2** (1863 in / 282 out tokens) — user: *Suggest a tagline and a simple landing-page hero section.*
+  - reply preview: That's a great idea, and we'll definitely get to crafting a compelling tagline and a captivating landing page hero section for OatJoy! Those elements are crucial for engaging your audience.  However, …
 
 Full transcripts: `data/transcript_marketing_agency.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

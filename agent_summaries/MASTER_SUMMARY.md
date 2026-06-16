@@ -30,11 +30,11 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 - **financial-advisor** — Stock analysis & trading-strategy advisor. Hierarchical: coordinator + 4 AgentTool specialists (data, trading, execution, risk). Heaviest input-token consumer; runtime-dominated. → [details](financial_advisor.md)
 - **workflow-operator (archetype)** — Calculator archetype: Workflow Operator / Moderate. Single agent driving an 8-tool order workflow. Tool-fan-out-driven (highest session-event churn). → [details](workflow_operator.md)
 - **plumber-data-engineering-assistant** — Build/deploy data pipelines. Deepest hierarchy in the corpus: root + 6 specialist sub-agents (Dataflow / Dataproc / Dataproc-templates / dbt / GitHub / Cloud Monitoring). Touches ~10–11 distinct GCP product SKUs by intent. → [details](plumber_agent.md)
-- **conversational-chatbot (archetype)** — Calculator archetype: Conversational Chatbot / Moderate. Single support agent + light tools + Memory Bank. Cheapest archetype; volume-driven. → [details](conversational_chatbot.md)
-- **marketing-agency** — End-to-end branding suite: domain, website, marketing, logo (Imagen) creators wrapped as AgentTools under one coordinator. → [details](marketing_agency.md)
-- **memory_assistant** — Personal assistant with long-term cross-session memory. Coordinator + 2 sub-agents + Memory Bank (write+read). Exercises the most Agent Platform features in this corpus. → [details](memory_assistant.md)
 - **blog-writer** — Multi-agent technical blog authoring. Coordinator + 4 sub-agents (outline, draft, edit, social) + HITL refinement. → [details](blogger_agent.md)
+- **marketing-agency** — End-to-end branding suite: domain, website, marketing, logo (Imagen) creators wrapped as AgentTools under one coordinator. → [details](marketing_agency.md)
+- **conversational-chatbot (archetype)** — Calculator archetype: Conversational Chatbot / Moderate. Single support agent + light tools + Memory Bank. Cheapest archetype; volume-driven. → [details](conversational_chatbot.md)
 - **academic-research** — Academic literature discovery & analysis. Coordinator + AgentTool websearch + new-research specialists. → [details](academic_research.md)
+- **memory_assistant** — Personal assistant with long-term cross-session memory. Coordinator + 2 sub-agents + Memory Bank (write+read). Exercises the most Agent Platform features in this corpus. → [details](memory_assistant.md)
 - **fomc-research** — FOMC meeting financial-analysis report. Hierarchical + Sequential multimodal pipeline (BigQuery metadata + PDF transcripts via pdfplumber + multimodal Gemini). → [details](fomc_research.md)
 - **nexshift-agent** — AI nurse rostering optimizer. Coordinator + 7 sub-agents + OR-Tools CP-SAT solver. 4 orchestration patterns (Hierarchical + Sequential + Parallel + HITL), 31 tools — broadest tool surface in the corpus. → [details](nexshift_agent.md)
 
@@ -45,14 +45,14 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 106645 (8224–6403427) | 5680 (1576–74261) | 17.9 | 144.8 | 177 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 42348 (16990–92711) | 8993 (4939–14742) | 7.8 | 407.9 | 432 |
-| [financial-advisor](financial_advisor.md) | 21786 (7979–81100) | 2753 (1072–12463) | 3.5 | 543.0 | 590 |
+| [financial-advisor](financial_advisor.md) | 27586 (3667–139557) | 1724 (780–8097) | 3.6 | 347.5 | 420 |
 | [workflow-operator (archetype)](workflow_operator.md) | 21146 (3343–74345) | 1528 (583–3502) | 15.3 | 52.8 | 84 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
+| [blog-writer](blogger_agent.md) | 8121 (3278–13401) | 5334 (451–8595) | 5.0 | 225.9 | 259 |
+| [marketing-agency](marketing_agency.md) | 6206 (3386–18972) | 1031 (578–2626) | 4.2 | 79.7 | 138 |
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 6034 (2030–17874) | 669 (188–1860) | 7.5 | 28.9 | 57 |
-| [marketing-agency](marketing_agency.md) | 3914 (1816–9947) | 3487 (846–63892) | 3.0 | 204.0 | 254 |
+| [academic-research](academic_research.md) | 4058 (2367–8369) | 890 (393–3026) | 3.1 | 72.7 | 125 |
 | [memory_assistant](memory_assistant.md) | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
-| [blog-writer](blogger_agent.md) | 2856 (1803–3618) | 2538 (733–4087) | 2.0 | 118.5 | 178 |
-| [academic-research](academic_research.md) | 2577 (1813–14570) | 1384 (423–6130) | 2.1 | 86.9 | 137 |
 | [fomc-research](fomc_research.md) | 1838 (1306–2800) | 479 (188–949) | 2.3 | 30.1 | 55 |
 | [nexshift-agent](nexshift_agent.md) | 0 (0–0) | 0 (0–0) | 0.0 | 12.8 | 37 |
 
@@ -62,15 +62,15 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 |---|---|---|---|---|
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 35.7 | 2797 | 1.3 | 0.0 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 31.6 | 4191 | 0.5 | 0.0 |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 15.5 | 8202 | 0.8 | 0.0 |
-| [financial-advisor](financial_advisor.md) | 7.1 | 3087 | 0.9 | 0.0 |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 15.5 | 8171 | 0.8 | 0.0 |
+| [financial-advisor](financial_advisor.md) | 7.3 | 3377 | 0.8 | 0.0 |
 | [workflow-operator (archetype)](workflow_operator.md) | 30.6 | 2552 | 1.2 | 0.0 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 8.0 | 2853 | 0.6 | 0.0 |
+| [blog-writer](blogger_agent.md) | 11.5 | 5386 | 0.2 | 0.0 |
+| [marketing-agency](marketing_agency.md) | 8.3 | 2753 | 0.7 | 0.0 |
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 14.9 | 2461 | 0.0 | 0.0 |
-| [marketing-agency](marketing_agency.md) | 6.0 | 2671 | 0.5 | 0.0 |
+| [academic-research](academic_research.md) | 6.2 | 2555 | 0.1 | 0.0 |
 | [memory_assistant](memory_assistant.md) | 11.5 | 2493 | 3.2 | 2.5 |
-| [blog-writer](blogger_agent.md) | 4.0 | 3540 | 0.4 | 0.0 |
-| [academic-research](academic_research.md) | 4.1 | 2627 | 0.1 | 0.0 |
 | [fomc-research](fomc_research.md) | 4.8 | 2358 | 0.0 | 0.0 |
 | [nexshift-agent](nexshift_agent.md) | 2.0 | 2390 | 1.0 | 0.0 |
 
@@ -88,11 +88,11 @@ Collectors: **`extract_grounding_from_events`** (per-interaction, attributable �
 | [financial-advisor](financial_advisor.md) | 0 | 0 |
 | [workflow-operator (archetype)](workflow_operator.md) | 0 | 0 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0 | 0 |
-| [conversational-chatbot (archetype)](conversational_chatbot.md) | 0 | 0 |
+| [blog-writer](blogger_agent.md) | 40 | 0 |
 | [marketing-agency](marketing_agency.md) | 0 | 0 |
-| [memory_assistant](memory_assistant.md) | 0 | 0 |
-| [blog-writer](blogger_agent.md) | 0 | 0 |
+| [conversational-chatbot (archetype)](conversational_chatbot.md) | 0 | 0 |
 | [academic-research](academic_research.md) | 0 | 0 |
+| [memory_assistant](memory_assistant.md) | 0 | 0 |
 | [fomc-research](fomc_research.md) | 0 | 0 |
 | [nexshift-agent](nexshift_agent.md) | 0 | 0 |
 
@@ -108,11 +108,11 @@ _Would bill ~$0.035 per grounded prompt (Gemini 2.x) and ~$0.04 per image (Image
 | [financial-advisor](financial_advisor.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | [workflow-operator (archetype)](workflow_operator.md) | ✓ | ✓ | ✓ | ✓ (write) | — | — (BigQuery/Apigee mocked) |
 | [plumber-data-engineering-assistant](plumber_agent.md) | ✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent) |
-| [conversational-chatbot (archetype)](conversational_chatbot.md) | ✓ | ✓ | ✓ | ✓ (write) | — | — (BigQuery KB mocked) |
-| [marketing-agency](marketing_agency.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured |
-| [memory_assistant](memory_assistant.md) | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
 | [blog-writer](blogger_agent.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
+| [marketing-agency](marketing_agency.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | capable, 0 measured |
+| [conversational-chatbot (archetype)](conversational_chatbot.md) | ✓ | ✓ | ✓ | ✓ (write) | — | — (BigQuery KB mocked) |
 | [academic-research](academic_research.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
+| [memory_assistant](memory_assistant.md) | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
 | [fomc-research](fomc_research.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended) |
 | [nexshift-agent](nexshift_agent.md) | ✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | — |
 
@@ -125,16 +125,16 @@ Reference only — list price, not actual billed. The usage tables above are the
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
 | [on-brand-genmedia](on_brand_genmedia.md) | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0352 | 0.0109 | 0.0063 | 0.0793 (0.0347–0.0773) | Medium |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0352 | 0.0109 | 0.0063 | 0.0793 (0.0346–0.0773) | Medium |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0462 | 0.0064 | 0.0098 | 0.0742 (0.0236–2.1228) | Very high |
-| [financial-advisor](financial_advisor.md) | 0.0134 | 0.0145 | 0.0010 | 0.0313 (0.0215–0.0710) | High |
+| [blog-writer](blogger_agent.md) | 0.0158 | 0.0061 | 0.0045 | 0.0638 (0.0477–0.0690) | Medium |
+| [financial-advisor](financial_advisor.md) | 0.0126 | 0.0094 | 0.0029 | 0.0280 (0.0160–0.0587) | Very high |
 | [workflow-operator (archetype)](workflow_operator.md) | 0.0102 | 0.0033 | 0.0084 | 0.0242 (0.0148–0.0422) | High |
-| [marketing-agency](marketing_agency.md) | 0.0099 | 0.0055 | 0.0008 | 0.0170 (0.0090–0.1671) | Very high |
+| [academic-research](academic_research.md) | 0.0034 | 0.0021 | 0.0023 | 0.0183 (0.0061–0.0131) | High |
 | [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0035 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0159) | High |
-| [academic-research](academic_research.md) | 0.0042 | 0.0024 | 0.0008 | 0.0126 (0.0049–0.0203) | Very high |
-| [blog-writer](blogger_agent.md) | 0.0072 | 0.0033 | 0.0011 | 0.0121 (0.0068–0.0156) | Medium |
+| [marketing-agency](marketing_agency.md) | 0.0044 | 0.0023 | 0.0029 | 0.0133 (0.0080–0.0174) | Medium |
 | [fomc-research](fomc_research.md) | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
 | [nexshift-agent](nexshift_agent.md) | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 
@@ -156,17 +156,17 @@ Each agent's test consists of N **interactions**, each = a 2-turn conversation +
 | [workflow-operator (archetype)](workflow_operator.md) | 80 | 2–5 | **288** | EXP-008 (archetype) |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 80 | 2–5 | **288** | EXP-008 (archetype) |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 40 | 2–4 | **128** | EXP-008 (archetype) |
-| [financial-advisor](financial_advisor.md) | 35 | 2 | **70** | EXP-006 |
-| [academic-research](academic_research.md) | 35 | 2 | **70** | EXP-006 |
-| [blog-writer](blogger_agent.md) | 35 | 2 | **70** | EXP-006 |
-| [marketing-agency](marketing_agency.md) | 35 | 2 | **70** | EXP-006 |
+| [financial-advisor](financial_advisor.md) | 40 | 2 | **80** | EXP-006 |
+| [academic-research](academic_research.md) | 40 | 2 | **80** | EXP-006 |
+| [blog-writer](blogger_agent.md) | 40 | 2 | **80** | EXP-006 |
+| [marketing-agency](marketing_agency.md) | 40 | 2 | **80** | EXP-006 |
 | [nexshift-agent](nexshift_agent.md) | 35 | 2 | **70** | EXP-007 |
 | [fomc-research](fomc_research.md) | 35 | 2 | **70** | EXP-007 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 35 | 2 | **70** | EXP-007 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 35 | 2 | **70** | EXP-007 |
 | [memory_assistant](memory_assistant.md) | 4 | 3 | **12** | EXP-005 |
 | grounded_news (validation) | 2 | 1 | **2** | collector-validation |
-| **TOTAL** | — | — | **1566** | all experiments combined |
+| **TOTAL** | — | — | **1606** | all experiments combined |
 
 Full per-turn transcripts (input, output_text, tool calls/responses, per-step usage) live at `data/transcript_<agent>.jsonl` locally. **Not committed** — `data/` is gitignored as runtime artifact. Each per-agent doc's §7 shows the workload prompts + one sample interaction inline.
 
@@ -178,11 +178,11 @@ Full per-turn transcripts (input, output_text, tool calls/responses, per-step us
 - [financial-advisor](financial_advisor.md) — Stock analysis & trading-strategy advisor.
 - [workflow-operator (archetype)](workflow_operator.md) — Calculator archetype: Workflow Operator / Moderate.
 - [plumber-data-engineering-assistant](plumber_agent.md) — Build/deploy data pipelines.
-- [conversational-chatbot (archetype)](conversational_chatbot.md) — Calculator archetype: Conversational Chatbot / Moderate.
-- [marketing-agency](marketing_agency.md) — End-to-end branding suite: domain, website, marketing, logo (Imagen) creators wrapped as AgentTools under one coordinator.
-- [memory_assistant](memory_assistant.md) — Personal assistant with long-term cross-session memory.
 - [blog-writer](blogger_agent.md) — Multi-agent technical blog authoring.
+- [marketing-agency](marketing_agency.md) — End-to-end branding suite: domain, website, marketing, logo (Imagen) creators wrapped as AgentTools under one coordinator.
+- [conversational-chatbot (archetype)](conversational_chatbot.md) — Calculator archetype: Conversational Chatbot / Moderate.
 - [academic-research](academic_research.md) — Academic literature discovery & analysis.
+- [memory_assistant](memory_assistant.md) — Personal assistant with long-term cross-session memory.
 - [fomc-research](fomc_research.md) — FOMC meeting financial-analysis report.
 - [nexshift-agent](nexshift_agent.md) — AI nurse rostering optimizer.
 

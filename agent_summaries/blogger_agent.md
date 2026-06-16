@@ -1,8 +1,8 @@
 # SKU Usage Summary — `blog-writer` (blogger_agent)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `3729977198753349632`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6484311000936873984`
 - **Use case:** Multi-agent technical blog authoring · **Complexity:** High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.0 model calls avg), averaged over **35 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (5.0 model calls avg), averaged over **40 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -46,30 +46,33 @@ Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; Google Sear
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package blogger_agent --runs 35 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **40 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package blogger_agent --runs 40 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 40 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 2856 | 1803–3618 | Medium |
-| Gemini output tokens (incl. thinking) | tokens | 2538 | 733–4087 | Medium |
-| Model calls | calls | 2.0 | — | Low |
-| Agent Runtime — vCPU | vCPU-seconds | 118.5 | — | — |
-| Agent Runtime — memory | GiB-seconds | 178.4 | — | — |
-| Sessions | events appended | 4.0 | — | Low |
-| Memory Bank — generation | tokens | 3540 | — | — |
-| Memory Bank — memories written | memories | 0.4 | — | — |
+| Gemini input tokens | tokens | 8121 | 3278–13401 | Medium |
+| Gemini output tokens (incl. thinking) | tokens | 5334 | 451–8595 | Medium |
+| Model calls | calls | 5.0 | — | Low |
+| Agent Runtime — vCPU | vCPU-seconds | 225.9 | — | — |
+| Agent Runtime — memory | GiB-seconds | 258.9 | — | — |
+| Sessions | events appended | 11.5 | — | Medium |
+| Memory Bank — generation | tokens | 5386 | — | — |
+| Memory Bank — memories written | memories | 0.2 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
+| Firestore — document writes | writes | 0.00 | — | — |
+| Firestore — document reads | reads | 1.00 | — | — |
+| Vertex AI Search (RAG) — queries | searches | 0.72 | — | — |
 
 _Memory retrievals = 0 by design: the harness mints a fresh user_id per interaction and writes memories only at session end, so no user ever has prior memories to retrieve. (Only the chatbot even has a `preload_memory` tool; the others write memories but have no retrieval tool.) The retrieval SKU is exercised by `memory_assistant`, whose workload reuses a user across sessions._
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 0 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
+- **Google Search grounding:** 40 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
 - **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
 
 ## 5b. Caveats on usage capture
@@ -85,15 +88,18 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0072 |
-| Agent Runtime | 0.0033 |
-| Memory Bank + Sessions | 0.0011 |
-| Model Armor (derived: 5394 tok scanned @ $0.10/1M) | 0.000539 |
-| **Total (measured SKUs)** | **0.0121** (range 0.0068–0.0156) |
+| Gemini tokens | 0.0158 |
+| Agent Runtime | 0.0061 |
+| Memory Bank + Sessions | 0.0045 |
+| Firestore (0w/40r over 40 runs) | 0.0000000 |
+| Vertex AI Search (RAG: 0.72 queries/intxn @ $1.50/1K) | 0.001087 |
+| Model Armor (derived: 13455 tok scanned @ $0.10/1M) | 0.001346 |
+| Search grounding | 0.0350 |
+| **Total (measured SKUs)** | **0.0638** (range 0.0477–0.0690) |
 
 ## 7. Test workload & sample interactions
 
-**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
+**40 interactions** (80 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
 **Workload (turn-by-turn):**
 
@@ -104,9 +110,9 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 **Sample interaction (first run):**
 
-- **Turn 1** (742 in / 1756 out tokens) — user: *Write a short technical blog post about why vector databases matter for RAG.*
-  - reply preview: Of course. Here is a short technical blog post about why vector databases matter for RAG:  ***  ### Vector Databases: The Backbone of Retrieval-Augmented Generation (RAG)  If you've been following the…
-- **Turn 2** (2514 in / 1704 out tokens) — user: *Make the intro punchier and add a one-line takeaway at the end.*
-  - reply preview: Of course. Here is the revised version with a punchier intro and a one-line takeaway.  ***  ### Vector Databases: The Backbone of Retrieval-Augmented Generation (RAG)  Retrieval-Augmented Generation (…
+- **Turn 1** (2567 in / 247 out tokens) — user: *Write a short technical blog post about why vector databases matter for RAG.*
+  - reply preview: 
+- **Turn 2** (2051 in / 3073 out tokens) — user: *Make the intro punchier and add a one-line takeaway at the end.*
+  - reply preview: ## Blog Post Outline: Unlocking Smarter LLMs: Why Vector Databases Are Indispensable for RAG  ### I. Introduction: The LLM's Double-Edged Sword  *   **The Promise and Peril of LLMs:** Large Language M…
 
 Full transcripts: `data/transcript_blogger_agent.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
