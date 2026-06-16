@@ -15,9 +15,12 @@ from .fs_state import save_note, load_note
 
 MODEL = "gemini-2.5-flash"
 
-# Shared synthetic knowledge corpus (Vertex AI Search / RAG).
+# Customer-safe knowledge corpus (Vertex AI Search / RAG). The chatbot is
+# customer-facing, so it uses a datastore with ONLY support/product docs — NOT
+# the internal ops/policy/research corpus that researcher/orchestrator use
+# (avoids cross-trust-boundary exposure of internal docs to end users).
 _DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
-               "default_collection/dataStores/agent-knowledge")
+               "default_collection/dataStores/agent-knowledge-public")
 kb_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
 
 # Canned support knowledge — stands in for a BigQuery/KB lookup (the real SKU

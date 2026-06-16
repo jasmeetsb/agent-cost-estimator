@@ -15,7 +15,11 @@ from google.cloud import discoveryengine_v1 as de
 
 PROJECT = "jsb-genai-sa"
 LOCATION = "global"
-DATA_STORE_ID = "agent-knowledge"
+DATA_STORE_ID = "agent-knowledge"            # full/internal — researcher + orchestrator
+PUBLIC_DATA_STORE_ID = "agent-knowledge-public"  # customer-safe — chatbot only
+# Customer-safe docs (support KB + product). Internal docs (ops-/res-/policy-)
+# are EXCLUDED from the chatbot's datastore to avoid cross-trust-boundary exposure.
+PUBLIC_PREFIXES = ("kb-", "prod-")
 _CO = ClientOptions(api_endpoint=f"{LOCATION}-discoveryengine.googleapis.com"
                     if LOCATION != "global" else "discoveryengine.googleapis.com")
 
@@ -48,48 +52,58 @@ CORPUS = [
 ]
 
 
-def main():
-    ds_client = de.DataStoreServiceClient(client_options=_CO)
-    parent = f"projects/{PROJECT}/locations/{LOCATION}/collections/default_collection"
-    ds_path = f"{parent}/dataStores/{DATA_STORE_ID}"
-
-    # 1) Create the datastore (idempotent-ish: skip if exists).
+def _ensure_datastore(ds_client, parent, ds_id, display):
+    path = f"{parent}/dataStores/{ds_id}"
     try:
-        ds_client.get_data_store(name=ds_path)
-        print("datastore exists:", DATA_STORE_ID)
+        ds_client.get_data_store(name=path)
+        print("datastore exists:", ds_id)
     except Exception:
         op = ds_client.create_data_store(
-            parent=parent, data_store_id=DATA_STORE_ID,
+            parent=parent, data_store_id=ds_id,
             data_store=de.DataStore(
-                display_name="Agent Knowledge (synthetic)",
+                display_name=display,
                 industry_vertical=de.IndustryVertical.GENERIC,
                 solution_types=[de.SolutionType.SOLUTION_TYPE_SEARCH],
                 content_config=de.DataStore.ContentConfig.CONTENT_REQUIRED,
             ),
         )
-        print("creating datastore...", )
+        print("creating datastore:", ds_id)
         op.result(timeout=300)
-        print("datastore created:", DATA_STORE_ID)
         time.sleep(10)
+    return path
 
-    # 2) Inline-import the synthetic documents (content = raw text).
-    doc_client = de.DocumentServiceClient(client_options=_CO)
+
+def _import(doc_client, ds_path, corpus_subset):
     branch = f"{ds_path}/branches/default_branch"
-    docs = [
-        de.Document(
-            id=did,
-            content=de.Document.Content(mime_type="text/plain", raw_bytes=text.encode("utf-8")),
-        )
-        for did, title, text in CORPUS
-    ]
+    docs = [de.Document(id=did, content=de.Document.Content(
+                mime_type="text/plain", raw_bytes=text.encode("utf-8")))
+            for did, _, text in corpus_subset]
     op = doc_client.import_documents(request=de.ImportDocumentsRequest(
         parent=branch,
         inline_source=de.ImportDocumentsRequest.InlineSource(documents=docs),
         reconciliation_mode=de.ImportDocumentsRequest.ReconciliationMode.INCREMENTAL,
     ))
-    print(f"importing {len(docs)} documents...")
+    print(f"importing {len(docs)} docs into {ds_path.split('/')[-1]}...")
     op.result(timeout=600)
-    print("import done. datastore id:", DATA_STORE_ID)
+
+
+def main():
+    ds_client = de.DataStoreServiceClient(client_options=_CO)
+    doc_client = de.DocumentServiceClient(client_options=_CO)
+    parent = f"projects/{PROJECT}/locations/{LOCATION}/collections/default_collection"
+
+    public = [d for d in CORPUS if d[0].startswith(PUBLIC_PREFIXES)]
+
+    # Full/internal datastore — researcher + orchestrator (all docs).
+    full_path = _ensure_datastore(ds_client, parent, DATA_STORE_ID, "Agent Knowledge (synthetic, internal)")
+    _import(doc_client, full_path, CORPUS)
+
+    # Customer-safe datastore — chatbot only (KB + product docs; NO internal ops/policy/research).
+    pub_path = _ensure_datastore(ds_client, parent, PUBLIC_DATA_STORE_ID, "Agent Knowledge (synthetic, customer-safe)")
+    _import(doc_client, pub_path, public)
+
+    print(f"done. full={DATA_STORE_ID} ({len(CORPUS)} docs), "
+          f"public={PUBLIC_DATA_STORE_ID} ({len(public)} docs)")
 
 
 if __name__ == "__main__":
