@@ -43,6 +43,14 @@ WEB_GROUNDING_USD_PER_TURN = 14.0 / 1000
 # AgentTool names that wrap a google_search agent (each call = ≥1 grounded turn).
 _WEB_GROUNDING_TOOLS = {"web_researcher", "academic_websearch_agent"}
 
+# Memory Bank retrieval price. Source: GE AP calculator "Memory Retrieval" = $0.5 / 1K
+# memories retrieved. Counted from `load_memory` tool_calls in the transcript — the
+# memory_retrieval_count Monitoring metric does NOT fire for ADK memory retrieval
+# (empirically 0 even when recall functionally works), and preload_memory runs
+# automatically (no event). load_memory is LLM-invoked, so it IS in the event stream.
+MEM_RETRIEVED_USD_PER = 0.5 / 1000
+_MEM_RETRIEVAL_TOOLS = {"load_memory"}
+
 
 def count_tool_calls(pkg, toolset):
     """Count tool_call steps in a transcript whose tool name is in `toolset`.
@@ -591,6 +599,7 @@ def derive(pkg):
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
     rag_total, rag_inters = count_rag_searches(pkg)
     web_ground_total, web_ground_inters = count_tool_calls(pkg, _WEB_GROUNDING_TOOLS)
+    retr_total, retr_inters = count_tool_calls(pkg, _MEM_RETRIEVAL_TOOLS)
     # Actual turn structure (multi-turn archetypes vs 2-turn samples) from the data.
     tv = v.get("turns")
     if tv:
@@ -622,7 +631,8 @@ def derive(pkg):
         "sess": v["session_events"]["mean"], "sess_var": var_word(v["session_events"]["cv_pct"]),
         "gen_tok": mem["generate_memories_tokens"] / n,
         "mem_written": mem.get("memories_written", 0) / n,
-        "mem_retrieved": mem.get("memories_retrieved", 0) / n,
+        "mem_retrieved": retr_total / max(retr_inters, 1),
+        "c_mem_retr": (retr_total / max(retr_inters, 1)) * MEM_RETRIEVED_USD_PER,
         "web_searches": gm.get("web_search_requests", 0), "images": gm.get("images_generated", 0),
         # Model Armor (P1) — DERIVED, not deployed: bills per token scanned ($0.10/1M).
         # Assumes 100% of conversation I/O (input+output tokens) is scanned. If only the
@@ -651,7 +661,8 @@ def derive(pkg):
         "c_total": avg["total_usd"] + image_per_run + grounding_per_run
         + (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6
         + (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY
-        + (web_ground_total / max(web_ground_inters, 1)) * WEB_GROUNDING_USD_PER_TURN,
+        + (web_ground_total / max(web_ground_inters, 1)) * WEB_GROUNDING_USD_PER_TURN
+        + (retr_total / max(retr_inters, 1)) * MEM_RETRIEVED_USD_PER,
         "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "cost_var": var_word(v["model_usd"]["cv_pct"]),
@@ -734,6 +745,8 @@ def agent_md(d):
          if d.get('rag_total', 0) else None),
         (f"| Google Search grounding ({d['web_ground_pi']:.2f} grounded turns/intxn @ $14/1K) | {d['c_web_ground']:.6f} |"
          if d.get('web_ground_total', 0) else None),
+        (f"| Memory Bank retrieval ({d['mem_retrieved']:.2f} load_memory calls/intxn @ $0.5/1K) | {d['c_mem_retr']:.6f} |"
+         if d.get('mem_retrieved', 0) else None),
         f"| Model Armor (derived: {d['armor_tokens']:.0f} tok scanned @ $0.10/1M) | {d['c_model_armor']:.6f} |",
         (f"| Imagen (image generation) | {d['c_image']:.4f} |" if d['c_image'] else None),
         (f"| Search grounding | {d['c_grounding']:.4f} |" if d['c_grounding'] else None),

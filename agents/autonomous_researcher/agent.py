@@ -12,7 +12,7 @@ model tier: Gemini 3.1 Pro (≤200k). Deployed on gemini-2.5-flash for parity.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools import google_search, VertexAiSearchTool, preload_memory
+from google.adk.tools import google_search, VertexAiSearchTool, load_memory
 from google.adk.tools.agent_tool import AgentTool
 
 from .fs_state import save_note, load_note
@@ -50,12 +50,13 @@ root_agent = Agent(
     description="Autonomous research analyst that web-searches and synthesizes long, cited reports.",
     instruction=(
         "You are an autonomous research analyst. For any question: (1) briefly plan the angles to "
-        "investigate, (2) use load_note (topic = the subject) to recall prior research and consult "
-        "the internal corpus via the Vertex AI Search RAG tool for reference briefs, "
+        "investigate, (2) ALWAYS call load_memory to recall prior memories, use load_note (topic = "
+        "the subject) to recall prior research, and consult the internal corpus via the Vertex AI "
+        "Search RAG tool for reference briefs, "
         "(3) call the web_researcher tool to gather current information from the web (always do this "
         "for current/recent questions), (4) synthesize a thorough, well-structured report with "
         "sections, an executive summary, and cited sources, and (5) persist the key findings with "
         "save_note (topic = the subject). Be comprehensive and detailed — depth is expected."
     ),
-    tools=[save_note, load_note, corpus_rag, web_research_tool, preload_memory],
+    tools=[save_note, load_note, corpus_rag, web_research_tool, load_memory],
 )

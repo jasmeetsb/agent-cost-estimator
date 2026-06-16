@@ -9,7 +9,7 @@ gemini-2.5-flash for measurement parity with prior experiments.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools import preload_memory, VertexAiSearchTool
+from google.adk.tools import load_memory, VertexAiSearchTool
 
 from .fs_state import save_note, load_note
 
@@ -69,9 +69,9 @@ root_agent = Agent(
         "For product/technical/policy questions, use the Vertex AI Search RAG tool to retrieve "
         "grounded answers from the knowledge base (kb_search is a fallback). "
         "When the user shares a preference or detail about themselves, persist it with save_note "
-        "(topic = their name or 'user'); at the start of a conversation, use load_note to recall "
-        "any prior context. Recalled facts about the user also appear in context — personalize. "
-        "If a lookup returns nothing, answer from general knowledge and offer to escalate."
+        "(topic = their name or 'user'); at the start of a conversation, ALWAYS call load_memory "
+        "to recall prior memories about this user (and load_note for stored notes), then personalize "
+        "your answers. If a lookup returns nothing, answer from general knowledge and offer to escalate."
     ),
-    tools=[faq_lookup, kb_search, preload_memory, save_note, load_note, kb_rag],
+    tools=[faq_lookup, kb_search, load_memory, save_note, load_note, kb_rag],
 )

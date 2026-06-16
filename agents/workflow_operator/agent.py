@@ -11,7 +11,7 @@ BigQuery in production); implemented locally so the agent is deployable.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools import preload_memory
+from google.adk.tools import load_memory
 
 from .fs_state import save_note, load_note
 
@@ -83,11 +83,12 @@ root_agent = Agent(
         "You are an order-fulfillment operator. For each order, run the workflow end to end: "
         "look up the order, check inventory, validate the address, calculate shipping, apply any "
         "discount, update the order status, send a customer notification, and log the transaction. "
-        "Before processing, use load_note (topic = order id) to check for prior history; after "
+        "Before processing, ALWAYS call load_memory to recall prior interactions with this customer, "
+        "and use load_note (topic = order id) to check for prior order history; after "
         "completing, persist the outcome with save_note (topic = order id). "
         "Handle errors (e.g. invalid address) before proceeding, and report a concise summary."
     ),
     tools=[lookup_order, check_inventory, validate_address, calculate_shipping,
            apply_discount, update_order_status, send_notification, log_transaction,
-           save_note, load_note, preload_memory],
+           save_note, load_note, load_memory],
 )
