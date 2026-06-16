@@ -2,7 +2,7 @@
 
 **Purpose:** estimate **usage per SKU** across different agent architectures deployed to Vertex AI Agent Engine. Usage quantities are the primary output; dollar cost is a secondary derived view (usage × catalog list price). This is **not** an expense report or a cost-optimization exercise — it characterizes what each agent *consumes*, by SKU.
 
-Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3-turn). All gemini-2.5-flash. 3 runs/agent; usage from model responses + Cloud Monitoring (per-engine).
+Unit = one interaction = a conversation + a memory-write. The 4 archetype agents use **multi-turn** workloads (2–5 turns, ~80% of interactions >2 turns); the adk-sample agents use a 2-turn workload. All gemini-2.5-flash. Runs per agent vary (archetypes 40–80; samples 40 — see each agent's summary). Usage from model responses + Cloud Monitoring (per-engine).
 
 ## 1. SKU usage per interaction — model & compute (PRIMARY)
 
@@ -74,6 +74,7 @@ Per-interaction quantities for the archetype agents (Firestore document ops via 
 | autonomous-researcher (archetype) | 1.27 | 1.95 | 1.23 | 1.43 |
 | workflow-operator (archetype) | 1.50 | 1.00 | 0.00 | 0.00 |
 | conversational-chatbot (archetype) | 0.03 | 0.00 | 2.24 | 0.00 |
+| academic-research | 0.00 | 0.00 | 0.00 | 0.34 |
 
 _RAG priced at $1.50/1K queries, Google Search grounding at $14/1K grounded turns, Firestore at catalog read/write rates (GE AP calculator). Usage counts are the deliverable; cost is the secondary view in §4. Google Search grounding = web_researcher AgentTool invocations (native google_search grounding_metadata is encapsulated by the tool; Monitoring does not track native ADK google_search)._
 
@@ -106,8 +107,8 @@ Reference only — list price, not actual billed. The usage tables above are the
 | memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | conversational-chatbot (archetype) | 0.0035 | 0.0019 | 0.0037 | 0.0131 (0.0067–0.0152) | High |
+| academic-research | 0.0042 | 0.0024 | 0.0008 | 0.0126 (0.0049–0.0203) | Very high |
 | blog-writer | 0.0072 | 0.0033 | 0.0011 | 0.0121 (0.0068–0.0156) | Medium |
-| academic-research | 0.0042 | 0.0024 | 0.0008 | 0.0078 (0.0049–0.0203) | Very high |
 | fomc-research | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
 | nexshift-agent | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 
@@ -121,6 +122,6 @@ Reference only — list price, not actual billed. The usage tables above are the
 
 ## Method & reproducibility
 
-Per agent: `python scripts/exp_sample.py --package <pkg> --runs 3 --settle 300`. Token usage from model responses (exact); vCPU/GiB-seconds + Memory Bank usage from Cloud Monitoring (per-engine), back-derived to quantities. Per-agent detail in `agent_summaries/`.
+Per agent: `python scripts/exp_sample.py --package <pkg> --runs 40 --settle 300`. Token usage from model responses (exact); vCPU/GiB-seconds + Memory Bank usage from Cloud Monitoring (per-engine), back-derived to quantities. Per-agent detail in `agent_summaries/`.
 
 _Engines: financial_advisor, academic_research, blogger_agent, marketing_agency (+ memory_assistant)._

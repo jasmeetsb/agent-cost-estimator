@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `7272440935726710784`
 - **Use case:** Deep web research with synthesis · **Complexity:** Archetype: Autonomous Researcher / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (7.8 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2–4-turn (varying) conversation + memory-write (7.8 model calls avg), averaged over **40 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -41,7 +41,7 @@ Gemini tokens (long outputs); Agent Runtime (vCPU + memory); Sessions; Memory Ba
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **40 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Deployed to Agent Engine; per run = 2–4-turn (varying) conversation in one session + add_session_to_memory; **40 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
 Reproduce: `python scripts/exp_sample.py --package autonomous_researcher --runs 40 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)

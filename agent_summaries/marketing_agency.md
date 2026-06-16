@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6855475340148473856`
 - **Use case:** End-to-end website/branding launch suite · **Complexity:** Medium-High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (3.0 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (3.0 model calls avg), averaged over **35 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture

@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6362665432486248448`
 - **Use case:** AI nurse rostering & scheduling optimizer · **Complexity:** High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (0.0 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (0.0 model calls avg), averaged over **35 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture

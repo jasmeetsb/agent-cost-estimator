@@ -591,6 +591,13 @@ def derive(pkg):
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
     rag_total, rag_inters = count_rag_searches(pkg)
     web_ground_total, web_ground_inters = count_tool_calls(pkg, _WEB_GROUNDING_TOOLS)
+    # Actual turn structure (multi-turn archetypes vs 2-turn samples) from the data.
+    tv = v.get("turns")
+    if tv:
+        tmin, tmax = int(tv["min"]), int(tv["max"])
+        turns_desc = f"{tmin}-turn" if tmin == tmax else f"{tmin}–{tmax}-turn (varying)"
+    else:
+        turns_desc = "2-turn"
     gm = r.get("grounding_and_media") or {}
     image_per_run = (gm.get("image_gen_usd", 0) or 0) / n
     grounding_per_run = (gm.get("search_grounding_usd", 0) or 0) / n
@@ -603,6 +610,7 @@ def derive(pkg):
     return {
         "pkg": pkg, "title": META[pkg]["title"], "complexity": META[pkg]["complexity"],
         "pattern": META[pkg]["pattern"], "engine": r["engine"].split("/")[-1], "n": n,
+        "turns_desc": turns_desc,
         # usage quantities per interaction
         "in_tok": v["input_tokens"]["mean"], "in_rng": f"{v['input_tokens']['min']}–{v['input_tokens']['max']}",
         "in_var": var_word(v["input_tokens"]["cv_pct"]),
@@ -658,8 +666,8 @@ def agent_md(d):
         f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",
         f"- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `{d['engine']}`",
         f"- **Use case:** {m['use_case']} · **Complexity:** {d['complexity']}",
-        f"- **Unit:** 1 interaction = 2-turn conversation + memory-write ({d['calls']:.1f} model calls avg). "
-        "Deployed on Vertex AI Agent Engine (GEAP).",
+        f"- **Unit:** 1 interaction = {d['turns_desc']} conversation + memory-write ({d['calls']:.1f} model calls avg), "
+        f"averaged over **{d['n']} interactions**. Deployed on Vertex AI Agent Engine (GEAP).",
         "- **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).", "",
         "## 1. Architecture", "",
         "```mermaid", m["diagram"], "```", "",
@@ -669,7 +677,7 @@ def agent_md(d):
         "via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet "
         "metered here — see §7.)", "",
         "## 3. How usage was measured", "",
-        f"Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; "
+        f"Deployed to Agent Engine; per run = {d['turns_desc']} conversation in one session + add_session_to_memory; "
         f"**{d['n']} runs** for variability; 300s Monitoring settle; token usage from the model response "
         f"(`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).",
         f"Reproduce: `python scripts/exp_sample.py --package {d['pkg']} --runs {d['n']} --settle 300`", "",
@@ -777,8 +785,10 @@ def combined(ds):
          "Vertex AI Agent Engine. Usage quantities are the primary output; dollar cost is a secondary "
          "derived view (usage × catalog list price). This is **not** an expense report or a "
          "cost-optimization exercise — it characterizes what each agent *consumes*, by SKU.", "",
-         "Unit = one interaction (2-turn conversation + memory-write; memory_assistant = 3-turn). "
-         "All gemini-2.5-flash. 3 runs/agent; usage from model responses + Cloud Monitoring (per-engine).", "",
+         "Unit = one interaction = a conversation + a memory-write. The 4 archetype agents use "
+         "**multi-turn** workloads (2–5 turns, ~80% of interactions >2 turns); the adk-sample agents "
+         "use a 2-turn workload. All gemini-2.5-flash. Runs per agent vary (archetypes 40–80; samples "
+         "40 — see each agent's summary). Usage from model responses + Cloud Monitoring (per-engine).", "",
          "## 1. SKU usage per interaction — model & compute (PRIMARY)", "",
          "| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |",
          "|---|---|---|---|---|---|"]
@@ -863,7 +873,7 @@ def combined(ds):
           "the agents are capable but the short 2-turn tasks didn't trigger them. Remaining uncaptured "
           "SKUs: Cloud Trace, Logging, Storage.", "",
           "## Method & reproducibility", "",
-          "Per agent: `python scripts/exp_sample.py --package <pkg> --runs 3 --settle 300`. Token usage "
+          "Per agent: `python scripts/exp_sample.py --package <pkg> --runs 40 --settle 300`. Token usage "
           "from model responses (exact); vCPU/GiB-seconds + Memory Bank usage from Cloud Monitoring "
           "(per-engine), back-derived to quantities. Per-agent detail in `agent_summaries/`.", "",
           "_Engines: financial_advisor, academic_research, blogger_agent, marketing_agency (+ memory_assistant)._"]
@@ -970,12 +980,12 @@ def master(ds):
          "user facts → `add_session_to_memory` → Session B issues 1 recall query. ~5.75 model calls "
          "and ~11.5 session events.",
          "",
-         "**Caveat:** because `memory_assistant`'s interaction has more turns, its raw $/interaction "
-         "is not strictly apples-to-apples with the 2-turn samples — normalize to **$/turn or "
-         "$/model-call** for head-to-head comparison. Variability stats (low/high range) are over "
-         "3 runs per agent.", "",
+         "**Caveat:** interaction turn-counts differ (archetypes 2–5 turns, samples 2 turns, "
+         "memory_assistant 3) so raw $/interaction is not strictly apples-to-apples — normalize to "
+         "**$/turn or $/model-call** for head-to-head comparison. Variability stats (low/high range) "
+         "are over each agent's full run set (archetypes 40–80 interactions; samples 40).", "",
          "All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reproduce: "
-         "`python scripts/exp_sample.py --package <pkg> --runs 3 --settle 300`.", "",
+         "`python scripts/exp_sample.py --package <pkg> --runs 40 --settle 300`.", "",
          "## Agents at a glance", ""]
     for r in sorted(rows, key=sortk):
         t = r["title"]; desc = DESCRIPTIONS.get(t, "")
@@ -1113,7 +1123,7 @@ def master(ds):
             L.append(f"- [{t}]({LINKS[t]}) — {DESCRIPTIONS.get(t, '').split('.')[0]}.")
     L += ["",
           "## Method & reproducibility", "",
-          "Per agent: `python scripts/exp_sample.py --package <pkg> --runs 3 --settle 300`. Token "
+          "Per agent: `python scripts/exp_sample.py --package <pkg> --runs 40 --settle 300`. Token "
           "usage from model responses (exact); vCPU/GiB-seconds + Memory Bank usage from Cloud "
           "Monitoring (per-engine); grounding from event `grounding_metadata` (per-interaction); "
           "Imagen from Monitoring `model_invocation_count` (model_user_id contains 'imagen'). "

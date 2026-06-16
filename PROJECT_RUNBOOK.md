@@ -415,7 +415,7 @@ that also exercise Sandbox, RAG, Maps, Model Armor, and Eval.
 |-------|-------------------------|---------------------|---------|
 | workflow-operator | 43 writes / 56 reads | $0.0134 | heaviest Firestore user (order history per run) |
 | multi-agent-orchestrator | 8 writes / 31 reads | $0.0269 | persists analysis, recalls prior |
-| autonomous-researcher | 0 writes / 36 reads | $0.0048 | recalls prior research; restructured to coordinator + web_researcher sub-agent (keeps Search grounding + gains Firestore) |
+| autonomous-researcher | 0 writes / 36 reads | $0.0048 | recalls prior research; restructured to coordinator + web_researcher sub-agent — ⚠ **see EXP-010: this `sub_agents`/transfer wiring never actually ran `google_search` (0 grounding); fixed via AgentTool** |
 | conversational-chatbot | 2 writes / 1 read | $0.0058 | saves user prefs |
 
 **Findings:** Firestore SKU now exercised + measured on all 4 (counted per-interaction from
@@ -429,6 +429,47 @@ grounding for researcher).
 - **Agent Sandbox: Code Execution — DEFERRED.** `AgentEngineSandboxCodeExecutor` exists but (a) has
   no per-agent Monitoring metric and (b) auto-provisions a separate engine at runtime. Documented as
   a gap alongside Agent Gateway (Not Launched).
+
+### EXP-010 — Full SKU range + scaled campaign (RAG, Google Search grounding, researcher fix)
+- **Date:** 2026-06-16 | Archetypes: chatbot/workflow/orchestrator **80** interactions each
+  (40 validation + 40 `--append`), researcher **40** (fresh, post-fix). Multi-turn workloads
+  (2–5 turns, ≥70% >2-turn). All gemini-2.5-flash.
+- **Goal:** add the remaining P0/P1 SKUs (Vertex AI Search **RAG**, **Google Search grounding**) to
+  the 4 archetypes and scale the run for variability.
+- **RAG (Vertex AI Search):** synthetic corpus `agent-knowledge` + customer-safe
+  `agent-knowledge-public` ingested **via GCS + JSONL manifest** (inline raw_bytes import is silently
+  rejected — datastore ends up empty). Runtime SA granted `roles/discoveryengine.viewer` (search
+  returned 403 otherwise). Metered per-interaction by counting `discovery_engine_search` tool_calls;
+  priced $1.50/1K (calculator).
+- **Researcher web-search fix (the key finding):** the `web_researcher` **sub_agent** (LLM
+  `transfer_to_agent`) **never executed `google_search`** in the deployed `stream_query` — the
+  coordinator handed off control and the stream ended, so the researcher's signature SKU was silently
+  **0** across 80 interactions. Rewired `web_researcher` as an **`AgentTool`** (coordinator *calls* it
+  → google_search runs). Probe-verified. Now **1.43 grounded turns/interaction**. Native
+  google_search grounding_metadata is encapsulated by the AgentTool and the Monitoring
+  `web_search_requests` metric does not track it, so we count the AgentTool invocation as the grounded
+  query-turn unit (priced $14/1K, calculator).
+- **Also fixed:** Firestore client used project *number* (404) → project ID.
+
+| Agent | Intxns | RAG q/intxn | Search grounded turns | Firestore w/r | $/interaction |
+|-------|--------|-------------|------------------------|----------------|----------------|
+| conversational-chatbot | 80 | 2.24 | – | 0.03 / 0 | $0.0131 |
+| workflow-operator | 80 | – | – | 1.50 / 1.00 | $0.0234 |
+| multi-agent-orchestrator | 80 | 0.41 | – | 0.28 / 0.61 | $0.0734 |
+| autonomous-researcher | 40 | 1.23 | **1.43** | 1.27 / 1.95 | $0.0769 |
+
+**Findings:** all 4 archetypes now measure the full P0/P1 SKU set (Gemini tokens, Agent Runtime,
+Sessions, Memory Bank, Firestore, Vertex AI Search/RAG, Model Armor [derived], + Google Search
+grounding for researcher). The researcher is now the costliest archetype — web search adds heavy
+input tokens (~42k/intxn) on top of grounding. Old/zombie engines torn down (explicit-ID allowlist;
+Beads untouched).
+
+### EXP-011 — Full SKU range extended to 4 adk-sample agents (in progress)
+- **Date:** 2026-06-16 | financial_advisor, academic_research, marketing_agency, blogger_agent.
+  Added Firestore + RAG (corpus extended with synthetic finance + marketing briefs → 36 docs);
+  academic_research's `google_search` (academic_websearch AgentTool) registered for grounding
+  metering. Switched these samples to gemini-2.5-flash for parity. 40 interactions each. Two hit the
+  transient deploy 500 and were retried (same flaky LRO as the researcher).
 
 <!-- Template for new experiments:
 ### EXP-NNN — <title>

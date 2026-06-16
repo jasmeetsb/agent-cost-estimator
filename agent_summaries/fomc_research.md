@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `4056822423272554496`
 - **Use case:** FOMC meeting financial-analysis report · **Complexity:** High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.3 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.3 model calls avg), averaged over **35 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture

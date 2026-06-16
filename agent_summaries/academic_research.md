@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `4540625131680038912`
 - **Use case:** Academic literature analysis & discovery · **Complexity:** Medium-High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.1 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.1 model calls avg), averaged over **35 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -64,12 +64,13 @@ Measured usage quantities per interaction (avg over 35 runs), with run-to-run ra
 | Memory Bank — generation | tokens | 2627 | — | — |
 | Memory Bank — memories written | memories | 0.1 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
+| Google Search grounding — query turns | grounded turns | 0.34 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 0 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
+- **Google Search grounding:** 0.34 grounded query-turns per interaction measured (web_researcher AgentTool invocations; each runs ≥1 native google_search generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not track native ADK google_search — so the AgentTool call count is the measurable unit.
 - **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
 
 ## 5b. Caveats on usage capture
@@ -88,8 +89,9 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Gemini tokens | 0.0042 |
 | Agent Runtime | 0.0024 |
 | Memory Bank + Sessions | 0.0008 |
+| Google Search grounding (0.34 grounded turns/intxn @ $14/1K) | 0.004800 |
 | Model Armor (derived: 3961 tok scanned @ $0.10/1M) | 0.000396 |
-| **Total (measured SKUs)** | **0.0078** (range 0.0049–0.0203) |
+| **Total (measured SKUs)** | **0.0126** (range 0.0049–0.0203) |
 
 ## 7. Test workload & sample interactions
 

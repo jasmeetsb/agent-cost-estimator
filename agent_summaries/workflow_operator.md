@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `1344577926200295424`
 - **Use case:** Order-fulfillment workflow operator · **Complexity:** Archetype: Workflow Operator / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (15.3 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2–5-turn (varying) conversation + memory-write (15.3 model calls avg), averaged over **80 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -45,7 +45,7 @@ Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (Backend to
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **80 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Deployed to Agent Engine; per run = 2–5-turn (varying) conversation in one session + add_session_to_memory; **80 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
 Reproduce: `python scripts/exp_sample.py --package workflow_operator --runs 80 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
