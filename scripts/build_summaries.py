@@ -621,6 +621,7 @@ def derive(pkg):
     rag_total, rag_inters = count_rag_searches(pkg)
     web_ground_total, web_ground_inters = count_tool_calls(pkg, _WEB_GROUNDING_TOOLS)
     retr_total, retr_inters = count_memories_retrieved(pkg)
+    total_turns = sum(int(run.get("turns", 0) or 0) for run in r.get("runs", []))
     # Actual turn structure (multi-turn archetypes vs 2-turn samples) from the data.
     tv = v.get("turns")
     if tv:
@@ -640,7 +641,7 @@ def derive(pkg):
     return {
         "pkg": pkg, "title": META[pkg]["title"], "complexity": META[pkg]["complexity"],
         "pattern": META[pkg]["pattern"], "engine": r["engine"].split("/")[-1], "n": n,
-        "turns_desc": turns_desc,
+        "turns_desc": turns_desc, "total_turns": total_turns,
         # usage quantities per interaction
         "in_tok": v["input_tokens"]["mean"], "in_rng": f"{v['input_tokens']['min']}–{v['input_tokens']['max']}",
         "in_var": var_word(v["input_tokens"]["cv_pct"]),
@@ -1055,16 +1056,17 @@ def master(ds):
           "Every measured SKU, per interaction, for all agents in one view. The **Interactions** "
           "column is the number of interactions each agent was tested over. Ranges, distributions, "
           "and derived cost breakdown are in the sections below.", "",
-          "| Agent | Interactions | Input tok | Output tok | Model calls | vCPU-s | GiB-s | "
+          "| Agent | Interactions | Total turns | Input tok | Output tok | Model calls | vCPU-s | GiB-s | "
           "Session events | Mem-gen tok | Mem retrieved | Firestore W/R | RAG queries | "
           "Web grounding | Imagen | $/intxn |",
-          "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|--:|--:|--:|"]
+          "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|--:|--:|--:|"]
     for r in sorted(rows, key=sortk):
         n_ = r.get("n", "—")
+        tt = r.get("total_turns") or "—"
         fsw = r.get("fs_writes_pi", 0); fsr = r.get("fs_reads_pi", 0)
         web = r.get("web_ground_pi", r.get("web_searches", 0))
         L.append(
-            f"| {linkify(r['title'])} | {n_} | {r['in_tok']:.0f} | {r['out_tok']:.0f} | "
+            f"| {linkify(r['title'])} | {n_} | {tt} | {r['in_tok']:.0f} | {r['out_tok']:.0f} | "
             f"{r['calls']:.1f} | {r['vcpu_sec']:.1f} | {r['gib_sec']:.0f} | {r['sess']:.1f} | "
             f"{r['gen_tok']:.0f} | {r['mem_retrieved']:.2f} | {fsw:.2f}/{fsr:.2f} | "
             f"{r.get('rag_pi', 0):.2f} | {web:.2f} | {r.get('images', 0):.0f} | {r['c_total']:.4f} |")
@@ -1072,6 +1074,7 @@ def master(ds):
           "**Legend** — what each column means (all values are **per interaction**, averaged over the "
           "Interactions column, unless noted):", "",
           "- **Interactions** — number of interactions the agent was tested over (sample size for every average in the row).",
+          "- **Total turns** — total user turns sent to the agent across the whole experiment (Σ turns over all interactions); multi-turn archetypes send far more turns than interactions.",
           "- **Input tok / Output tok** — Gemini prompt tokens (incl. cached) / output tokens (candidates + thinking). Billed at the input / output rates.",
           "- **Model calls** — model invocations per interaction; one tool-using turn emits several.",
           "- **vCPU-s / GiB-s** — Agent Runtime vCPU-seconds / memory GiB-seconds, amortized over the measurement window (upper bound, not actual billed instance-time).",
