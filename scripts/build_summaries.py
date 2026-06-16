@@ -575,8 +575,13 @@ def derive(pkg):
         "mem_written": mem.get("memories_written", 0) / n,
         "mem_retrieved": mem.get("memories_retrieved", 0) / n,
         "web_searches": gm.get("web_search_requests", 0), "images": gm.get("images_generated", 0),
+        "fs_reads": (r.get("cumulative", {}) or {}).get("fs_reads", 0),
+        "fs_writes": (r.get("cumulative", {}) or {}).get("fs_writes", 0),
+        "fs_reads_pi": (r.get("cumulative", {}) or {}).get("fs_reads", 0) / n,
+        "fs_writes_pi": (r.get("cumulative", {}) or {}).get("fs_writes", 0) / n,
         # secondary derived cost ($/interaction)
         "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
+        "c_firestore": avg.get("firestore_usd", 0),
         "c_image": image_per_run, "c_grounding": grounding_per_run,
         "c_total": avg["total_usd"] + image_per_run + grounding_per_run,
         "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
@@ -620,6 +625,10 @@ def agent_md(d):
         f"| Memory Bank — generation | tokens | {d['gen_tok']:.0f} | — | — |",
         f"| Memory Bank — memories written | memories | {d['mem_written']:.1f} | — | — |",
         f"| Memory Bank — retrievals | reads | {d['mem_retrieved']:.1f} | — | — |",
+        (f"| Firestore — document writes | writes | {d['fs_writes_pi']:.2f} | — | — |"
+         if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
+        (f"| Firestore — document reads | reads | {d['fs_reads_pi']:.2f} | — | — |"
+         if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
         retr_note, "",
         "## 5. Grounding & media usage (now collected)", "",
         f"- **Google Search grounding:** {d['web_searches']:.0f} grounded web-search requests measured "
@@ -638,6 +647,8 @@ def agent_md(d):
         f"| Gemini tokens | {d['c_model']:.4f} |",
         f"| Agent Runtime | {d['c_runtime']:.4f} |",
         f"| Memory Bank + Sessions | {d['c_memsess']:.4f} |",
+        (f"| Firestore ({d['fs_writes']:.0f}w/{d['fs_reads']:.0f}r over {d['n']} runs) | {d['c_firestore']:.7f} |"
+         if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
         (f"| Imagen (image generation) | {d['c_image']:.4f} |" if d['c_image'] else None),
         (f"| Search grounding | {d['c_grounding']:.4f} |" if d['c_grounding'] else None),
         f"| **Total (measured SKUs)** | **{d['c_total']:.4f}** (range {d['c_total_min']:.4f}–{d['c_total_max']:.4f}) |",
@@ -930,6 +941,12 @@ def master(ds):
         if r["title"] in pres:
             L.append(f"| {linkify(r['title'])} | {pres[r['title']]} |")
     L += ["",
+          "**+ Firestore (operational DB):** the 4 archetype agents also exercise a real **Firestore** "
+          "SKU (save_note/load_note → document writes/reads, scoped per authenticated user). Measured "
+          "non-zero on all 4 (workflow_operator heaviest: ~1 read + ~1 write/interaction). Cost is "
+          "negligible (~$3e-7/interaction) but the SKU is exercised + measured. Not in the calculator "
+          "(it only models BigQuery + Vector Search for data). The sample agents (EXP-006/007) don't use it.",
+          "",
           "## 4. Secondary: derived cost per interaction (usage × catalog list price)", "",
           "Reference only — list price, not actual billed. The usage tables above are the deliverable.", "",
           "| Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |",

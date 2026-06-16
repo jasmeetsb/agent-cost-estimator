@@ -1,8 +1,8 @@
 # SKU Usage Summary — `workflow-operator (archetype)` (workflow_operator)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `923632098529509376`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `4994745424184082432`
 - **Use case:** Order-fulfillment workflow operator · **Complexity:** Archetype: Workflow Operator / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (13.1 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (9.6 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -45,24 +45,26 @@ Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (Backend to
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **85 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package workflow_operator --runs 85 --settle 300`
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **40 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package workflow_operator --runs 40 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 85 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 40 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 14121 | 7256–35760 | Medium |
-| Gemini output tokens (incl. thinking) | tokens | 1385 | 727–2964 | Medium |
-| Model calls | calls | 13.1 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 113.8 | — | — |
-| Agent Runtime — memory | GiB-seconds | 141.3 | — | — |
-| Sessions | events appended | 26.4 | — | Medium |
-| Memory Bank — generation | tokens | 1059 | — | — |
+| Gemini input tokens | tokens | 13025 | 1089–62346 | Very high |
+| Gemini output tokens (incl. thinking) | tokens | 1100 | 164–4122 | Very high |
+| Model calls | calls | 9.6 | — | High |
+| Agent Runtime — vCPU | vCPU-seconds | 67.5 | — | — |
+| Agent Runtime — memory | GiB-seconds | 120.1 | — | — |
+| Sessions | events appended | 19.1 | — | High |
+| Memory Bank — generation | tokens | 0 | — | — |
 | Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
+| Firestore — document writes | writes | 1.07 | — | — |
+| Firestore — document reads | reads | 1.40 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
@@ -84,14 +86,15 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0077 |
-| Agent Runtime | 0.0058 |
-| Memory Bank + Sessions | 0.0069 |
-| **Total (measured SKUs)** | **0.0204** (range 0.0169–0.0309) |
+| Gemini tokens | 0.0067 |
+| Agent Runtime | 0.0019 |
+| Memory Bank + Sessions | 0.0048 |
+| Firestore (43w/56r over 40 runs) | 0.0000003 |
+| **Total (measured SKUs)** | **0.0134** (range 0.0074–0.0357) |
 
 ## 7. Test workload & sample interactions
 
-**85 interactions** (219 total user turns), fresh user_id per interaction. Interactions cycle **3 distinct conversation scenarios** of varying length (2-turn×52, 3-turn×17, 4-turn×16) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+**40 interactions** (119 total user turns), fresh user_id per interaction. Interactions cycle **3 distinct conversation scenarios** of varying length (2-turn×14, 3-turn×13, 4-turn×13) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
 **Scenario 1** (2 turns):
 
@@ -119,9 +122,9 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 **Sample interaction (first run):**
 
-- **Turn 1** (8112 in / 1045 out tokens) — user: *Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.*
-  - reply preview: Order ORD-1001 for 2 'wireless mouse' units has been successfully processed. Inventory was confirmed, the shipping address was validated, and express shipping was calculated at $16 with a 2-day ETA. A…
-- **Turn 2** (1529 in / 228 out tokens) — user: *Now process order ORD-1003 — flag any issues before shipping.*
+- **Turn 1** (494 in / 169 out tokens) — user: *Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.*
+  - reply preview: 
+- **Turn 2** (679 in / 200 out tokens) — user: *Now process order ORD-1003 — flag any issues before shipping.*
   - reply preview: 
 
 Full transcripts: `data/transcript_workflow_operator.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

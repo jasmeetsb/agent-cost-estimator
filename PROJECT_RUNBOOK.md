@@ -401,6 +401,35 @@ Calculator Sections defined but left blank for these archetypes: Gemini **Agent 
 & Registry (no cost), Cloud Monitoring (pricing TBD). **The placeholder→measured delta** = build agents
 that also exercise Sandbox, RAG, Maps, Model Armor, and Eval.
 
+### EXP-009 — Firestore SKU added to the 4 archetypes (P0)
+- **Date:** 2026-06-16 | 40 fresh interactions each (new Firestore-enabled architecture; not
+  appended onto the pre-Firestore 85 to avoid diluting the new SKU).
+- **Goal:** close part of the EXP-008b gap — add a real operational database (Firestore) to all 4
+  archetype agents and measure the SKU. (BigQuery was the only calculator data SKU; Firestore is the
+  more representative agentic operational store, though not in the calculator.)
+- **Provisioning:** enabled `firestore.googleapis.com` + created default DB (us-central1) via **ADC
+  REST** (gcloud CLI was auth-expired). `fs_state.py` (save_note=write / load_note=read) copied into
+  each package; `google-cloud-firestore` added to deploy requirements.
+
+| Agent | Firestore ops (40 runs) | total $/interaction | notable |
+|-------|-------------------------|---------------------|---------|
+| workflow-operator | 43 writes / 56 reads | $0.0134 | heaviest Firestore user (order history per run) |
+| multi-agent-orchestrator | 8 writes / 31 reads | $0.0269 | persists analysis, recalls prior |
+| autonomous-researcher | 0 writes / 36 reads | $0.0048 | recalls prior research; restructured to coordinator + web_researcher sub-agent (keeps Search grounding + gains Firestore) |
+| conversational-chatbot | 2 writes / 1 read | $0.0058 | saves user prefs |
+
+**Findings:** Firestore SKU now exercised + measured on all 4 (counted per-interaction from
+save_note/load_note events; cross-checkable via Firestore Monitoring `billable_*_units`). Cost is
+**negligible (~$3e-7/interaction)** — the value is SKU coverage, not dollars. All 4 archetypes now
+measure **5 SKUs**: Gemini tokens, Agent Runtime, Sessions, Memory Bank, **Firestore** (+ Search
+grounding for researcher).
+- **Security fix mid-build:** commit review flagged the Firestore tools as IDOR/prompt-injection risk
+  (keyed by LLM `topic`). Fixed (own code): scoped docs by runtime `tool_context.user_id`
+  (`agent_state/<user_id>/notes/<sha256(topic)>`); op counts unchanged so measurement unaffected.
+- **Agent Sandbox: Code Execution — DEFERRED.** `AgentEngineSandboxCodeExecutor` exists but (a) has
+  no per-agent Monitoring metric and (b) auto-provisions a separate engine at runtime. Documented as
+  a gap alongside Agent Gateway (Not Launched).
+
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
 - Date / Agent / Workload / Engine id
