@@ -86,7 +86,7 @@ Measured usage quantities per interaction (avg over 35 runs), with run-to-run ra
 | Memory Bank — memories written | memories | 0.6 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
 
-_Memory retrievals = 0 by design: the harness mints a fresh user_id per interaction and writes memories only at session end, so no user ever has prior memories to retrieve. (Only the chatbot even has a `preload_memory` tool; the others write memories but have no retrieval tool.) The retrieval SKU is exercised by `memory_assistant`, whose workload reuses a user across sessions._
+_Memory retrievals = 0 for this workload: the agent either has no retrieval tool (the adk-sample agents) or answers directly without invoking recall (the support-FAQ chatbot — it IS `load_memory`-capable and recalls when asked, but its FAQ turns don't trigger it). Retrieval IS exercised by the returning-user runs of workflow-operator, autonomous-researcher, and multi-agent-orchestrator, and by `memory_assistant`._
 
 ## 5. Grounding & media usage
 

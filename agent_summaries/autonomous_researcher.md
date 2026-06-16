@@ -1,8 +1,8 @@
 # SKU Usage Summary — `autonomous-researcher (archetype)` (autonomous_researcher)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `7272440935726710784`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `1217914186680500224`
 - **Use case:** Deep web research with synthesis · **Complexity:** Archetype: Autonomous Researcher / Moderate
-- **Unit:** 1 interaction = 2–4-turn (varying) conversation + memory-write (7.8 model calls avg), averaged over **40 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2–4-turn (varying) conversation + memory-write (7.8 model calls avg), averaged over **79 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -41,34 +41,33 @@ Gemini tokens (long outputs); Agent Runtime (vCPU + memory); Sessions; Memory Ba
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2–4-turn (varying) conversation in one session + add_session_to_memory; **40 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package autonomous_researcher --runs 40 --settle 300`
+Deployed to Agent Engine; per run = 2–4-turn (varying) conversation in one session + add_session_to_memory; **79 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package autonomous_researcher --runs 79 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 40 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (avg over 79 runs), with run-to-run range and variability.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 42348 | 16990–92711 | High |
-| Gemini output tokens (incl. thinking) | tokens | 8993 | 4939–14742 | Medium |
+| Gemini input tokens | tokens | 44234 | 16990–166168 | High |
+| Gemini output tokens (incl. thinking) | tokens | 8482 | 4524–14742 | Medium |
 | Model calls | calls | 7.8 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 407.9 | — | — |
-| Agent Runtime — memory | GiB-seconds | 432.2 | — | — |
-| Sessions | events appended | 15.5 | — | Medium |
-| Memory Bank — generation | tokens | 8171 | — | — |
-| Memory Bank — memories written | memories | 0.8 | — | — |
-| Memory Bank — retrievals | reads | 0.0 | — | — |
-| Firestore — document writes | writes | 1.27 | — | — |
-| Firestore — document reads | reads | 1.95 | — | — |
-| Vertex AI Search (RAG) — queries | searches | 1.23 | — | — |
-| Google Search grounding — query turns | grounded turns | 1.43 | — | — |
+| Agent Runtime — vCPU | vCPU-seconds | 171.2 | — | — |
+| Agent Runtime — memory | GiB-seconds | 200.6 | — | — |
+| Sessions | events appended | 15.6 | — | Medium |
+| Memory Bank — generation | tokens | 7999 | — | — |
+| Memory Bank — memories written | memories | 0.6 | — | — |
+| Memory Bank — retrievals | reads | 0.4 | — | — |
+| Firestore — document writes | writes | 1.34 | — | — |
+| Firestore — document reads | reads | 2.06 | — | — |
+| Vertex AI Search (RAG) — queries | searches | 1.18 | — | — |
+| Google Search grounding — query turns | grounded turns | 1.62 | — | — |
 
-_Memory retrievals = 0 by design: the harness mints a fresh user_id per interaction and writes memories only at session end, so no user ever has prior memories to retrieve. (Only the chatbot even has a `preload_memory` tool; the others write memories but have no retrieval tool.) The retrieval SKU is exercised by `memory_assistant`, whose workload reuses a user across sessions._
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 1.43 grounded query-turns per interaction measured (web_researcher AgentTool invocations; each runs ≥1 native google_search generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not track native ADK google_search — so the AgentTool call count is the measurable unit.
+- **Google Search grounding:** 1.62 grounded query-turns per interaction measured (web_researcher AgentTool invocations; each runs ≥1 native google_search generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not track native ADK google_search — so the AgentTool call count is the measurable unit.
 - **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
 
 ## 5b. Caveats on usage capture
@@ -84,18 +83,19 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0352 |
-| Agent Runtime | 0.0109 |
-| Memory Bank + Sessions | 0.0063 |
-| Firestore (51w/78r over 40 runs) | 0.0000004 |
-| Vertex AI Search (RAG: 1.23 queries/intxn @ $1.50/1K) | 0.001838 |
-| Google Search grounding (1.43 grounded turns/intxn @ $14/1K) | 0.019950 |
-| Model Armor (derived: 51341 tok scanned @ $0.10/1M) | 0.005134 |
-| **Total (measured SKUs)** | **0.0793** (range 0.0346–0.0773) |
+| Gemini tokens | 0.0345 |
+| Agent Runtime | 0.0101 |
+| Memory Bank + Sessions | 0.0065 |
+| Firestore (106w/163r over 79 runs) | 0.0000005 |
+| Vertex AI Search (RAG: 1.18 queries/intxn @ $1.50/1K) | 0.001766 |
+| Google Search grounding (1.62 grounded turns/intxn @ $14/1K) | 0.022684 |
+| Memory Bank retrieval (0.38 memories retrieved/intxn @ $0.5/1K) | 0.000190 |
+| Model Armor (derived: 52716 tok scanned @ $0.10/1M) | 0.005272 |
+| **Total (measured SKUs)** | **0.0810** (range 0.0340–0.1005) |
 
 ## 7. Test workload & sample interactions
 
-**40 interactions** (128 total user turns), fresh user_id per interaction. Interactions cycle **5 distinct conversation scenarios** of varying length (2-turn×8, 3-turn×16, 4-turn×16) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+**45 interactions** (253 total user turns), fresh user_id per interaction. Interactions cycle **10 distinct conversation scenarios** of varying length (2-turn×8, 3-turn×16, 4-turn×16, 16-turn×1, 21-turn×1, 24-turn×1, 32-turn×2) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
 **Scenario 1** (2 turns):
 
@@ -137,6 +137,156 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | 2 | What are the cost implications of each? |
 | 3 | When does hybrid (keyword + vector) retrieval help? |
 | 4 | Give a recommended architecture for a 10M-document corpus. |
+
+**Scenario 6** (16 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
+| 2 | Now focus on the main regulatory and cost barriers, and which companies lead. |
+| 3 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
+| 4 | Now focus on the main regulatory and cost barriers, and which companies lead. |
+| 5 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
+| 6 | Now focus on the main regulatory and cost barriers, and which companies lead. |
+| 7 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
+| 8 | Now focus on the main regulatory and cost barriers, and which companies lead. |
+| 9 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
+| 10 | Now focus on the main regulatory and cost barriers, and which companies lead. |
+| 11 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
+| 12 | Now focus on the main regulatory and cost barriers, and which companies lead. |
+| 13 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
+| 14 | Now focus on the main regulatory and cost barriers, and which companies lead. |
+| 15 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
+| 16 | Now focus on the main regulatory and cost barriers, and which companies lead. |
+
+**Scenario 7** (24 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Research the state of solid-state EV batteries in 2026. |
+| 2 | Which companies are closest to mass production, and what hurdles remain? |
+| 3 | Summarize the investment outlook. |
+| 4 | Research the state of solid-state EV batteries in 2026. |
+| 5 | Which companies are closest to mass production, and what hurdles remain? |
+| 6 | Summarize the investment outlook. |
+| 7 | Research the state of solid-state EV batteries in 2026. |
+| 8 | Which companies are closest to mass production, and what hurdles remain? |
+| 9 | Summarize the investment outlook. |
+| 10 | Research the state of solid-state EV batteries in 2026. |
+| 11 | Which companies are closest to mass production, and what hurdles remain? |
+| 12 | Summarize the investment outlook. |
+| 13 | Research the state of solid-state EV batteries in 2026. |
+| 14 | Which companies are closest to mass production, and what hurdles remain? |
+| 15 | Summarize the investment outlook. |
+| 16 | Research the state of solid-state EV batteries in 2026. |
+| 17 | Which companies are closest to mass production, and what hurdles remain? |
+| 18 | Summarize the investment outlook. |
+| 19 | Research the state of solid-state EV batteries in 2026. |
+| 20 | Which companies are closest to mass production, and what hurdles remain? |
+| 21 | Summarize the investment outlook. |
+| 22 | Research the state of solid-state EV batteries in 2026. |
+| 23 | Which companies are closest to mass production, and what hurdles remain? |
+| 24 | Summarize the investment outlook. |
+
+**Scenario 8** (32 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Research the latest in efficient transformer architectures. |
+| 2 | Which techniques work best for edge deployment? |
+| 3 | How do quantization and distillation compare there? |
+| 4 | Summarize the practical recommendation. |
+| 5 | Research the latest in efficient transformer architectures. |
+| 6 | Which techniques work best for edge deployment? |
+| 7 | How do quantization and distillation compare there? |
+| 8 | Summarize the practical recommendation. |
+| 9 | Research the latest in efficient transformer architectures. |
+| 10 | Which techniques work best for edge deployment? |
+| 11 | How do quantization and distillation compare there? |
+| 12 | Summarize the practical recommendation. |
+| 13 | Research the latest in efficient transformer architectures. |
+| 14 | Which techniques work best for edge deployment? |
+| 15 | How do quantization and distillation compare there? |
+| 16 | Summarize the practical recommendation. |
+| 17 | Research the latest in efficient transformer architectures. |
+| 18 | Which techniques work best for edge deployment? |
+| 19 | How do quantization and distillation compare there? |
+| 20 | Summarize the practical recommendation. |
+| 21 | Research the latest in efficient transformer architectures. |
+| 22 | Which techniques work best for edge deployment? |
+| 23 | How do quantization and distillation compare there? |
+| 24 | Summarize the practical recommendation. |
+| 25 | Research the latest in efficient transformer architectures. |
+| 26 | Which techniques work best for edge deployment? |
+| 27 | How do quantization and distillation compare there? |
+| 28 | Summarize the practical recommendation. |
+| 29 | Research the latest in efficient transformer architectures. |
+| 30 | Which techniques work best for edge deployment? |
+| 31 | How do quantization and distillation compare there? |
+| 32 | Summarize the practical recommendation. |
+
+**Scenario 9** (32 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 2 | What are the cost implications of each? |
+| 3 | When does hybrid (keyword + vector) retrieval help? |
+| 4 | Give a recommended architecture for a 10M-document corpus. |
+| 5 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 6 | What are the cost implications of each? |
+| 7 | When does hybrid (keyword + vector) retrieval help? |
+| 8 | Give a recommended architecture for a 10M-document corpus. |
+| 9 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 10 | What are the cost implications of each? |
+| 11 | When does hybrid (keyword + vector) retrieval help? |
+| 12 | Give a recommended architecture for a 10M-document corpus. |
+| 13 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 14 | What are the cost implications of each? |
+| 15 | When does hybrid (keyword + vector) retrieval help? |
+| 16 | Give a recommended architecture for a 10M-document corpus. |
+| 17 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 18 | What are the cost implications of each? |
+| 19 | When does hybrid (keyword + vector) retrieval help? |
+| 20 | Give a recommended architecture for a 10M-document corpus. |
+| 21 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 22 | What are the cost implications of each? |
+| 23 | When does hybrid (keyword + vector) retrieval help? |
+| 24 | Give a recommended architecture for a 10M-document corpus. |
+| 25 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 26 | What are the cost implications of each? |
+| 27 | When does hybrid (keyword + vector) retrieval help? |
+| 28 | Give a recommended architecture for a 10M-document corpus. |
+| 29 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 30 | What are the cost implications of each? |
+| 31 | When does hybrid (keyword + vector) retrieval help? |
+| 32 | Give a recommended architecture for a 10M-document corpus. |
+
+**Scenario 10** (21 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Research recent advances in direct-air carbon capture. |
+| 2 | Compare it with point-source capture on cost and scalability. |
+| 3 | Which approach is more likely to scale this decade, and why? |
+| 4 | Research recent advances in direct-air carbon capture. |
+| 5 | Compare it with point-source capture on cost and scalability. |
+| 6 | Which approach is more likely to scale this decade, and why? |
+| 7 | Research recent advances in direct-air carbon capture. |
+| 8 | Compare it with point-source capture on cost and scalability. |
+| 9 | Which approach is more likely to scale this decade, and why? |
+| 10 | Research recent advances in direct-air carbon capture. |
+| 11 | Compare it with point-source capture on cost and scalability. |
+| 12 | Which approach is more likely to scale this decade, and why? |
+| 13 | Research recent advances in direct-air carbon capture. |
+| 14 | Compare it with point-source capture on cost and scalability. |
+| 15 | Which approach is more likely to scale this decade, and why? |
+| 16 | Research recent advances in direct-air carbon capture. |
+| 17 | Compare it with point-source capture on cost and scalability. |
+| 18 | Which approach is more likely to scale this decade, and why? |
+| 19 | Research recent advances in direct-air carbon capture. |
+| 20 | Compare it with point-source capture on cost and scalability. |
+| 21 | Which approach is more likely to scale this decade, and why? |
 
 **Sample interaction (first run):**
 

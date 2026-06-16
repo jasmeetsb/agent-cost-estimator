@@ -479,6 +479,35 @@ Beads untouched).
   metering. Switched these samples to gemini-2.5-flash for parity. 40 interactions each. Two hit the
   transient deploy 500 and were retried (same flaky LRO as the researcher).
 
+### EXP-012 — Memory Bank RETRIEVAL added to the 4 archetypes (returning-user blend)
+- **Date:** 2026-06-16 | +40 **returning-user** interactions per archetype, `--append` onto the
+  EXP-010 cold-start runs → chatbot 120, workflow 118, researcher 79, orchestrator 120. Realistic
+  mix (~33% returning). All gemini-2.5-flash.
+- **load_memory, not preload_memory:** `preload_memory` retrieves but is **unmeasurable** — the
+  `memory_retrieval_count` metric stays 0 for it AND it runs automatically (no event). Switched all 4
+  to **`load_memory`** (LLM-invoked → countable `function_call`; response is `{result:{memories:[...]}}`).
+  Counted **memories retrieved** (not raw calls) from the transcript — empty for new users, populated
+  for returning. (Bonus: the metric DOES fire for load_memory — workflow 79 / researcher 30 /
+  orchestrator 24 — matching the transcript counts.)
+- **`--user-pool N`** run mode (round-robin over N returning users) so a user's earlier session
+  (memory written + ~90s async generation settle) is recalled on a later visit. pool=5.
+- **Denominator bug fixed:** per-interaction rates had divided by transcript *distinct users* (the
+  returning batch reused 5 user_ids → collapsed to ~85 groups); now divide by actual interaction count.
+
+| Agent | Intxns | Memories retrieved / intxn | Mem-gen tok/intxn | $/interaction |
+|-------|--------|-----------------------------|--------------------|----------------|
+| workflow-operator | 118 | **0.67** | 2,549 | $0.0232 |
+| autonomous-researcher | 79 | **0.38** | 7,999 | $0.0810 |
+| multi-agent-orchestrator | 120 | **0.20** | 2,793 | $0.0932 |
+| conversational-chatbot | 120 | 0.00 (see note) | 2,486 | $0.0139 |
+
+**Note on the chatbot:** retrieval = 0 because its support-FAQ workload answers directly (faq_lookup +
+RAG) and never invokes `load_memory` — it IS retrieval-capable (probe confirmed it recalls
+"Enterprise plan / email / EU" when asked), the FAQ turns just don't trigger it. The 3 task agents
+(recall is task-relevant) + `memory_assistant` exercise the retrieval SKU. **Engine-aware backfill:**
+adding load_memory redeployed each agent (new engine), so the dataset spans the old (cold-run) and new
+(returning-run) engines; `backfill_memory.py` groups batches by engine and sums.
+
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
 - Date / Agent / Workload / Engine id

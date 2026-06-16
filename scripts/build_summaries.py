@@ -648,8 +648,8 @@ def derive(pkg):
         "sess": v["session_events"]["mean"], "sess_var": var_word(v["session_events"]["cv_pct"]),
         "gen_tok": mem["generate_memories_tokens"] / n,
         "mem_written": mem.get("memories_written", 0) / n,
-        "mem_retrieved": retr_total / max(retr_inters, 1),
-        "c_mem_retr": (retr_total / max(retr_inters, 1)) * MEM_RETRIEVED_USD_PER,
+        "mem_retrieved": retr_total / n,
+        "c_mem_retr": (retr_total / n) * MEM_RETRIEVED_USD_PER,
         "web_searches": gm.get("web_search_requests", 0), "images": gm.get("images_generated", 0),
         # Model Armor (P1) — DERIVED, not deployed: bills per token scanned ($0.10/1M).
         # Assumes 100% of conversation I/O (input+output tokens) is scanned. If only the
@@ -663,23 +663,23 @@ def derive(pkg):
         # Vertex AI Search (RAG) — measured from transcript tool_calls. Usage
         # (queries/interaction) is primary; cost @ $1.50/1K is the derived view.
         "rag_total": rag_total,
-        "rag_pi": rag_total / max(rag_inters, 1),
-        "c_rag": (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY,
+        "rag_pi": rag_total / n,
+        "c_rag": (rag_total / n) * RAG_SEARCH_USD_PER_QUERY,
         # Google Search grounding — measured as web_researcher AgentTool calls
         # (grounded query-turns). Primary usage; cost @ $14/1K is the derived view.
         "web_ground_total": web_ground_total,
-        "web_ground_pi": web_ground_total / max(web_ground_inters, 1),
-        "c_web_ground": (web_ground_total / max(web_ground_inters, 1)) * WEB_GROUNDING_USD_PER_TURN,
+        "web_ground_pi": web_ground_total / n,
+        "c_web_ground": (web_ground_total / n) * WEB_GROUNDING_USD_PER_TURN,
         # secondary derived cost ($/interaction)
         "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
         "c_firestore": avg.get("firestore_usd", 0),
         "c_image": image_per_run, "c_grounding": grounding_per_run,
-        "c_rag_total": (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY,
+        "c_rag_total": (rag_total / n) * RAG_SEARCH_USD_PER_QUERY,
         "c_total": avg["total_usd"] + image_per_run + grounding_per_run
         + (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6
-        + (rag_total / max(rag_inters, 1)) * RAG_SEARCH_USD_PER_QUERY
-        + (web_ground_total / max(web_ground_inters, 1)) * WEB_GROUNDING_USD_PER_TURN
-        + (retr_total / max(retr_inters, 1)) * MEM_RETRIEVED_USD_PER,
+        + (rag_total / n) * RAG_SEARCH_USD_PER_QUERY
+        + (web_ground_total / n) * WEB_GROUNDING_USD_PER_TURN
+        + (retr_total / n) * MEM_RETRIEVED_USD_PER,
         "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "cost_var": var_word(v["model_usd"]["cv_pct"]),
@@ -688,11 +688,11 @@ def derive(pkg):
 
 def agent_md(d):
     m = META[d["pkg"]]
-    retr_note = ("\n_Memory retrievals = 0 by design: the harness mints a fresh user_id per "
-                 "interaction and writes memories only at session end, so no user ever has prior "
-                 "memories to retrieve. (Only the chatbot even has a `preload_memory` tool; the others "
-                 "write memories but have no retrieval tool.) The retrieval SKU is exercised by "
-                 "`memory_assistant`, whose workload reuses a user across sessions._"
+    retr_note = ("\n_Memory retrievals = 0 for this workload: the agent either has no retrieval tool "
+                 "(the adk-sample agents) or answers directly without invoking recall (the support-FAQ "
+                 "chatbot — it IS `load_memory`-capable and recalls when asked, but its FAQ turns don't "
+                 "trigger it). Retrieval IS exercised by the returning-user runs of workflow-operator, "
+                 "autonomous-researcher, and multi-agent-orchestrator, and by `memory_assistant`._"
                  if d["mem_retrieved"] == 0 else "")
     lines = [
         f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",
