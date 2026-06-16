@@ -74,6 +74,14 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 - **$/intxn** — derived cost per interaction = Σ(usage × catalog list price); includes Model Armor (all tokens scanned @ $0.10/1M, folded in, no column). **Reference only — list price, not actual billed dollars.**
 - **'—'** — not tracked for that legacy entry (`memory_assistant`).
 
+**Billing alignment & caveats** — how each measure maps to how the product is actually billed:
+
+- **Billing-accurate units** (our count = the billed dimension): Gemini input/output tokens (cached split to the cheaper rate; thinking billed as output), RAG queries, memories retrieved, Firestore document ops, Imagen images.
+- **Estimates** (right dimension, approximated): **vCPU-s / GiB-s** are `allocation_time` amortized per-interaction over the window incl. idle — an upper bound, not actual billed instance-hours; **Session events** is event-stream-observed (not metered) and excludes session storage GiB-hr; **Mem-gen tok** is priced at the input rate (single-rate proxy) and excludes the monthly per-memory storage charge.
+- **Proxy / lower bound:** **Web grounding** is billed per grounded prompt, but we count the web-research AgentTool invocation (internal multi-search would bill more).
+- **Not a billing unit:** **Model calls** — Gemini bills tokens, not calls (shown as a usage driver).
+- **$/intxn is catalog list price, not billed dollars** (no account discounts/CUDs). Uncaptured SKUs: Cloud Logging/Trace/Monitoring, Cloud Storage, networking, RAG datastore storage/indexing. True spend requires BigQuery billing export (not set up).
+
 ## 1. SKU usage per interaction — model & compute (PRIMARY)
 
 | Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
