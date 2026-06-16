@@ -12,6 +12,8 @@ BigQuery in production); implemented locally so the agent is deployable.
 
 from google.adk.agents import Agent
 
+from .fs_state import save_note, load_note
+
 MODEL = "gemini-2.5-flash"
 
 _ORDERS = {
@@ -80,9 +82,11 @@ root_agent = Agent(
         "You are an order-fulfillment operator. For each order, run the workflow end to end: "
         "look up the order, check inventory, validate the address, calculate shipping, apply any "
         "discount, update the order status, send a customer notification, and log the transaction. "
-        "Call the tools you need in a sensible order, handle errors (e.g. invalid address) before "
-        "proceeding, and report a concise summary of what you did and the final order state."
+        "Before processing, use load_note (topic = order id) to check for prior history; after "
+        "completing, persist the outcome with save_note (topic = order id). "
+        "Handle errors (e.g. invalid address) before proceeding, and report a concise summary."
     ),
     tools=[lookup_order, check_inventory, validate_address, calculate_shipping,
-           apply_discount, update_order_status, send_notification, log_transaction],
+           apply_discount, update_order_status, send_notification, log_transaction,
+           save_note, load_note],
 )

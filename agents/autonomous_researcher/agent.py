@@ -1,32 +1,49 @@
 """Autonomous Researcher archetype — Moderate complexity.
 
-Deep-research agent: plans, searches the web via Google Search grounding, and
-synthesizes a long report. Matches the calculator's Autonomous Researcher /
-Moderate column: low query volume, long outputs (~5000 tok), Search grounding,
-premium model.
+Deep-research agent: plans, web-searches (Google Search grounding), persists
+findings to Firestore, and synthesizes a long report. Matches the calculator's
+Autonomous Researcher / Moderate column: low query volume, long outputs
+(~5000 tok), Search grounding, premium model.
 
-Intended model tier: Gemini 3.1 Pro (≤200k). Deployed on gemini-2.5-flash for
-parity. NOTE: uses ADK's built-in google_search tool, which (for Gemini models)
-must be the agent's sole tool — so internal-corpus RAG (Vertex AI Search) is
-deferred to the High variant where a datastore is provisioned; here the agent
-grounds on public web search only.
+Restructured as a coordinator + a `web_researcher` sub-agent so the agent can
+use BOTH Google Search grounding (which, as a built-in tool, must be the sole
+tool on its agent) AND Firestore function tools (on the coordinator). Intended
+model tier: Gemini 3.1 Pro (≤200k). Deployed on gemini-2.5-flash for parity.
 """
 
 from google.adk.agents import Agent
 from google.adk.tools import google_search
 
+from .fs_state import save_note, load_note
+
 MODEL = "gemini-2.5-flash"
+
+# Search grounding lives on its own sub-agent (built-in google_search can't be
+# combined with function tools on the same agent).
+web_researcher = Agent(
+    name="web_researcher",
+    model=MODEL,
+    description="Searches the web with Google Search grounding and returns cited findings.",
+    instruction=(
+        "You are a web research specialist. ALWAYS use the google_search tool to gather current "
+        "information across multiple angles of the question, then return well-organized findings "
+        "with the sources you used."
+    ),
+    tools=[google_search],
+)
 
 root_agent = Agent(
     name="autonomous_researcher",
     model=MODEL,
-    description="Autonomous research agent that web-searches and synthesizes long, cited reports.",
+    description="Autonomous research analyst that web-searches and synthesizes long, cited reports.",
     instruction=(
         "You are an autonomous research analyst. For any question: (1) briefly plan the angles to "
-        "investigate, (2) ALWAYS use the google_search tool to gather current information across "
-        "multiple angles, (3) synthesize a thorough, well-structured report with sections and a "
-        "short executive summary, and (4) cite the sources you used. Be comprehensive and detailed "
-        "— depth is expected."
+        "investigate, (2) use load_note (topic = the subject) to recall any prior research, "
+        "(3) delegate web research to the web_researcher sub-agent to gather current information, "
+        "(4) synthesize a thorough, well-structured report with sections, an executive summary, and "
+        "cited sources, and (5) persist the key findings with save_note (topic = the subject). "
+        "Be comprehensive and detailed — depth is expected."
     ),
-    tools=[google_search],
+    tools=[save_note, load_note],
+    sub_agents=[web_researcher],
 )

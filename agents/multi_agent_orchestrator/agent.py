@@ -14,6 +14,8 @@ BigQuery / RAG / action APIs (those SKUs would bill in production).
 
 from google.adk.agents import Agent
 
+from .fs_state import save_note, load_note
+
 MODEL = "gemini-2.5-flash"
 
 
@@ -94,6 +96,13 @@ action_specialist = Agent(
     tools=[draft_summary, create_ticket, send_update],
 )
 
+# NOTE on Agent Sandbox (Code Execution): ADK exposes AgentEngineSandboxCodeExecutor,
+# which would exercise the "Agent Sandbox: Code Execution" SKU. We deferred it because
+# (a) it has NO per-agent Cloud Monitoring metric (the SKU can't be measured the way we
+# measure runtime/memory/grounding), and (b) with no resource name it auto-provisions a
+# *separate* Agent Engine at runtime (extra cost + reliability risk). Revisit if/when a
+# sandbox allocation metric is exposed. See PROJECT_RUNBOOK.
+
 root_agent = Agent(
     name="multi_agent_orchestrator",
     model=MODEL,
@@ -103,7 +112,9 @@ root_agent = Agent(
         "gathering to data_specialist, analysis to analysis_specialist, and any follow-up actions "
         "(summary, ticket, notification) to action_specialist. Sequence them sensibly, pass results "
         "between them, and return one consolidated answer with the findings, the analysis, and the "
-        "actions taken."
+        "actions taken. Persist the final analysis with save_note (topic = the subject) "
+        "and use load_note at the start to recall prior runs on the same subject."
     ),
+    tools=[save_note, load_note],
     sub_agents=[data_specialist, analysis_specialist, action_specialist],
 )

@@ -11,6 +11,8 @@ gemini-2.5-flash for measurement parity with prior experiments.
 from google.adk.agents import Agent
 from google.adk.tools import preload_memory
 
+from .fs_state import save_note, load_note
+
 MODEL = "gemini-2.5-flash"
 
 # Canned support knowledge — stands in for a BigQuery/KB lookup (the real SKU
@@ -57,8 +59,10 @@ root_agent = Agent(
         "You are a friendly customer-support assistant. Answer concisely. "
         "Use faq_lookup for common questions (passwords, refunds, shipping, hours, cancellation) "
         "and kb_search for product/technical topics (integrations, pricing, SSO, data export). "
-        "Recalled facts about the user appear in context — use them to personalize. "
+        "When the user shares a preference or detail about themselves, persist it with save_note "
+        "(topic = their name or 'user'); at the start of a conversation, use load_note to recall "
+        "any prior context. Recalled facts about the user also appear in context — personalize. "
         "If a lookup returns nothing, answer from general knowledge and offer to escalate."
     ),
-    tools=[faq_lookup, kb_search, preload_memory],
+    tools=[faq_lookup, kb_search, preload_memory, save_note, load_note],
 )

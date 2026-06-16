@@ -251,6 +251,50 @@ def extract_image_count(events: list) -> int:
     return n
 
 
+# Firestore op rates from the Cloud Billing Catalog (service EE2C-7FAC-5E08,
+# us-central1/Iowa). Per document op (count). Tiny per interaction, but the point
+# is exercising + measuring the Firestore SKU.
+FIRESTORE_READ_USD = 5.0e-8
+FIRESTORE_WRITE_USD = 2.6e-7
+FIRESTORE_DELETE_USD = 2.6e-7
+
+# Our archetype agents' Firestore tools: save_note = 1 write, load_note = 1 read.
+_FS_WRITE_TOOLS = {"save_note"}
+_FS_READ_TOOLS = {"load_note"}
+
+
+def extract_firestore_ops(events: list) -> dict:
+    """Count Firestore ops in a query's events (attributable, per-interaction).
+
+    Counts calls to the agents' Firestore tools: save_note → 1 document write,
+    load_note → 1 document read. (Firestore Monitoring metrics exist too but are
+    project-wide; per-interaction op counts come from the event stream.)
+    """
+    reads = writes = 0
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        for p in (ev.get("content") or {}).get("parts") or []:
+            fc = p.get("function_call")
+            if not fc:
+                continue
+            name = (fc.get("name") or "").lower()
+            if name in _FS_WRITE_TOOLS:
+                writes += 1
+            elif name in _FS_READ_TOOLS:
+                reads += 1
+    return {"reads": reads, "writes": writes}
+
+
+def price_firestore(reads: int, writes: int, deletes: int = 0) -> dict:
+    """Price Firestore document ops at catalog rates."""
+    usd = (reads * FIRESTORE_READ_USD + writes * FIRESTORE_WRITE_USD
+           + deletes * FIRESTORE_DELETE_USD)
+    return {"reads": reads, "writes": writes, "deletes": deletes,
+            "firestore_usd": usd,
+            "rate_note": "catalog: read $5e-8, write/delete $2.6e-7 per op (us-central1)"}
+
+
 def collect_memory_usage(
     project: str, engine_id: str, start: str, end: str, token: str | None = None,
 ) -> dict:

@@ -45,7 +45,8 @@ def main():
     # when the container's newer ADK reads a field the pickled object lacks).
     import importlib.metadata as _md
     adk_ver = _md.version("google-adk")
-    reqs = ["google-cloud-aiplatform[agent_engines,adk]", f"google-adk=={adk_ver}"]
+    reqs = ["google-cloud-aiplatform[agent_engines,adk]", f"google-adk=={adk_ver}",
+            "google-cloud-firestore"]  # archetype agents persist state to Firestore
 
     vertexai.init(project=PROJECT, location=LOCATION, staging_bucket=STAGING)
     print(f"Deploying '{args.agent}' to Agent Engine (builds a container, ~5-10 min)... "

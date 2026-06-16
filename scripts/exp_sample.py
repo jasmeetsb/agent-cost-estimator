@@ -29,6 +29,7 @@ from agent_cost_estimator.usage import (
     collect_runtime_usage, price_runtime, collect_memory_usage,
     price_memory_usage, collect_publisher_tokens, collect_grounding_usage,
     collect_imagen_usage, extract_grounding_from_events, price_grounding_and_media,
+    extract_firestore_ops, price_firestore,
 )
 
 PROJECT, LOCATION = "jsb-genai-sa", "us-central1"
@@ -187,8 +188,10 @@ def one_run(engine, pb, user, transcripts, scenario):
             raise RuntimeError("RESOURCE_EXHAUSTED: empty stream (likely rate-limited)")
         return evs
 
+    fs_reads = fs_writes = 0
+
     def turn(session_id, msg):
-        nonlocal in_tok, out_tok, calls, events_total, grounded
+        nonlocal in_tok, out_tok, calls, events_total, grounded, fs_reads, fs_writes
         evs = _with_retry(lambda: _query(session_id, msg), what="stream_query")
         events_total += len(evs) + 1
         qc = price_query(evs, pb)
@@ -196,6 +199,8 @@ def one_run(engine, pb, user, transcripts, scenario):
         out_tok += qc.usage.output_tokens
         calls += qc.usage.model_calls
         grounded += extract_grounding_from_events(evs)
+        fs = extract_firestore_ops(evs)
+        fs_reads += fs["reads"]; fs_writes += fs["writes"]
         rec = build_turn(msg, evs, session_id=session_id); rec["user"] = user
         transcripts.append(rec)
 
@@ -213,7 +218,8 @@ def one_run(engine, pb, user, transcripts, scenario):
     model_usd = in_tok * (pb.input_token_usd or 0) + out_tok * (pb.output_token_usd or 0)
     return {"user": user, "input_tokens": in_tok, "output_tokens": out_tok,
             "model_calls": calls, "session_events": events_total, "model_usd": model_usd,
-            "grounded_responses": grounded, "turns": len(prompts)}
+            "grounded_responses": grounded, "turns": len(prompts),
+            "fs_reads": fs_reads, "fs_writes": fs_writes}
 
 
 def variability(rows, key):
@@ -285,6 +291,8 @@ def main():
     batch_session_events = sum(r.get("session_events", 0) for r in rows)
     batch_mem_retrieved = memory.get("memory_retrieval_count", 0) or 0
     batch_images = int(imagen["images_generated"])
+    batch_fs_reads = sum(r.get("fs_reads", 0) for r in rows)
+    batch_fs_writes = sum(r.get("fs_writes", 0) for r in rows)
 
     rpt_path = DATA / f"cost_report_{args.package}.json"
     # ---- accumulate onto prior batches when --append ----
@@ -312,6 +320,8 @@ def main():
     cum_mem_retrieved = cum.get("memory_retrieved", 0) + batch_mem_retrieved
     cum_grounded = cum.get("grounded_responses", 0) + grounded_events_total
     cum_images = cum.get("images_generated", 0) + batch_images
+    cum_fs_reads = cum.get("fs_reads", 0) + batch_fs_reads
+    cum_fs_writes = cum.get("fs_writes", 0) + batch_fs_writes
     batches = prior.get("batches", []) if args.append else []
     batches.append({"window": [w0, w1], "interactions": batch_n,
                     "runtime_usd": round(batch_runtime_usd, 6),
@@ -328,11 +338,13 @@ def main():
     media = price_grounding_and_media(cum_grounded, cum_images)
     media["grounded_responses_source"] = "response events (grounding_metadata)"
     media["imagen_by_model"] = imagen["by_model"]
+    firestore = price_firestore(cum_fs_reads, cum_fs_writes)
 
     per_run = {
         "model_usd": var["model_usd"]["mean"],                      # exact per-interaction mean
         "runtime_usd": cum_runtime_usd / max(cum_n, 1),             # amortized over all interactions
         "memory_session_usd": mem_priced["per_run_memory_usd"] / max(cum_n, 1),
+        "firestore_usd": firestore["firestore_usd"] / max(cum_n, 1),
     }
     per_run["total_usd"] = sum(per_run.values())
 
@@ -342,14 +354,16 @@ def main():
         "cumulative": {"interactions": cum_n, "runtime_usd_total": cum_runtime_usd,
                        "generate_memories_tokens": cum_gen_tokens,
                        "session_events": cum_session_events, "memory_retrieved": cum_mem_retrieved,
-                       "grounded_responses": cum_grounded, "images_generated": cum_images},
+                       "grounded_responses": cum_grounded, "images_generated": cum_images,
+                       "fs_reads": cum_fs_reads, "fs_writes": cum_fs_writes},
         "batches": batches,
         "runtime_usage": runtime.to_dict(),
         "runtime": rt_priced, "memory_and_session": mem_priced,
-        "grounding_and_media": media,
+        "grounding_and_media": media, "firestore": firestore,
         "per_run_avg": per_run,
         "uncaptured_skus": ["Cloud Trace", "Cloud Logging", "Cloud Storage",
-                            "memory storage (monthly)"],
+                            "memory storage (monthly)",
+                            "Agent Sandbox: Code Execution (no Monitoring metric; orchestrator only)"],
     }
     print(f"\n=== {'ACCUMULATED' if args.append else 'BATCH'} SKU USAGE "
           f"({cum_n} total interactions) ===")
