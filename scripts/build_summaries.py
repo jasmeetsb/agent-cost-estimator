@@ -1029,7 +1029,30 @@ def master(ds):
         t = r["title"]; desc = DESCRIPTIONS.get(t, "")
         link = f" → [details]({LINKS[t]})" if t in LINKS else ""
         L.append(f"- **{t}** — {desc}{link}")
+    # ── Comprehensive all-SKU matrix: every measured SKU in one table ──
     L += ["",
+          "## 0. All SKUs at a glance — full per-interaction matrix (PRIMARY)", "",
+          "Every measured SKU, per interaction, for all agents in one view. The **Interactions** "
+          "column is the number of interactions each agent was tested over. Ranges, distributions, "
+          "and derived cost breakdown are in the sections below.", "",
+          "| Agent | Interactions | Input tok | Output tok | Model calls | vCPU-s | GiB-s | "
+          "Session events | Mem-gen tok | Mem retrieved | Firestore W/R | RAG queries | "
+          "Web grounding | Imagen | $/intxn |",
+          "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|--:|--:|--:|"]
+    for r in sorted(rows, key=sortk):
+        n_ = r.get("n", "—")
+        fsw = r.get("fs_writes_pi", 0); fsr = r.get("fs_reads_pi", 0)
+        web = r.get("web_ground_pi", r.get("web_searches", 0))
+        L.append(
+            f"| {linkify(r['title'])} | {n_} | {r['in_tok']:.0f} | {r['out_tok']:.0f} | "
+            f"{r['calls']:.1f} | {r['vcpu_sec']:.1f} | {r['gib_sec']:.0f} | {r['sess']:.1f} | "
+            f"{r['gen_tok']:.0f} | {r['mem_retrieved']:.2f} | {fsw:.2f}/{fsr:.2f} | "
+            f"{r.get('rag_pi', 0):.2f} | {web:.2f} | {r.get('images', 0):.0f} | {r['c_total']:.4f} |")
+    L += ["",
+          "_Firestore W/R = document writes/reads. RAG = Vertex AI Search queries. Web grounding = "
+          "Google Search grounded query-turns. Model Armor (derived, = all tokens scanned @ $0.10/1M) "
+          "is folded into $/intxn but omitted as a column. '—' = not tracked for that legacy entry. "
+          "All per-interaction averages over the Interactions column._", "",
           "## 1. SKU usage per interaction — model & compute (PRIMARY)", "",
           "| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |",
           "|---|---|---|---|---|---|"]

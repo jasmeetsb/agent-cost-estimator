@@ -72,7 +72,7 @@ Per-interaction quantities for the archetype agents (Firestore document ops via 
 |---|---|---|---|---|
 | multi-agent-orchestrator (archetype) | 0.29 | 0.63 | 0.42 | 0.00 |
 | autonomous-researcher (archetype) | 1.34 | 2.06 | 1.18 | 1.62 |
-| financial-advisor | 0.00 | 0.93 | 0.17 | 0.00 |
+| financial-advisor | 0.00 | 0.93 | 0.17 | 0.95 |
 | workflow-operator (archetype) | 1.42 | 1.23 | 0.00 | 0.00 |
 | blog-writer | 0.00 | 1.00 | 0.72 | 0.00 |
 | conversational-chatbot (archetype) | 0.03 | 0.00 | 2.15 | 0.00 |
@@ -105,7 +105,7 @@ Reference only — list price, not actual billed. The usage tables above are the
 | multi-agent-orchestrator (archetype) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
 | autonomous-researcher (archetype) | 0.0345 | 0.0101 | 0.0065 | 0.0810 (0.0340–0.1005) | Medium |
 | blog-writer | 0.0158 | 0.0061 | 0.0045 | 0.0638 (0.0477–0.0690) | Medium |
-| financial-advisor | 0.0126 | 0.0094 | 0.0029 | 0.0280 (0.0160–0.0587) | Very high |
+| financial-advisor | 0.0126 | 0.0094 | 0.0029 | 0.0413 (0.0160–0.0587) | Very high |
 | workflow-operator (archetype) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
 | academic-research | 0.0034 | 0.0021 | 0.0023 | 0.0183 (0.0061–0.0131) | High |
 | memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |

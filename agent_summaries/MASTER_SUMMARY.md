@@ -38,6 +38,28 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 - **fomc-research** — FOMC meeting financial-analysis report. Hierarchical + Sequential multimodal pipeline (BigQuery metadata + PDF transcripts via pdfplumber + multimodal Gemini). → [details](fomc_research.md)
 - **nexshift-agent** — AI nurse rostering optimizer. Coordinator + 7 sub-agents + OR-Tools CP-SAT solver. 4 orchestration patterns (Hierarchical + Sequential + Parallel + HITL), 31 tools — broadest tool surface in the corpus. → [details](nexshift_agent.md)
 
+## 0. All SKUs at a glance — full per-interaction matrix (PRIMARY)
+
+Every measured SKU, per interaction, for all agents in one view. The **Interactions** column is the number of interactions each agent was tested over. Ranges, distributions, and derived cost breakdown are in the sections below.
+
+| Agent | Interactions | Input tok | Output tok | Model calls | vCPU-s | GiB-s | Session events | Mem-gen tok | Mem retrieved | Firestore W/R | RAG queries | Web grounding | Imagen | $/intxn |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|--:|--:|--:|
+| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 120 | 149080 | 6080 | 18.9 | 90.6 | 100 | 37.9 | 2793 | 0.20 | 0.29/0.63 | 0.42 | 0.00 | 0 | 0.0932 |
+| [on-brand-genmedia](on_brand_genmedia.md) | 35 | 83460 | 7349 | 17.2 | 322.7 | 329 | 31.6 | 4191 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 27 | 0.0934 |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 79 | 44234 | 8482 | 7.8 | 171.2 | 201 | 15.6 | 7999 | 0.38 | 1.34/2.06 | 1.18 | 1.62 | 0 | 0.0810 |
+| [financial-advisor](financial_advisor.md) | 40 | 27586 | 1724 | 3.6 | 347.5 | 420 | 7.3 | 3377 | 0.00 | 0.00/0.93 | 0.17 | 0.95 | 0 | 0.0413 |
+| [workflow-operator (archetype)](workflow_operator.md) | 118 | 20107 | 1485 | 14.0 | 25.3 | 47 | 27.9 | 2549 | 0.67 | 1.42/1.23 | 0.00 | 0.00 | 0 | 0.0232 |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 35 | 13800 | 1958 | 4.0 | 104.1 | 127 | 8.0 | 2853 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0143 |
+| [blog-writer](blogger_agent.md) | 40 | 8121 | 5334 | 5.0 | 225.9 | 259 | 11.5 | 5386 | 0.00 | 0.00/1.00 | 0.72 | 0.00 | 0 | 0.0638 |
+| [conversational-chatbot (archetype)](conversational_chatbot.md) | 120 | 6369 | 693 | 7.5 | 20.9 | 39 | 15.0 | 2486 | 0.00 | 0.03/0.00 | 2.15 | 0.00 | 0 | 0.0139 |
+| [marketing-agency](marketing_agency.md) | 40 | 6206 | 1031 | 4.2 | 79.7 | 138 | 8.3 | 2753 | 0.00 | 0.00/1.00 | 2.00 | 0.00 | 0 | 0.0133 |
+| [academic-research](academic_research.md) | 40 | 4058 | 890 | 3.1 | 72.7 | 125 | 6.2 | 2555 | 0.00 | 0.05/0.68 | 0.38 | 0.68 | 0 | 0.0183 |
+| [memory_assistant](memory_assistant.md) | — | 3398 | 1605 | 5.8 | 39.0 | 560 | 11.5 | 2493 | 2.50 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0165 |
+| [fomc-research](fomc_research.md) | 35 | 1838 | 479 | 2.3 | 30.1 | 55 | 4.8 | 2358 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0035 |
+| [nexshift-agent](nexshift_agent.md) | 35 | 0 | 0 | 0.0 | 12.8 | 37 | 2.0 | 2390 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0011 |
+
+_Firestore W/R = document writes/reads. RAG = Vertex AI Search queries. Web grounding = Google Search grounded query-turns. Model Armor (derived, = all tokens scanned @ $0.10/1M) is folded into $/intxn but omitted as a column. '—' = not tracked for that legacy entry. All per-interaction averages over the Interactions column._
+
 ## 1. SKU usage per interaction — model & compute (PRIMARY)
 
 | Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
@@ -128,7 +150,7 @@ Reference only — list price, not actual billed. The usage tables above are the
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0345 | 0.0101 | 0.0065 | 0.0810 (0.0340–0.1005) | Medium |
 | [blog-writer](blogger_agent.md) | 0.0158 | 0.0061 | 0.0045 | 0.0638 (0.0477–0.0690) | Medium |
-| [financial-advisor](financial_advisor.md) | 0.0126 | 0.0094 | 0.0029 | 0.0280 (0.0160–0.0587) | Very high |
+| [financial-advisor](financial_advisor.md) | 0.0126 | 0.0094 | 0.0029 | 0.0413 (0.0160–0.0587) | Very high |
 | [workflow-operator (archetype)](workflow_operator.md) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
 | [academic-research](academic_research.md) | 0.0034 | 0.0021 | 0.0023 | 0.0183 (0.0061–0.0131) | High |
 | [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |

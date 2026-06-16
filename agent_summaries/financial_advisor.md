@@ -71,12 +71,13 @@ Measured usage quantities per interaction (avg over 40 runs), with run-to-run ra
 | Firestore — document writes | writes | 0.00 | — | — |
 | Firestore — document reads | reads | 0.93 | — | — |
 | Vertex AI Search (RAG) — queries | searches | 0.17 | — | — |
+| Google Search grounding — query turns | grounded turns | 0.95 | — | — |
 
 _Memory retrievals = 0 for this workload: the agent either has no retrieval tool (the adk-sample agents) or answers directly without invoking recall (the support-FAQ chatbot — it IS `load_memory`-capable and recalls when asked, but its FAQ turns don't trigger it). Retrieval IS exercised by the returning-user runs of workflow-operator, autonomous-researcher, and multi-agent-orchestrator, and by `memory_assistant`._
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 0 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
+- **Google Search grounding:** 0.95 grounded query-turns per interaction measured (web_researcher AgentTool invocations; each runs ≥1 native google_search generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not track native ADK google_search — so the AgentTool call count is the measurable unit.
 - **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
 
 ## 5b. Caveats on usage capture
@@ -97,8 +98,9 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Memory Bank + Sessions | 0.0029 |
 | Firestore (0w/37r over 40 runs) | 0.0000000 |
 | Vertex AI Search (RAG: 0.17 queries/intxn @ $1.50/1K) | 0.000262 |
+| Google Search grounding (0.95 grounded turns/intxn @ $14/1K) | 0.013300 |
 | Model Armor (derived: 29310 tok scanned @ $0.10/1M) | 0.002931 |
-| **Total (measured SKUs)** | **0.0280** (range 0.0160–0.0587) |
+| **Total (measured SKUs)** | **0.0413** (range 0.0160–0.0587) |
 
 ## 7. Test workload & sample interactions
 
