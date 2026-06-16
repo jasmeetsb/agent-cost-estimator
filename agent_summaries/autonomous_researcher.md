@@ -1,8 +1,8 @@
 # SKU Usage Summary — `autonomous-researcher (archetype)` (autonomous_researcher)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `7980631977130721280`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `768117173896871936`
 - **Use case:** Deep web research with synthesis · **Complexity:** Archetype: Autonomous Researcher / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (2.3 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (5.0 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -50,17 +50,18 @@ Measured usage quantities per interaction (avg over 40 runs), with run-to-run ra
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 1600 | 1188–2675 | Medium |
-| Gemini output tokens (incl. thinking) | tokens | 676 | 142–4674 | Very high |
-| Model calls | calls | 2.3 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 33.9 | — | — |
-| Agent Runtime — memory | GiB-seconds | 84.1 | — | — |
-| Sessions | events appended | 6.2 | — | Medium |
+| Gemini input tokens | tokens | 7853 | 1577–32145 | Very high |
+| Gemini output tokens (incl. thinking) | tokens | 2436 | 557–11690 | Very high |
+| Model calls | calls | 5.0 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 91.4 | — | — |
+| Agent Runtime — memory | GiB-seconds | 153.5 | — | — |
+| Sessions | events appended | 12.4 | — | Medium |
 | Memory Bank — generation | tokens | 0 | — | — |
 | Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
-| Firestore — document writes | writes | 0.00 | — | — |
-| Firestore — document reads | reads | 0.90 | — | — |
+| Firestore — document writes | writes | 0.12 | — | — |
+| Firestore — document reads | reads | 1.57 | — | — |
+| Vertex AI Search (RAG) — queries | searches | 1.32 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
@@ -82,22 +83,23 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0022 |
-| Agent Runtime | 0.0010 |
-| Memory Bank + Sessions | 0.0015 |
-| Firestore (0w/36r over 40 runs) | 0.0000000 |
-| Model Armor (derived: 2276 tok scanned @ $0.10/1M) | 0.000228 |
-| **Total (measured SKUs)** | **0.0050** (range 0.0033–0.0150) |
+| Gemini tokens | 0.0084 |
+| Agent Runtime | 0.0026 |
+| Memory Bank + Sessions | 0.0031 |
+| Firestore (5w/63r over 40 runs) | 0.0000001 |
+| Vertex AI Search (RAG: 1.32 queries/intxn @ $1.50/1K) | 0.001988 |
+| Model Armor (derived: 10289 tok scanned @ $0.10/1M) | 0.001029 |
+| **Total (measured SKUs)** | **0.0171** (range 0.0077–0.0445) |
 
 ## 7. Test workload & sample interactions
 
-**40 interactions** (93 total user turns), fresh user_id per interaction. Interactions cycle **3 distinct conversation scenarios** of varying length (2-turn×27, 3-turn×13) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+**40 interactions** (128 total user turns), fresh user_id per interaction. Interactions cycle **5 distinct conversation scenarios** of varying length (2-turn×8, 3-turn×16, 4-turn×16) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
 **Scenario 1** (2 turns):
 
 | Turn | User query |
 |---|---|
-| 1 | Research the current state of small modular nuclear reactors (SMRs) and their commercial outlook. |
+| 1 | Research the current state of small modular reactors (SMRs) and their commercial outlook. |
 | 2 | Now focus on the main regulatory and cost barriers, and which companies lead. |
 
 **Scenario 2** (3 turns):
@@ -105,21 +107,40 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Turn | User query |
 |---|---|
 | 1 | Research the state of solid-state EV batteries in 2026. |
-| 2 | Which companies are closest to mass production, and what technical hurdles remain? |
-| 3 | Summarize the investment outlook in a few sentences. |
+| 2 | Which companies are closest to mass production, and what hurdles remain? |
+| 3 | Summarize the investment outlook. |
 
-**Scenario 3** (2 turns):
+**Scenario 3** (3 turns):
 
 | Turn | User query |
 |---|---|
 | 1 | Research recent advances in direct-air carbon capture. |
 | 2 | Compare it with point-source capture on cost and scalability. |
+| 3 | Which approach is more likely to scale this decade, and why? |
+
+**Scenario 4** (4 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Research the latest in efficient transformer architectures. |
+| 2 | Which techniques work best for edge deployment? |
+| 3 | How do quantization and distillation compare there? |
+| 4 | Summarize the practical recommendation. |
+
+**Scenario 5** (4 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Research the RAG vs long-context-window tradeoff for enterprise search. |
+| 2 | What are the cost implications of each? |
+| 3 | When does hybrid (keyword + vector) retrieval help? |
+| 4 | Give a recommended architecture for a 10M-document corpus. |
 
 **Sample interaction (first run):**
 
-- **Turn 1** (554 in / 74 out tokens) — user: *Research the current state of small modular nuclear reactors (SMRs) and their commercial outlook.*
+- **Turn 1** (1818 in / 684 out tokens) — user: *Research the current state of small modular reactors (SMRs) and their commercial outlook.*
   - reply preview: 
-- **Turn 2** (650 in / 88 out tokens) — user: *Now focus on the main regulatory and cost barriers, and which companies lead.*
+- **Turn 2** (1407 in / 260 out tokens) — user: *Now focus on the main regulatory and cost barriers, and which companies lead.*
   - reply preview: 
 
 Full transcripts: `data/transcript_autonomous_researcher.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

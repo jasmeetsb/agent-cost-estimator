@@ -1,8 +1,8 @@
 # SKU Usage Summary — `multi-agent-orchestrator (archetype)` (multi_agent_orchestrator)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `8613387724776275968`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6921160164791812096`
 - **Use case:** Decompose-and-delegate orchestration · **Complexity:** Archetype: Multi-Agent Orchestrator / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (12.1 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (13.1 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -49,17 +49,18 @@ Measured usage quantities per interaction (avg over 40 runs), with run-to-run ra
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 19450 | 2704–76351 | Very high |
-| Gemini output tokens (incl. thinking) | tokens | 4294 | 941–9015 | High |
-| Model calls | calls | 12.1 | — | High |
-| Agent Runtime — vCPU | vCPU-seconds | 155.4 | — | — |
-| Agent Runtime — memory | GiB-seconds | 216.5 | — | — |
-| Sessions | events appended | 24.1 | — | High |
+| Gemini input tokens | tokens | 22783 | 8224–75848 | High |
+| Gemini output tokens (incl. thinking) | tokens | 4320 | 1576–9662 | High |
+| Model calls | calls | 13.1 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 180.1 | — | — |
+| Agent Runtime — memory | GiB-seconds | 234.3 | — | — |
+| Sessions | events appended | 26.2 | — | Medium |
 | Memory Bank — generation | tokens | 0 | — | — |
 | Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
-| Firestore — document writes | writes | 0.20 | — | — |
-| Firestore — document reads | reads | 0.78 | — | — |
+| Firestore — document writes | writes | 0.15 | — | — |
+| Firestore — document reads | reads | 0.35 | — | — |
+| Vertex AI Search (RAG) — queries | searches | 0.45 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
@@ -81,16 +82,17 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0166 |
-| Agent Runtime | 0.0043 |
-| Memory Bank + Sessions | 0.0060 |
-| Firestore (8w/31r over 40 runs) | 0.0000001 |
-| Model Armor (derived: 23744 tok scanned @ $0.10/1M) | 0.002374 |
-| **Total (measured SKUs)** | **0.0293** (range 0.0136–0.0541) |
+| Gemini tokens | 0.0176 |
+| Agent Runtime | 0.0049 |
+| Memory Bank + Sessions | 0.0066 |
+| Firestore (6w/14r over 40 runs) | 0.0000001 |
+| Vertex AI Search (RAG: 0.45 queries/intxn @ $1.50/1K) | 0.000675 |
+| Model Armor (derived: 27103 tok scanned @ $0.10/1M) | 0.002710 |
+| **Total (measured SKUs)** | **0.0324** (range 0.0189–0.0584) |
 
 ## 7. Test workload & sample interactions
 
-**40 interactions** (132 total user turns), fresh user_id per interaction. Interactions cycle **3 distinct conversation scenarios** of varying length (2-turn×14, 3-turn×13, 5-turn×13) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+**40 interactions** (144 total user turns), fresh user_id per interaction. Interactions cycle **5 distinct conversation scenarios** of varying length (2-turn×8, 3-turn×8, 4-turn×16, 5-turn×8) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
 **Scenario 1** (2 turns):
 
@@ -117,11 +119,29 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | 4 | Draft an executive summary of what's driving churn. |
 | 5 | Open a remediation ticket and send an update to the ops channel. |
 
+**Scenario 4** (4 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Look at activation-rate metrics for the last 30 days. |
+| 2 | Compare against the prior period and detect the trend. |
+| 3 | Check the onboarding playbook for known friction points. |
+| 4 | Draft recommendations and open a ticket. |
+
+**Scenario 5** (4 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Pull weekly active accounts and ticket volume per 100 accounts. |
+| 2 | Analyze whether support load is tracking growth. |
+| 3 | Summarize the finding with the key numbers. |
+| 4 | Notify the ops channel with the summary. |
+
 **Sample interaction (first run):**
 
-- **Turn 1** (619 in / 193 out tokens) — user: *Analyze last quarter's support-ticket volume trend and recommend actions.*
-  - reply preview: 
-- **Turn 2** (2085 in / 1064 out tokens) — user: *Now draft an executive summary, open a follow-up ticket, and send an update to the ops channel.*
-  - reply preview: Please provide the support-ticket volume data for the last quarter so I can analyze the trend.
+- **Turn 1** (11967 in / 6341 out tokens) — user: *Analyze last quarter's support-ticket volume trend and recommend actions.*
+  - reply preview: I am unable to provide a consolidated answer with the findings, analysis, and recommended actions at this time. The data_specialist and analysis_specialist agents did not return specific content for m…
+- **Turn 2** (11282 in / 1341 out tokens) — user: *Now draft an executive summary, open a follow-up ticket, and send an update to the ops channel.*
+  - reply preview: I have drafted an executive summary, created a follow-up ticket, and sent an update to the ops channel regarding the failure to analyze the support-ticket volume trend.  **Executive Summary:** Executi…
 
 Full transcripts: `data/transcript_multi_agent_orchestrator.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

@@ -1,8 +1,8 @@
 # SKU Usage Summary — `conversational-chatbot (archetype)` (conversational_chatbot)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `1422968707214213120`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6054217236522991616`
 - **Use case:** Customer-support Q&A chatbot · **Complexity:** Archetype: Conversational Chatbot / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (5.5 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (7.5 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -48,17 +48,18 @@ Measured usage quantities per interaction (avg over 40 runs), with run-to-run ra
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 3033 | 1732–6853 | High |
-| Gemini output tokens (incl. thinking) | tokens | 414 | 184–811 | High |
-| Model calls | calls | 5.5 | — | Medium |
-| Agent Runtime — vCPU | vCPU-seconds | 38.3 | — | — |
-| Agent Runtime — memory | GiB-seconds | 90.1 | — | — |
-| Sessions | events appended | 11.1 | — | Medium |
+| Gemini input tokens | tokens | 6232 | 2505–17874 | High |
+| Gemini output tokens (incl. thinking) | tokens | 665 | 195–1860 | High |
+| Model calls | calls | 7.5 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 73.4 | — | — |
+| Agent Runtime — memory | GiB-seconds | 132.2 | — | — |
+| Sessions | events appended | 15.1 | — | Medium |
 | Memory Bank — generation | tokens | 0 | — | — |
 | Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
-| Firestore — document writes | writes | 0.05 | — | — |
-| Firestore — document reads | reads | 0.03 | — | — |
+| Firestore — document writes | writes | 0.03 | — | — |
+| Firestore — document reads | reads | 0.00 | — | — |
+| Vertex AI Search (RAG) — queries | searches | 2.20 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
@@ -80,16 +81,17 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0019 |
-| Agent Runtime | 0.0011 |
-| Memory Bank + Sessions | 0.0028 |
-| Firestore (2w/1r over 40 runs) | 0.0000000 |
-| Model Armor (derived: 3446 tok scanned @ $0.10/1M) | 0.000345 |
-| **Total (measured SKUs)** | **0.0062** (range 0.0051–0.0078) |
+| Gemini tokens | 0.0035 |
+| Agent Runtime | 0.0021 |
+| Memory Bank + Sessions | 0.0038 |
+| Firestore (1w/0r over 40 runs) | 0.0000000 |
+| Vertex AI Search (RAG: 2.20 queries/intxn @ $1.50/1K) | 0.003300 |
+| Model Armor (derived: 6897 tok scanned @ $0.10/1M) | 0.000690 |
+| **Total (measured SKUs)** | **0.0133** (range 0.0072–0.0155) |
 
 ## 7. Test workload & sample interactions
 
-**40 interactions** (120 total user turns), fresh user_id per interaction. Interactions cycle **4 distinct conversation scenarios** of varying length (2-turn×10, 3-turn×20, 4-turn×10) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+**40 interactions** (144 total user turns), fresh user_id per interaction. Interactions cycle **5 distinct conversation scenarios** of varying length (2-turn×8, 3-turn×8, 4-turn×16, 5-turn×8) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
 **Scenario 1** (2 turns):
 
@@ -115,19 +117,30 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | 3 | Is data export on the Pro tier or Enterprise only? |
 | 4 | Okay — how do I upgrade my plan? |
 
-**Scenario 4** (3 turns):
+**Scenario 4** (4 turns):
 
 | Turn | User query |
 |---|---|
 | 1 | My shipment hasn't arrived yet. |
 | 2 | It's order ORD-1002. What's the ETA? |
-| 3 | Can you switch it to express? |
+| 3 | Can you switch it to express shipping? |
+| 4 | Will I be charged extra for that? |
+
+**Scenario 5** (5 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | I'm new — can you walk me through setting up my account? |
+| 2 | How do I invite my team? |
+| 3 | What roles can I assign them? |
+| 4 | Do you support SSO for the team? |
+| 5 | And what does all that cost on the Pro tier? |
 
 **Sample interaction (first run):**
 
-- **Turn 1** (801 in / 157 out tokens) — user: *How do I reset my password, and what are your support hours?*
-  - reply preview: I can't find information about password resets or support hours in our FAQs. Would you like me to escalate this to a support agent who can help you further?
-- **Turn 2** (1208 in / 137 out tokens) — user: *Also, what are your pricing tiers and do you support SSO?*
-  - reply preview: Our pricing tiers are: Starter ($0), Pro ($29/month), and Enterprise (please contact sales for more information).  Yes, SSO (SAML/OIDC) is supported and available on the Enterprise tier. Please contac…
+- **Turn 1** (963 in / 231 out tokens) — user: *How do I reset my password, and what are your support hours?*
+  - reply preview: I don't have information on how to reset your password or our support hours in my frequently asked questions. Would you like me to try and find this information elsewhere, or escalate your request to …
+- **Turn 2** (1743 in / 525 out tokens) — user: *Also, what are your pricing tiers and do you support SSO?*
+  - reply preview: We have a free Starter tier (1 user, community support). Our Pro tier is $29/user/month and includes API access but not SSO. The Enterprise tier is custom-priced and includes SSO, SLA, and dedicated s…
 
 Full transcripts: `data/transcript_conversational_chatbot.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

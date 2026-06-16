@@ -1,8 +1,8 @@
 # SKU Usage Summary — `workflow-operator (archetype)` (workflow_operator)
 
-- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `4994745424184082432`
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `1344577926200295424`
 - **Use case:** Order-fulfillment workflow operator · **Complexity:** Archetype: Workflow Operator / Moderate
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (9.6 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (15.5 model calls avg). Deployed on Vertex AI Agent Engine (GEAP).
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -54,17 +54,17 @@ Measured usage quantities per interaction (avg over 40 runs), with run-to-run ra
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 13025 | 1089–62346 | Very high |
-| Gemini output tokens (incl. thinking) | tokens | 1100 | 164–4122 | Very high |
-| Model calls | calls | 9.6 | — | High |
-| Agent Runtime — vCPU | vCPU-seconds | 67.5 | — | — |
-| Agent Runtime — memory | GiB-seconds | 120.1 | — | — |
-| Sessions | events appended | 19.1 | — | High |
+| Gemini input tokens | tokens | 21467 | 4416–74345 | High |
+| Gemini output tokens (incl. thinking) | tokens | 1489 | 583–3333 | High |
+| Model calls | calls | 15.5 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 129.9 | — | — |
+| Agent Runtime — memory | GiB-seconds | 192.1 | — | — |
+| Sessions | events appended | 31.1 | — | Medium |
 | Memory Bank — generation | tokens | 0 | — | — |
 | Memory Bank — memories written | memories | 0.0 | — | — |
 | Memory Bank — retrievals | reads | 0.0 | — | — |
-| Firestore — document writes | writes | 1.07 | — | — |
-| Firestore — document reads | reads | 1.40 | — | — |
+| Firestore — document writes | writes | 1.48 | — | — |
+| Firestore — document reads | reads | 1.10 | — | — |
 
 _Memory retrievals = 0: this agent has no preload_memory tool — it writes memories from the session but doesn't read them back._
 
@@ -86,16 +86,16 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0067 |
-| Agent Runtime | 0.0019 |
-| Memory Bank + Sessions | 0.0048 |
-| Firestore (43w/56r over 40 runs) | 0.0000003 |
-| Model Armor (derived: 14125 tok scanned @ $0.10/1M) | 0.001413 |
-| **Total (measured SKUs)** | **0.0148** (range 0.0074–0.0357) |
+| Gemini tokens | 0.0102 |
+| Agent Runtime | 0.0036 |
+| Memory Bank + Sessions | 0.0078 |
+| Firestore (59w/44r over 40 runs) | 0.0000004 |
+| Model Armor (derived: 22956 tok scanned @ $0.10/1M) | 0.002296 |
+| **Total (measured SKUs)** | **0.0239** (range 0.0145–0.0419) |
 
 ## 7. Test workload & sample interactions
 
-**40 interactions** (119 total user turns), fresh user_id per interaction. Interactions cycle **3 distinct conversation scenarios** of varying length (2-turn×14, 3-turn×13, 4-turn×13) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+**40 interactions** (144 total user turns), fresh user_id per interaction. Interactions cycle **5 distinct conversation scenarios** of varying length (2-turn×8, 3-turn×8, 4-turn×16, 5-turn×8) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
 
 **Scenario 1** (2 turns):
 
@@ -121,11 +121,30 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | 3 | Apply SAVE10 and update the status to confirmed. |
 | 4 | Notify the customer by SMS and log the transaction. |
 
+**Scenario 4** (4 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Look up order ORD-1003 and tell me its current state. |
+| 2 | The address issue is fixed — re-validate it. |
+| 3 | Calculate standard shipping and apply WELCOME. |
+| 4 | Confirm the order and notify by email. |
+
+**Scenario 5** (5 turns):
+
+| Turn | User query |
+|---|---|
+| 1 | Start processing order ORD-1001. |
+| 2 | Check inventory and confirm availability. |
+| 3 | Validate the shipping address. |
+| 4 | Apply SAVE10 with express shipping and update status. |
+| 5 | Notify the customer and write the audit log. |
+
 **Sample interaction (first run):**
 
-- **Turn 1** (494 in / 169 out tokens) — user: *Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.*
-  - reply preview: 
-- **Turn 2** (679 in / 200 out tokens) — user: *Now process order ORD-1003 — flag any issues before shipping.*
-  - reply preview: 
+- **Turn 1** (10221 in / 849 out tokens) — user: *Process order ORD-1001 end to end and apply discount code SAVE10 with express shipping.*
+  - reply preview: Order ORD-1001 processed successfully. - Item: wireless mouse, Quantity: 2 - Inventory: In stock - Address: Valid - Shipping: Express shipping, Cost: $16, ETA: 2 days - Discount: SAVE10 applied (10% o…
+- **Turn 2** (10865 in / 593 out tokens) — user: *Now process order ORD-1003 — flag any issues before shipping.*
+  - reply preview: Order ORD-1003 cannot be processed at this time due to an issue with the shipping address. Address validation failed because of a "missing ZIP code". Please correct the address before attempting to pr…
 
 Full transcripts: `data/transcript_workflow_operator.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).
