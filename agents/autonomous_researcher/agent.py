@@ -11,13 +11,30 @@ tool on its agent) AND Firestore function tools (on the coordinator). Intended
 model tier: Gemini 3.1 Pro (≤200k). Deployed on gemini-2.5-flash for parity.
 """
 
+from functools import cached_property
+
 from google.adk.agents import Agent
+from google.adk.models import Gemini
 from google.adk.tools import google_search, VertexAiSearchTool, load_memory
 from google.adk.tools.agent_tool import AgentTool
+from google.genai import Client
 
 from .fs_state import save_note, load_note
 
-MODEL = "gemini-2.5-flash"
+
+class GlobalGemini(Gemini):
+    """Gemini model pinned to the GLOBAL Vertex endpoint (gemini-3.x is global-only),
+    while the Agent Engine itself stays regional (us-central1). Per ADK docs."""
+    @cached_property
+    def api_client(self) -> Client:
+        return Client(vertexai=True, location="global")
+
+
+# Two-model split so Cloud Monitoring token_count (labeled by model_user_id) separates
+# MASTER (coordinator) from SUB-agent/tool/auxiliary tokens — and captures sub-agent
+# tokens that the deployed stream_query otherwise misses (AgentTool encapsulation).
+MASTER_MODEL = "gemini-3.5-flash"       # coordinator
+SUB_MODEL = "gemini-3.1-flash-lite"     # sub-agents / tools / auxiliary
 
 # Shared synthetic knowledge corpus (Vertex AI Search / RAG) — internal references
 # to complement live web search.
@@ -33,7 +50,7 @@ corpus_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_li
 # runs in the deployed stream_query, so web-search grounding is never exercised.)
 web_researcher = Agent(
     name="web_researcher",
-    model=MODEL,
+    model=GlobalGemini(model=SUB_MODEL),
     description="Searches the web with Google Search grounding and returns cited findings.",
     instruction=(
         "You are a web research specialist. ALWAYS use the google_search tool to gather current "
@@ -46,7 +63,7 @@ web_research_tool = AgentTool(agent=web_researcher)
 
 root_agent = Agent(
     name="autonomous_researcher",
-    model=MODEL,
+    model=GlobalGemini(model=MASTER_MODEL),
     description="Autonomous research analyst that web-searches and synthesizes long, cited reports.",
     instruction=(
         "You are an autonomous research analyst. For any question: (1) briefly plan the angles to "
