@@ -75,3 +75,8 @@ root_agent = Agent(
     ),
     tools=[faq_lookup, kb_search, load_memory, save_note, load_note, kb_rag],
 )
+
+# Two-model split: coordinator -> gemini-3.5-flash, all sub-agents/tools -> gemini-3.1-flash-lite
+# (both via the global Vertex endpoint). Lets Cloud Monitoring token_count split master vs sub.
+from ._gmodel import apply_split  # noqa: E402
+apply_split(root_agent)
