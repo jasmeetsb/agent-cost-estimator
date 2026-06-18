@@ -941,11 +941,17 @@ def combined(ds):
          "use a 2-turn workload. All gemini-2.5-flash. Runs per agent vary (archetypes 40–80; samples "
          "40 — see each agent's summary). Usage from model responses + Cloud Monitoring (per-engine).", "",
          "## 1. SKU usage per interaction — model & compute (PRIMARY)", "",
-         "| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |",
-         "|---|---|---|---|---|---|"]
+         "Input/output tokens split into master (coordinator) vs sub-agent/tool (measured master/sub "
+         "% × per-role in:out ratio; single-agent agents are 100% master, sub = 0).", "",
+         "| Agent | Input tokens (range) | Output tokens (range) | Master in | Master out | Sub in | Sub out | Model calls | vCPU-seconds | GiB-seconds |",
+         "|---|---|---|--:|--:|--:|--:|---|---|---|"]
     for r in sorted(rows, key=sortk):
+        mi = f"{r['master_in']:.0f}" if r.get('master_in') is not None else "—"
+        mo = f"{r['master_out']:.0f}" if r.get('master_out') is not None else "—"
+        si = f"{r['sub_in']:.0f}" if r.get('sub_in') is not None else "—"
+        so = f"{r['sub_out']:.0f}" if r.get('sub_out') is not None else "—"
         L.append(f"| {r['title']} | {r['in_tok']:.0f} ({r['in_rng']}) | {r['out_tok']:.0f} ({r['out_rng']}) "
-                 f"| {r['calls']:.1f} | {r['vcpu_sec']:.1f} | {r['gib_sec']:.0f} |")
+                 f"| {mi} | {mo} | {si} | {so} | {r['calls']:.1f} | {r['vcpu_sec']:.1f} | {r['gib_sec']:.0f} |")
     L += ["",
           "## 2. SKU usage per interaction — Agent Platform features (PRIMARY)", "",
           "| Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |",
@@ -1246,11 +1252,18 @@ def master(ds):
           "| RAG indexed-data storage ($/GB/mo), Memory storage ($/1K/mo) | Monthly storage — not a per-interaction unit |",
           "| Security Command Center, Identity, Registry | TBD / included at no cost |", "",
           "## 1. SKU usage per interaction — model & compute (PRIMARY)", "",
-          "| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |",
-          "|---|---|---|---|---|---|"]
+          "Input/output tokens split into master (coordinator) vs sub-agent/tool (measured master/sub "
+          "% × per-role in:out ratio; single-agent agents are 100% master, sub = 0).", "",
+          "| Agent | Input tokens (range) | Output tokens (range) | Master in | Master out | Sub in | Sub out | Model calls | vCPU-seconds | GiB-seconds |",
+          "|---|---|---|--:|--:|--:|--:|---|---|---|"]
     for r in sorted(rows, key=sortk):
+        mi = f"{r['master_in']:.0f}" if r.get('master_in') is not None else "—"
+        mo = f"{r['master_out']:.0f}" if r.get('master_out') is not None else "—"
+        si = f"{r['sub_in']:.0f}" if r.get('sub_in') is not None else "—"
+        so = f"{r['sub_out']:.0f}" if r.get('sub_out') is not None else "—"
         L.append(f"| {linkify(r['title'])} | {r['in_tok']:.0f} ({r['in_rng']}) | "
-                 f"{r['out_tok']:.0f} ({r['out_rng']}) | {r['calls']:.1f} | {r['vcpu_sec']:.1f} | {r['gib_sec']:.0f} |")
+                 f"{r['out_tok']:.0f} ({r['out_rng']}) | {mi} | {mo} | {si} | {so} "
+                 f"| {r['calls']:.1f} | {r['vcpu_sec']:.1f} | {r['gib_sec']:.0f} |")
     L += ["",
           "## 2. SKU usage per interaction — Agent Platform features (PRIMARY)", "",
           "| Agent | Session events | Memory-gen tokens | Memories written | Memory retrievals |",

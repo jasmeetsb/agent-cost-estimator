@@ -6,21 +6,23 @@ Unit = one interaction = a conversation + a memory-write. The 4 archetype agents
 
 ## 1. SKU usage per interaction — model & compute (PRIMARY)
 
-| Agent | Input tokens (range) | Output tokens (range) | Model calls | vCPU-seconds | GiB-seconds |
-|---|---|---|---|---|---|
-| conversational-chatbot (archetype) | 6369 (2030–17874) | 693 (185–1876) | 7.5 | 20.9 | 39 |
-| workflow-operator (archetype) | 20107 (3343–74345) | 1485 (419–3502) | 14.0 | 25.3 | 47 |
-| autonomous-researcher (archetype) | 32585 (12516–122408) | 10739 (5728–18665) | 7.8 | 171.2 | 201 |
-| multi-agent-orchestrator (archetype) | 149080 (6076–8349717) | 6080 (1140–106637) | 18.9 | 90.6 | 100 |
-| financial-advisor | 23206 (3928–149479) | 9812 (3888–93198) | 3.5 | 135.6 | 174 |
-| academic-research | 4507 (2631–9301) | 1120 (399–3734) | 3.0 | 66.5 | 85 |
-| marketing-agency | 10304 (3843–27818) | 4046 (1828–10681) | 3.7 | 187.9 | 231 |
-| blog-writer | 11345 (4187–22789) | 5425 (337–11277) | 4.8 | 101.3 | 138 |
-| on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
-| plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
-| memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
-| fomc-research | 1838 (1306–2800) | 479 (188–949) | 2.3 | 30.1 | 55 |
-| nexshift-agent | 0 (0–0) | 0 (0–0) | 0.0 | 12.8 | 37 |
+Input/output tokens split into master (coordinator) vs sub-agent/tool (measured master/sub % × per-role in:out ratio; single-agent agents are 100% master, sub = 0).
+
+| Agent | Input tokens (range) | Output tokens (range) | Master in | Master out | Sub in | Sub out | Model calls | vCPU-seconds | GiB-seconds |
+|---|---|---|--:|--:|--:|--:|---|---|---|
+| conversational-chatbot (archetype) | 6369 (2030–17874) | 693 (185–1876) | 6369 | 693 | 0 | 0 | 7.5 | 20.9 | 39 |
+| workflow-operator (archetype) | 20107 (3343–74345) | 1485 (419–3502) | 20107 | 1485 | 0 | 0 | 14.0 | 25.3 | 47 |
+| autonomous-researcher (archetype) | 32585 (12516–122408) | 10739 (5728–18665) | 30514 | 8210 | 2071 | 2530 | 7.8 | 171.2 | 201 |
+| multi-agent-orchestrator (archetype) | 149080 (6076–8349717) | 6080 (1140–106637) | 33568 | 366 | 115512 | 5714 | 18.9 | 90.6 | 100 |
+| financial-advisor | 23206 (3928–149479) | 9812 (3888–93198) | 20189 | 5846 | 3017 | 3966 | 3.5 | 135.6 | 174 |
+| academic-research | 4507 (2631–9301) | 1120 (399–3734) | 3681 | 555 | 826 | 565 | 3.0 | 66.5 | 85 |
+| marketing-agency | 10304 (3843–27818) | 4046 (1828–10681) | 9761 | 3232 | 542 | 815 | 3.7 | 187.9 | 231 |
+| blog-writer | 11345 (4187–22789) | 5425 (337–11277) | 8865 | 2390 | 2480 | 3035 | 4.8 | 101.3 | 138 |
+| on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | — | — | — | — | 17.2 | 322.7 | 329 |
+| plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | — | — | — | — | 4.0 | 104.1 | 127 |
+| memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | — | — | — | — | 5.8 | 39.0 | 560 |
+| fomc-research | 1838 (1306–2800) | 479 (188–949) | — | — | — | — | 2.3 | 30.1 | 55 |
+| nexshift-agent | 0 (0–0) | 0 (0–0) | — | — | — | — | 0.0 | 12.8 | 37 |
 
 ## 2. SKU usage per interaction — Agent Platform features (PRIMARY)
 
