@@ -25,7 +25,7 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 ## Agents at a glance
 
 - **conversational-chatbot (archetype)** — Calculator archetype: Conversational Chatbot / Moderate. Single support agent + light tools + Memory Bank. Cheapest archetype; volume-driven. → [details](conversational_chatbot.md)
-- **workflow-operator (archetype)** — Calculator archetype: Workflow Operator / Moderate. Single agent driving an 8-tool order workflow. Tool-fan-out-driven (highest session-event churn). → [details](workflow_operator.md)
+- **workflow-operator (archetype)** — Calculator archetype: Workflow Operator / Moderate. Single agent driving an 8-tool order workflow. Tool-fan-out-driven (heavy session-event churn from the 8-tool fan-out). → [details](workflow_operator.md)
 - **autonomous-researcher (archetype)** — Calculator archetype: Autonomous Researcher / Moderate. Single agent + Google Search grounding, long outputs. Token-depth-driven; exercises Search grounding. → [details](autonomous_researcher.md)
 - **multi-agent-orchestrator (archetype)** — Calculator archetype: Multi-Agent Orchestrator / Moderate. Coordinator + 3 specialist sub-agents. Fan-out-driven; most expensive archetype. → [details](multi_agent_orchestrator.md)
 - **financial-advisor** — Stock analysis & trading-strategy advisor. Hierarchical: coordinator + 4 AgentTool specialists (data, trading, execution, risk). Heaviest input-token consumer; runtime-dominated. → [details](financial_advisor.md)
@@ -126,12 +126,12 @@ Input/output tokens split into master (coordinator) vs sub-agent/tool (measured 
 |---|---|---|--:|--:|--:|--:|---|---|---|
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 6369 (2030–17874) | 693 (185–1876) | 6369 | 693 | 0 | 0 | 7.5 | 20.9 | 39 |
 | [workflow-operator (archetype)](workflow_operator.md) | 20107 (3343–74345) | 1485 (419–3502) | 20107 | 1485 | 0 | 0 | 14.0 | 25.3 | 47 |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 32585 (12516–122408) | 10739 (5728–18665) | 30514 | 8210 | 2071 | 2530 | 7.8 | 171.2 | 201 |
-| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 149080 (6076–8349717) | 6080 (1140–106637) | 33568 | 366 | 115512 | 5714 | 18.9 | 90.6 | 100 |
-| [financial-advisor](financial_advisor.md) | 23206 (3928–149479) | 9812 (3888–93198) | 20189 | 5846 | 3017 | 3966 | 3.5 | 135.6 | 174 |
-| [academic-research](academic_research.md) | 4507 (2631–9301) | 1120 (399–3734) | 3681 | 555 | 826 | 565 | 3.0 | 66.5 | 85 |
-| [marketing-agency](marketing_agency.md) | 10304 (3843–27818) | 4046 (1828–10681) | 9761 | 3232 | 542 | 815 | 3.7 | 187.9 | 231 |
-| [blog-writer](blogger_agent.md) | 11345 (4187–22789) | 5425 (337–11277) | 8865 | 2390 | 2480 | 3035 | 4.8 | 101.3 | 138 |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 32585 (12516–122408) | 10739 (5728–18665) | 30880 | 8588 | 1704 | 2151 | 7.8 | 171.2 | 201 |
+| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 149080 (6076–8349717) | 6080 (1140–106637) | 25799 | 268 | 123281 | 5812 | 18.9 | 90.6 | 100 |
+| [financial-advisor](financial_advisor.md) | 23206 (3928–149479) | 9812 (3888–93198) | 20770 | 6404 | 2436 | 3409 | 3.5 | 135.6 | 174 |
+| [academic-research](academic_research.md) | 4507 (2631–9301) | 1120 (399–3734) | 3694 | 560 | 813 | 560 | 3.0 | 66.5 | 85 |
+| [marketing-agency](marketing_agency.md) | 10304 (3843–27818) | 4046 (1828–10681) | 9889 | 3399 | 415 | 647 | 3.7 | 187.9 | 231 |
+| [blog-writer](blogger_agent.md) | 11345 (4187–22789) | 5425 (337–11277) | 9268 | 2689 | 2077 | 2736 | 4.8 | 101.3 | 138 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 83460 (24021–198338) | 7349 (2732–13376) | — | — | — | — | 17.2 | 322.7 | 329 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 13800 (13475–14578) | 1958 (829–3695) | — | — | — | — | 4.0 | 104.1 | 127 |
 | [memory_assistant](memory_assistant.md) | 3398 (2552–4001) | 1605 (752–3150) | — | — | — | — | 5.8 | 39.0 | 560 |
@@ -156,7 +156,7 @@ Input/output tokens split into master (coordinator) vs sub-agent/tool (measured 
 | [fomc-research](fomc_research.md) | 4.8 | 2358 | 0.0 | 0.0 |
 | [nexshift-agent](nexshift_agent.md) | 2.0 | 2390 | 1.0 | 0.0 |
 
-_Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant retrieves because cross-session recall is its purpose._
+_Memory retrievals vary by workload: task agents that recall prior user context (workflow, financial, marketing, blogger, researcher, orchestrator) retrieve a fraction of a memory per interaction via `load_memory`; the support-FAQ chatbot and topic-research academic retrieve ~0 (their turns produce/recall no user-centric memories). memory_assistant retrieves because cross-session recall is its core purpose._
 
 ## 2b. Grounding & image generation
 
@@ -198,7 +198,7 @@ _Would bill ~$0.035 per grounded prompt (Gemini 2.x) and ~$0.04 per image (Image
 | [fomc-research](fomc_research.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended) |
 | [nexshift-agent](nexshift_agent.md) | ✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | — |
 
-**+ Firestore (operational DB):** the 4 archetype agents also exercise a real **Firestore** SKU (save_note/load_note → document writes/reads, scoped per authenticated user). Measured non-zero on all 4 (workflow_operator heaviest: ~1 read + ~1 write/interaction). Cost is negligible (~$3e-7/interaction) but the SKU is exercised + measured. Not in the calculator (it only models BigQuery + Vector Search for data). The sample agents (EXP-006/007) don't use it.
+**+ Firestore (operational DB):** the 4 archetype agents also exercise a real **Firestore** SKU (save_note/load_note → document writes/reads, scoped per authenticated user). Measured non-zero on all 4 (workflow_operator and autonomous_researcher heaviest: ~1–2 ops/interaction each). Cost is negligible (~$3e-7/interaction) but the SKU is exercised + measured. Not in the calculator (it only models BigQuery + Vector Search for data). The sample agents (EXP-006/007) don't use it.
 
 ## 4. Secondary: derived cost per interaction (usage × catalog list price)
 

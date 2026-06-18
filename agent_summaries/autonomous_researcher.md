@@ -29,7 +29,7 @@ graph TB
     GSt -.-> GS
 ```
 
-Deep-research agent (archetype: Autonomous Researcher, Moderate). Plans, grounds on the web via ADK `google_search`, and synthesizes long reports. Token-depth-driven: premium model intent (Gemini Pro), long outputs (~6,000 output tokens/interaction measured), and Search grounding (~69 grounded searches across the run — the first SKU usage that actually exercises Search grounding in this project). Internal-corpus RAG (Vertex AI Search) deferred to the High variant, since google_search must be the sole tool.
+Deep-research agent (archetype: Autonomous Researcher, Moderate). Plans, grounds on the web via ADK `google_search`, and synthesizes long reports. Token-depth-driven: premium model intent (Gemini Pro), long outputs (~10,700 output tokens/interaction measured), and Search grounding (~69 grounded searches across the run — the first SKU usage that actually exercises Search grounding in this project). Internal-corpus RAG (Vertex AI Search) deferred to the High variant, since google_search must be the sole tool.
 
 **Pattern:** Single agent + Google Search grounding, long outputs
 
@@ -52,10 +52,10 @@ Measured usage quantities per interaction (avg over 79 runs), with run-to-run ra
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 32585 | 12516–122408 | High |
 | Gemini output tokens (incl. thinking) | tokens | 10739 | 5728–18665 | Medium |
-| Gemini tokens — master/coordinator (input) | tokens | 30514 | — | — |
-| Gemini tokens — master/coordinator (output) | tokens | 8210 | — | — |
-| Gemini tokens — sub-agents/tools (input) | tokens | 2071 | — | — |
-| Gemini tokens — sub-agents/tools (output) | tokens | 2530 | — | — |
+| Gemini tokens — master/coordinator (input) | tokens | 30880 | — | — |
+| Gemini tokens — master/coordinator (output) | tokens | 8588 | — | — |
+| Gemini tokens — sub-agents/tools (input) | tokens | 1704 | — | — |
+| Gemini tokens — sub-agents/tools (output) | tokens | 2151 | — | — |
 | Model calls | calls | 7.8 | — | Medium |
 | Agent Runtime — vCPU | vCPU-seconds | 171.2 | — | — |
 | Agent Runtime — memory | GiB-seconds | 200.6 | — | — |
@@ -69,7 +69,7 @@ Measured usage quantities per interaction (avg over 79 runs), with run-to-run ra
 | Google Search grounding — query turns | grounded turns | 1.62 | — | — |
 
 
-_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The input/output breakdown within each role applies the measured per-role in:out ratio (master 88:12, sub 61:39). Single-agent agents are 100% master._
+_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The four input/output × master/sub values reconcile both the master/sub totals and the input/output totals (seeded by the measured per-role in:out ratio — master 88:12, sub 61:39). Single-agent agents are 100% master._
 
 ## 5. Grounding & media usage
 

@@ -28,7 +28,7 @@ graph TB
     DS -.->|prod| BQ[(BigQuery / RAG)]
 ```
 
-Coordinator that decomposes a request and delegates to 3 specialist sub-agents — data_specialist (metrics / records / corpus), analysis_specialist (stats / trends), action_specialist (summary / ticket / notify) (archetype: Multi-Agent Orchestrator, Moderate). Fan-out-driven and the most expensive of the four: measured ~20,000 input tokens, ~12.5 model calls, ~25 session events per 2-turn interaction (coordinator + sub-agent token multiplication). Specialist tools are local stand-ins for BigQuery / RAG.
+Coordinator that decomposes a request and delegates to 3 specialist sub-agents — data_specialist (metrics / records / corpus), analysis_specialist (stats / trends), action_specialist (summary / ticket / notify) (archetype: Multi-Agent Orchestrator, Moderate). Fan-out-driven and the most expensive of the four archetypes: heavy input from context re-ingestion across sub-agents, ~19 model calls and ~38 session events per interaction (coordinator + sub-agent token multiplication). Specialist tools are local stand-ins for BigQuery / RAG.
 
 **Pattern:** Coordinator + 3 specialist sub-agents (agent-call fan-out)
 
@@ -51,10 +51,10 @@ Measured usage quantities per interaction (avg over 120 runs), with run-to-run r
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 149080 | 6076–8349717 | Very high |
 | Gemini output tokens (incl. thinking) | tokens | 6080 | 1140–106637 | Very high |
-| Gemini tokens — master/coordinator (input) | tokens | 33568 | — | — |
-| Gemini tokens — master/coordinator (output) | tokens | 366 | — | — |
-| Gemini tokens — sub-agents/tools (input) | tokens | 115512 | — | — |
-| Gemini tokens — sub-agents/tools (output) | tokens | 5714 | — | — |
+| Gemini tokens — master/coordinator (input) | tokens | 25799 | — | — |
+| Gemini tokens — master/coordinator (output) | tokens | 268 | — | — |
+| Gemini tokens — sub-agents/tools (input) | tokens | 123281 | — | — |
+| Gemini tokens — sub-agents/tools (output) | tokens | 5812 | — | — |
 | Model calls | calls | 18.9 | — | Very high |
 | Agent Runtime — vCPU | vCPU-seconds | 90.6 | — | — |
 | Agent Runtime — memory | GiB-seconds | 100.3 | — | — |
@@ -67,7 +67,7 @@ Measured usage quantities per interaction (avg over 120 runs), with run-to-run r
 | Vertex AI Search (RAG) — queries | searches | 0.42 | — | — |
 
 
-_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The input/output breakdown within each role applies the measured per-role in:out ratio (master 88:12, sub 61:39). Single-agent agents are 100% master._
+_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The four input/output × master/sub values reconcile both the master/sub totals and the input/output totals (seeded by the measured per-role in:out ratio — master 88:12, sub 61:39). Single-agent agents are 100% master._
 
 ## 5. Grounding & media usage
 

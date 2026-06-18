@@ -123,8 +123,9 @@ META = {
                  "- `trading_analyst` — proposes a trading strategy from the data\n"
                  "- `execution_analyst` — defines an execution plan (timing, sizing)\n"
                  "- `risk_analyst` — assesses risks of the proposed strategy\n\n"
-                 "A single user query fans out to multiple model calls; in EXP-006 it consumed "
-                 "17k–34k input tokens per interaction (heaviest input-token consumer in the corpus)."),
+                 "A single user query fans out to multiple model calls; it is input-heavy "
+                 "(~23k input / ~10k output tokens per interaction, complete token_count) — the "
+                 "heaviest input consumer among the four use-case agents."),
         "skus": "Gemini tokens (input/output/cached); Agent Runtime (vCPU + memory); Sessions; "
                 "Memory Bank (generation + writes); Google Search grounding (capable but not triggered).",
     },
@@ -420,7 +421,7 @@ META["conversational_chatbot"] = {
         Coord["chatbot_agent (Gemini 2.5 Flash)"]
         Coord -->|tool| FAQ[faq_lookup]
         Coord -->|tool| KB[kb_search]
-        Coord -->|tool| PM[preload_memory]
+        Coord -->|tool| PM[load_memory]
     end
     subgraph Core["Always-on Agent Platform SKUs"]
         direction LR
@@ -432,8 +433,8 @@ META["conversational_chatbot"] = {
     Engine -.-> Core""",
     "arch": ("Single user-facing support agent (archetype: Conversational Chatbot, Moderate). "
              "Light tool use — `faq_lookup` + `kb_search` (stand-ins for a BigQuery/KB lookup) — and "
-             "`preload_memory` for returning-user personalization. Volume-driven archetype: cheap "
-             "model, short turns. Measured ~4 model calls / ~8 session events per 2-turn interaction."),
+             "`load_memory` for returning-user personalization. Volume-driven archetype: cheap "
+             "model, short turns. Measured ~7.5 model calls / ~15 session events per interaction."),
     "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (BigQuery/KB lookup "
             "mocked locally — would bill BigQuery in production.)",
 }
@@ -468,8 +469,8 @@ META["workflow_operator"] = {
              "fan-out (archetype: Workflow Operator, Moderate). 8 tools — lookup_order, "
              "check_inventory, validate_address, calculate_shipping, apply_discount, "
              "update_order_status, send_notification, log_transaction. Tool-fan-out-driven: measured "
-             "~12.5 model calls / ~25 session events per 2-turn interaction (highest tool churn of "
-             "the four archetypes). Tools stand in for backend/API calls (Apigee + BigQuery in prod)."),
+             "~14 model calls / ~28 session events per interaction (heavy tool fan-out across the 8 "
+             "tools). Tools stand in for backend/API calls (Apigee + BigQuery in prod)."),
     "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (Backend tool calls "
             "mocked — would bill BigQuery + Apigee in production.)",
 }
@@ -498,7 +499,7 @@ META["autonomous_researcher"] = {
     GSt -.-> GS""",
     "arch": ("Deep-research agent (archetype: Autonomous Researcher, Moderate). Plans, grounds on the "
              "web via ADK `google_search`, and synthesizes long reports. Token-depth-driven: premium "
-             "model intent (Gemini Pro), long outputs (~6,000 output tokens/interaction measured), and "
+             "model intent (Gemini Pro), long outputs (~10,700 output tokens/interaction measured), and "
              "Search grounding (~69 grounded searches across the run — the first SKU usage that "
              "actually exercises Search grounding in this project). Internal-corpus RAG (Vertex AI "
              "Search) deferred to the High variant, since google_search must be the sole tool."),
@@ -530,9 +531,10 @@ META["multi_agent_orchestrator"] = {
     "arch": ("Coordinator that decomposes a request and delegates to 3 specialist sub-agents — "
              "data_specialist (metrics / records / corpus), analysis_specialist (stats / trends), "
              "action_specialist (summary / ticket / notify) (archetype: Multi-Agent Orchestrator, "
-             "Moderate). Fan-out-driven and the most expensive of the four: measured ~20,000 input "
-             "tokens, ~12.5 model calls, ~25 session events per 2-turn interaction (coordinator + "
-             "sub-agent token multiplication). Specialist tools are local stand-ins for BigQuery / RAG."),
+             "Moderate). Fan-out-driven and the most expensive of the four archetypes: heavy input "
+             "from context re-ingestion across sub-agents, ~19 model calls and ~38 session events per "
+             "interaction (coordinator + sub-agent token multiplication). Specialist tools are local "
+             "stand-ins for BigQuery / RAG."),
     "skus": "Gemini tokens (coordinator + sub-agents); Agent Runtime (vCPU + memory); Sessions; "
             "Memory Bank. (Specialist BigQuery/RAG calls mocked — would bill in production.)",
 }
@@ -677,14 +679,21 @@ def derive(pkg):
         tot = in_mean + out_mean
         master_tok = tot * pct_master / 100.0
         sub_tok = tot * pct_sub / 100.0
-        # allocate the agent's corrected input / output to master vs sub using the measured
-        # per-role in:out ratio (so master_in+sub_in == in_mean, master_out+sub_out == out_mean).
-        mt_i, st_i = master_tok * ROLE_MASTER_IN_W, sub_tok * ROLE_SUB_IN_W
-        mt_o, st_o = master_tok * (1 - ROLE_MASTER_IN_W), sub_tok * (1 - ROLE_SUB_IN_W)
-        in_mf = mt_i / (mt_i + st_i) if (mt_i + st_i) else 1.0
-        out_mf = mt_o / (mt_o + st_o) if (mt_o + st_o) else 1.0
-        master_in, sub_in = in_mean * in_mf, in_mean * (1 - in_mf)
-        master_out, sub_out = out_mean * out_mf, out_mean * (1 - out_mf)
+        # Fill the 2x2 [in/out] x [master/sub] token table. BOTH margins are measured and
+        # fixed: rows = (in_mean, out_mean) corrected totals; columns = (master_tok, sub_tok)
+        # from the validation split. Seed the interior with the measured per-role in:out ratio
+        # and run iterative proportional fitting so ALL four margins reconcile exactly
+        # (master_in+master_out == master_tok AND master_in+sub_in == in_mean, etc.).
+        a = master_tok * ROLE_MASTER_IN_W; c = master_tok * (1 - ROLE_MASTER_IN_W)  # master in, out
+        b = sub_tok * ROLE_SUB_IN_W; d = sub_tok * (1 - ROLE_SUB_IN_W)              # sub in, out
+        for _ in range(60):
+            ri, ro = a + b, c + d            # fit row (input/output) margins
+            if ri: a *= in_mean / ri; b *= in_mean / ri
+            if ro: c *= out_mean / ro; d *= out_mean / ro
+            cm, cs = a + c, b + d            # fit column (master/sub) margins
+            if cm: a *= master_tok / cm; c *= master_tok / cm
+            if cs: b *= sub_tok / cs; d *= sub_tok / cs
+        master_in, master_out, sub_in, sub_out = a, c, b, d
 
     rag_total, rag_inters = count_rag_searches(pkg)
     web_ground_total, web_ground_inters = count_tool_calls(pkg, _WEB_GROUNDING_TOOLS)
@@ -797,8 +806,9 @@ def agent_md(d):
     split_note = ("\n_Master vs sub-agent split: each agent's master/sub token share is measured "
                   "directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools "
                   "on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). "
-                  "The input/output breakdown within each role applies the measured per-role in:out "
-                  "ratio (master 88:12, sub 61:39). Single-agent agents are 100% master._"
+                  "The four input/output × master/sub values reconcile both the master/sub totals and "
+                  "the input/output totals (seeded by the measured per-role in:out ratio — master "
+                  "88:12, sub 61:39). Single-agent agents are 100% master._"
                   if d.get("pct_master") is not None else "")
     lines = [
         f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",
@@ -959,8 +969,11 @@ def combined(ds):
     for r in sorted(rows, key=sortk):
         L.append(f"| {r['title']} | {r['sess']:.1f} | {r['gen_tok']:.0f} | {r['mem_written']:.1f} | {r['mem_retrieved']:.1f} |")
     L += ["",
-          "_Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant "
-          "retrieves because cross-session recall is its purpose._", "",
+          "_Memory retrievals vary by workload: task agents that recall prior user context (workflow, "
+          "financial, marketing, blogger, researcher, orchestrator) retrieve a fraction of a memory per "
+          "interaction via `load_memory`; the support-FAQ chatbot and topic-research academic retrieve "
+          "~0 (their turns produce/recall no user-centric memories). memory_assistant retrieves because "
+          "cross-session recall is its core purpose._", "",
           "## 2b. Grounding & media usage (now collected)", "",
           "Collectors added for Google Search grounding (Cloud Monitoring) and image generation "
           "(response events). **Measured 0 for all agents in these runs** — the agents have the "
@@ -1084,7 +1097,7 @@ DESCRIPTIONS = {
     "conversational-chatbot (archetype)": ("Calculator archetype: Conversational Chatbot / Moderate. "
                           "Single support agent + light tools + Memory Bank. Cheapest archetype; volume-driven."),
     "workflow-operator (archetype)": ("Calculator archetype: Workflow Operator / Moderate. Single agent "
-                          "driving an 8-tool order workflow. Tool-fan-out-driven (highest session-event churn)."),
+                          "driving an 8-tool order workflow. Tool-fan-out-driven (heavy session-event churn from the 8-tool fan-out)."),
     "autonomous-researcher (archetype)": ("Calculator archetype: Autonomous Researcher / Moderate. Single "
                           "agent + Google Search grounding, long outputs. Token-depth-driven; exercises Search grounding."),
     "multi-agent-orchestrator (archetype)": ("Calculator archetype: Multi-Agent Orchestrator / Moderate. "
@@ -1272,8 +1285,11 @@ def master(ds):
         L.append(f"| {linkify(r['title'])} | {r['sess']:.1f} | {r['gen_tok']:.0f} | "
                  f"{r['mem_written']:.1f} | {r['mem_retrieved']:.1f} |")
     L += ["",
-          "_Memory retrievals are ~0 for the sample agents (no preload_memory tool); memory_assistant "
-          "retrieves because cross-session recall is its purpose._", "",
+          "_Memory retrievals vary by workload: task agents that recall prior user context (workflow, "
+          "financial, marketing, blogger, researcher, orchestrator) retrieve a fraction of a memory per "
+          "interaction via `load_memory`; the support-FAQ chatbot and topic-research academic retrieve "
+          "~0 (their turns produce/recall no user-centric memories). memory_assistant retrieves because "
+          "cross-session recall is its core purpose._", "",
           "## 2b. Grounding & image generation", "",
           "Collectors: **`extract_grounding_from_events`** (per-interaction, attributable — validated "
           "with a separate `grounded_news` agent) and **`collect_imagen_usage`** (Cloud Monitoring "
@@ -1309,7 +1325,8 @@ def master(ds):
     L += ["",
           "**+ Firestore (operational DB):** the 4 archetype agents also exercise a real **Firestore** "
           "SKU (save_note/load_note → document writes/reads, scoped per authenticated user). Measured "
-          "non-zero on all 4 (workflow_operator heaviest: ~1 read + ~1 write/interaction). Cost is "
+          "non-zero on all 4 (workflow_operator and autonomous_researcher heaviest: ~1–2 ops/interaction "
+          "each). Cost is "
           "negligible (~$3e-7/interaction) but the SKU is exercised + measured. Not in the calculator "
           "(it only models BigQuery + Vector Search for data). The sample agents (EXP-006/007) don't use it.",
           "",

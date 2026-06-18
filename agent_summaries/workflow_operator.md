@@ -33,7 +33,7 @@ graph TB
     T1 -.->|prod: via| Backend[(BigQuery / Apigee-fronted APIs)]
 ```
 
-Single agent that drives an order-fulfillment workflow end to end with heavy tool fan-out (archetype: Workflow Operator, Moderate). 8 tools — lookup_order, check_inventory, validate_address, calculate_shipping, apply_discount, update_order_status, send_notification, log_transaction. Tool-fan-out-driven: measured ~12.5 model calls / ~25 session events per 2-turn interaction (highest tool churn of the four archetypes). Tools stand in for backend/API calls (Apigee + BigQuery in prod).
+Single agent that drives an order-fulfillment workflow end to end with heavy tool fan-out (archetype: Workflow Operator, Moderate). 8 tools — lookup_order, check_inventory, validate_address, calculate_shipping, apply_discount, update_order_status, send_notification, log_transaction. Tool-fan-out-driven: measured ~14 model calls / ~28 session events per interaction (heavy tool fan-out across the 8 tools). Tools stand in for backend/API calls (Apigee + BigQuery in prod).
 
 **Pattern:** Single agent + heavy tool fan-out (8 tools)
 
@@ -71,7 +71,7 @@ Measured usage quantities per interaction (avg over 118 runs), with run-to-run r
 | Firestore — document reads | reads | 1.23 | — | — |
 
 
-_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The input/output breakdown within each role applies the measured per-role in:out ratio (master 88:12, sub 61:39). Single-agent agents are 100% master._
+_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The four input/output × master/sub values reconcile both the master/sub totals and the input/output totals (seeded by the measured per-role in:out ratio — master 88:12, sub 61:39). Single-agent agents are 100% master._
 
 ## 5. Grounding & media usage
 
