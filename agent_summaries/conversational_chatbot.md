@@ -50,6 +50,8 @@ Measured usage quantities per interaction (avg over 120 runs), with run-to-run r
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 6369 | 2030–17874 | High |
 | Gemini output tokens (incl. thinking) | tokens | 693 | 185–1876 | High |
+| Gemini tokens — master/coordinator | tokens | 7061 | 100% of I/O | — |
+| Gemini tokens — sub-agents/tools | tokens | 0 | 0% of I/O | — |
 | Model calls | calls | 7.5 | — | Medium |
 | Agent Runtime — vCPU | vCPU-seconds | 20.9 | — | — |
 | Agent Runtime — memory | GiB-seconds | 38.8 | — | — |

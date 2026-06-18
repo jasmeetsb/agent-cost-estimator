@@ -42,27 +42,28 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 
 Every measured SKU, per interaction, for all agents in one view. The **Interactions** column is the number of interactions each agent was tested over. Ranges, distributions, and derived cost breakdown are in the sections below.
 
-| Agent | Interactions | Total turns | Input tok | Output tok | Model calls | vCPU-s | GiB-s | Session events | Mem-gen tok | Mem retrieved | Firestore W/R | RAG queries | Web grounding | Imagen | $/intxn |
-|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|--:|--:|--:|
-| [conversational-chatbot (archetype)](conversational_chatbot.md) | 120 | 432 | 6369 | 693 | 7.5 | 20.9 | 39 | 15.0 | 2486 | 0.00 | 0.03/0.00 | 2.15 | 0.00 | 0 | 0.0139 |
-| [workflow-operator (archetype)](workflow_operator.md) | 118 | 425 | 20107 | 1485 | 14.0 | 25.3 | 47 | 27.9 | 2549 | 0.67 | 1.42/1.23 | 0.00 | 0.00 | 0 | 0.0232 |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 79 | 253 | 44234 | 8482 | 7.8 | 171.2 | 201 | 15.6 | 7999 | 0.38 | 1.34/2.06 | 1.18 | 1.62 | 0 | 0.0810 |
-| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 120 | 432 | 149080 | 6080 | 18.9 | 90.6 | 100 | 37.9 | 2793 | 0.20 | 0.29/0.63 | 0.42 | 0.00 | 0 | 0.0932 |
-| [financial-advisor](financial_advisor.md) | 80 | 160 | 21665 | 1789 | 3.5 | 135.6 | 174 | 7.2 | 3151 | 0.55 | 0.03/0.95 | 0.26 | 0.90 | 0 | 0.0380 |
-| [academic-research](academic_research.md) | 80 | 160 | 4055 | 958 | 3.0 | 66.5 | 85 | 6.0 | 2480 | 0.00 | 0.04/0.56 | 0.34 | 0.70 | 0 | 0.0195 |
-| [marketing-agency](marketing_agency.md) | 80 | 160 | 7027 | 1184 | 3.7 | 187.9 | 231 | 7.6 | 2762 | 0.40 | 0.05/1.01 | 1.70 | 0.53 | 0 | 0.0252 |
-| [blog-writer](blogger_agent.md) | 80 | 160 | 8882 | 4135 | 4.8 | 101.3 | 138 | 11.1 | 4603 | 0.31 | 0.00/0.95 | 0.80 | 0.50 | 0 | 0.0595 |
-| [on-brand-genmedia](on_brand_genmedia.md) | 35 | — | 83460 | 7349 | 17.2 | 322.7 | 329 | 31.6 | 4191 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 27 | 0.0934 |
-| [plumber-data-engineering-assistant](plumber_agent.md) | 35 | — | 13800 | 1958 | 4.0 | 104.1 | 127 | 8.0 | 2853 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0143 |
-| [memory_assistant](memory_assistant.md) | — | — | 3398 | 1605 | 5.8 | 39.0 | 560 | 11.5 | 2493 | 2.50 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0165 |
-| [fomc-research](fomc_research.md) | 35 | — | 1838 | 479 | 2.3 | 30.1 | 55 | 4.8 | 2358 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0035 |
-| [nexshift-agent](nexshift_agent.md) | 35 | — | 0 | 0 | 0.0 | 12.8 | 37 | 2.0 | 2390 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0011 |
+| Agent | Interactions | Total turns | Input tok | Output tok | Master tok | Sub tok | Model calls | vCPU-s | GiB-s | Session events | Mem-gen tok | Mem retrieved | Firestore W/R | RAG queries | Web grounding | Imagen | $/intxn |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|--:|--:|--:|
+| [conversational-chatbot (archetype)](conversational_chatbot.md) | 120 | 432 | 6369 | 693 | 7061 | 0 | 7.5 | 20.9 | 39 | 15.0 | 2486 | 0.00 | 0.03/0.00 | 2.15 | 0.00 | 0 | 0.0139 |
+| [workflow-operator (archetype)](workflow_operator.md) | 118 | 425 | 20107 | 1485 | 21591 | 0 | 14.0 | 25.3 | 47 | 27.9 | 2549 | 0.67 | 1.42/1.23 | 0.00 | 0.00 | 0 | 0.0232 |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 79 | 253 | 32585 | 10739 | 39468 | 3856 | 7.8 | 171.2 | 201 | 15.6 | 7999 | 0.38 | 1.34/2.06 | 1.18 | 1.62 | 0 | 0.0822 |
+| [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 120 | 432 | 149080 | 6080 | 26067 | 129093 | 18.9 | 90.6 | 100 | 37.9 | 2793 | 0.20 | 0.29/0.63 | 0.42 | 0.00 | 0 | 0.0932 |
+| [financial-advisor](financial_advisor.md) | 80 | 160 | 23206 | 9812 | 27174 | 5844 | 3.5 | 135.6 | 174 | 7.2 | 3151 | 0.55 | 0.03/0.95 | 0.26 | 0.90 | 0 | 0.0595 |
+| [academic-research](academic_research.md) | 80 | 160 | 4507 | 1120 | 4254 | 1373 | 3.0 | 66.5 | 85 | 6.0 | 2480 | 0.00 | 0.04/0.56 | 0.34 | 0.70 | 0 | 0.0201 |
+| [marketing-agency](marketing_agency.md) | 80 | 160 | 10304 | 4046 | 13288 | 1062 | 3.7 | 187.9 | 231 | 7.6 | 2762 | 0.40 | 0.05/1.01 | 1.70 | 0.53 | 0 | 0.0339 |
+| [blog-writer](blogger_agent.md) | 80 | 160 | 11345 | 5425 | 11957 | 4813 | 4.8 | 101.3 | 138 | 11.1 | 4603 | 0.31 | 0.00/0.95 | 0.80 | 0.50 | 0 | 0.0638 |
+| [on-brand-genmedia](on_brand_genmedia.md) | 35 | — | 83460 | 7349 | — | — | 17.2 | 322.7 | 329 | 31.6 | 4191 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 27 | 0.0934 |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 35 | — | 13800 | 1958 | — | — | 4.0 | 104.1 | 127 | 8.0 | 2853 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0143 |
+| [memory_assistant](memory_assistant.md) | — | — | 3398 | 1605 | — | — | 5.8 | 39.0 | 560 | 11.5 | 2493 | 2.50 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0165 |
+| [fomc-research](fomc_research.md) | 35 | — | 1838 | 479 | — | — | 2.3 | 30.1 | 55 | 4.8 | 2358 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0035 |
+| [nexshift-agent](nexshift_agent.md) | 35 | — | 0 | 0 | — | — | 0.0 | 12.8 | 37 | 2.0 | 2390 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0011 |
 
 **Legend** — what each column means (all values are **per interaction**, averaged over the Interactions column, unless noted):
 
 - **Interactions** — number of interactions the agent was tested over (sample size for every average in the row).
 - **Total turns** — total user turns sent to the agent across the whole experiment (Σ turns over all interactions); multi-turn archetypes send far more turns than interactions.
-- **Input tok / Output tok** — Gemini prompt tokens (incl. cached) / output tokens (candidates + thinking). Billed at the input / output rates.
+- **Input tok / Output tok** — Gemini prompt tokens (incl. cached) / output tokens (candidates + thinking). Billed at the input / output rates. For multi-agent agents these are the **complete** totals from Cloud Monitoring `token_count` (captures AgentTool sub-agent tokens the response stream misses).
+- **Master tok / Sub tok** — the input+output total split into coordinator/master vs sub-agent/tool tokens, using the per-agent architecture-driven % from the two-model validation (single-agent agents are 100% master; '—' = split not measured).
 - **Model calls** — model invocations per interaction; one tool-using turn emits several.
 - **vCPU-s / GiB-s** — Agent Runtime vCPU-seconds / memory GiB-seconds, amortized over the measurement window (upper bound, not actual billed instance-time).
 - **Session events** — events appended to the Sessions (short-term memory) store.
@@ -78,6 +79,7 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 **Billing alignment & caveats** — how each measure maps to how the product is actually billed:
 
 - **Billing-accurate units** (our count = the billed dimension): Gemini input/output tokens (cached split to the cheaper rate; thinking billed as output), RAG queries, memories retrieved, Firestore document ops, Imagen images.
+- **AgentTool token-undercount correction:** multi-agent agents wrapping a sub-agent as an `AgentTool` emit sub-agent token events that never reach the parent response stream, so the old `usage_metadata` sums under-counted them. Input/Output tok here are the **complete** `token_count` totals from isolated canonical-2.5-flash runs (per-agent factors 1.00–1.41×); Master/Sub split is the architecture-driven % from the two-model (3.5-flash/3.1-flash-lite) validation.
 - **Estimates** (right dimension, approximated): **vCPU-s / GiB-s** are `allocation_time` amortized per-interaction over the window incl. idle — an upper bound, not actual billed instance-hours; **Session events** is event-stream-observed (not metered) and excludes session storage GiB-hr; **Mem-gen tok** is priced at the input rate (single-rate proxy) and excludes the monthly per-memory storage charge.
 - **Proxy / lower bound:** **Web grounding** is billed per grounded prompt, but we count the web-research AgentTool invocation (internal multi-search would bill more).
 - **Not a billing unit:** **Model calls** — Gemini bills tokens, not calls (shown as a usage driver).
@@ -122,12 +124,12 @@ How the §0 columns map to the rows in the GE AP pricing calculator (the referen
 |---|---|---|---|---|---|
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 6369 (2030–17874) | 693 (185–1876) | 7.5 | 20.9 | 39 |
 | [workflow-operator (archetype)](workflow_operator.md) | 20107 (3343–74345) | 1485 (419–3502) | 14.0 | 25.3 | 47 |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 44234 (16990–166168) | 8482 (4524–14742) | 7.8 | 171.2 | 201 |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 32585 (12516–122408) | 10739 (5728–18665) | 7.8 | 171.2 | 201 |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 149080 (6076–8349717) | 6080 (1140–106637) | 18.9 | 90.6 | 100 |
-| [financial-advisor](financial_advisor.md) | 21665 (3667–139557) | 1789 (709–16996) | 3.5 | 135.6 | 174 |
-| [academic-research](academic_research.md) | 4055 (2367–8369) | 958 (341–3193) | 3.0 | 66.5 | 85 |
-| [marketing-agency](marketing_agency.md) | 7027 (2621–18972) | 1184 (535–3126) | 3.7 | 187.9 | 231 |
-| [blog-writer](blogger_agent.md) | 8882 (3278–17842) | 4135 (257–8595) | 4.8 | 101.3 | 138 |
+| [financial-advisor](financial_advisor.md) | 23206 (3928–149479) | 9812 (3888–93198) | 3.5 | 135.6 | 174 |
+| [academic-research](academic_research.md) | 4507 (2631–9301) | 1120 (399–3734) | 3.0 | 66.5 | 85 |
+| [marketing-agency](marketing_agency.md) | 10304 (3843–27818) | 4046 (1828–10681) | 3.7 | 187.9 | 231 |
+| [blog-writer](blogger_agent.md) | 11345 (4187–22789) | 5425 (337–11277) | 4.8 | 101.3 | 138 |
 | [on-brand-genmedia](on_brand_genmedia.md) | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
 | [memory_assistant](memory_assistant.md) | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
@@ -204,12 +206,12 @@ Reference only — list price, not actual billed. The usage tables above are the
 |---|---|---|---|---|---|
 | [on-brand-genmedia](on_brand_genmedia.md) | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
-| [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0345 | 0.0101 | 0.0065 | 0.0810 (0.0340–0.1005) | Medium |
-| [blog-writer](blogger_agent.md) | 0.0130 | 0.0058 | 0.0043 | 0.0595 (0.0385–0.0603) | High |
-| [financial-advisor](financial_advisor.md) | 0.0110 | 0.0084 | 0.0030 | 0.0380 (0.0144–0.0876) | Very high |
-| [marketing-agency](marketing_agency.md) | 0.0051 | 0.0062 | 0.0030 | 0.0252 (0.0120–0.0214) | Medium |
+| [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0366 | 0.0101 | 0.0065 | 0.0822 (0.0347–0.1000) | Medium |
+| [blog-writer](blogger_agent.md) | 0.0170 | 0.0058 | 0.0043 | 0.0638 (0.0389–0.0719) | High |
+| [financial-advisor](financial_advisor.md) | 0.0315 | 0.0084 | 0.0030 | 0.0595 (0.0223–0.2893) | Very high |
+| [marketing-agency](marketing_agency.md) | 0.0132 | 0.0062 | 0.0030 | 0.0339 (0.0149–0.0442) | Medium |
 | [workflow-operator (archetype)](workflow_operator.md) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
-| [academic-research](academic_research.md) | 0.0036 | 0.0028 | 0.0023 | 0.0195 (0.0067–0.0143) | High |
+| [academic-research](academic_research.md) | 0.0042 | 0.0028 | 0.0023 | 0.0201 (0.0069–0.0172) | High |
 | [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0036 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0160) | High |

@@ -11,6 +11,7 @@ tool on its agent) AND Firestore function tools (on the coordinator). Intended
 model tier: Gemini 3.1 Pro (≤200k). Deployed on gemini-2.5-flash for parity.
 """
 
+import os
 from functools import cached_property
 
 from google.adk.agents import Agent
@@ -36,6 +37,16 @@ class GlobalGemini(Gemini):
 MASTER_MODEL = "gemini-3.5-flash"       # coordinator
 SUB_MODEL = "gemini-3.1-flash-lite"     # sub-agents / tools / auxiliary
 
+# The two-model split (global gemini-3.x) is enabled ONLY when COST_TWO_MODEL=1 (set
+# at deploy time). The default — and the canonical 80-run baseline — is a single
+# regional gemini-2.5-flash for the whole tree.
+_TWO_MODEL = os.environ.get("COST_TWO_MODEL") == "1"
+CANONICAL_MODEL = "gemini-2.5-flash"
+
+
+def _model(name):
+    return GlobalGemini(model=name) if _TWO_MODEL else CANONICAL_MODEL
+
 # Shared synthetic knowledge corpus (Vertex AI Search / RAG) — internal references
 # to complement live web search.
 _DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
@@ -50,7 +61,7 @@ corpus_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_li
 # runs in the deployed stream_query, so web-search grounding is never exercised.)
 web_researcher = Agent(
     name="web_researcher",
-    model=GlobalGemini(model=SUB_MODEL),
+    model=_model(SUB_MODEL),
     description="Searches the web with Google Search grounding and returns cited findings.",
     instruction=(
         "You are a web research specialist. ALWAYS use the google_search tool to gather current "
@@ -63,7 +74,7 @@ web_research_tool = AgentTool(agent=web_researcher)
 
 root_agent = Agent(
     name="autonomous_researcher",
-    model=GlobalGemini(model=MASTER_MODEL),
+    model=_model(MASTER_MODEL),
     description="Autonomous research analyst that web-searches and synthesizes long, cited reports.",
     instruction=(
         "You are an autonomous research analyst. For any question: (1) briefly plan the angles to "

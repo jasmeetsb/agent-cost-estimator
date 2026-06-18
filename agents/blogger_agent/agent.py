@@ -103,5 +103,7 @@ root_agent = interactive_blogger_agent
 
 # Two-model split: coordinator -> gemini-3.5-flash, all sub-agents/tools -> gemini-3.1-flash-lite
 # (both via the global Vertex endpoint). Lets Cloud Monitoring token_count split master vs sub.
-from ._gmodel import apply_split  # noqa: E402
-apply_split(root_agent)
+import os as _os  # noqa: E402
+if _os.environ.get("COST_TWO_MODEL") == "1":  # canonical default = single gemini-2.5-flash
+    from ._gmodel import apply_split  # noqa: E402
+    apply_split(root_agent)

@@ -24,6 +24,22 @@ OUT.mkdir(exist_ok=True)
 PB = load_or_build("gemini-2.5-flash")
 VCPU_RATE = PB.runtime_vcpu_core_sec_usd or 2.4e-5
 MEM_RATE = PB.runtime_mem_gib_sec_usd or 2.5e-6
+INPUT_TOK_USD = PB.input_token_usd or 0.30 / 1e6
+OUTPUT_TOK_USD = PB.output_token_usd or 2.50 / 1e6
+
+# EXP-014 Option A: AgentTool agents undercount tokens in the stream (AgentTool sub-agent
+# events never reach the parent stream_query). `data/complete_tokens_<pkg>.json` holds the
+# complete per-interaction token totals measured from Cloud Monitoring `token_count` on
+# isolated canonical 2.5-flash runs; `master_sub_split.json` holds the per-agent master/sub
+# % from the two-model validation. When present, derive() uses the corrected totals + split.
+def _load_correction(pkg):
+    ctp = DATA / f"complete_tokens_{pkg}.json"
+    ct = json.loads(ctp.read_text()) if ctp.exists() else None
+    sp = None
+    spp = DATA / "master_sub_split.json"
+    if spp.exists():
+        sp = json.loads(spp.read_text()).get("agents", {}).get(pkg)
+    return ct, sp
 
 # Vertex AI Search (RAG) query price. Source: GE AP calculator "Agent Search
 # (for RAG)" = $1.50 / 1K queries. Usage (query count) is the primary measure;
@@ -618,6 +634,40 @@ def derive(pkg):
     """Per-interaction SKU usage quantities (+ secondary derived cost) for an agent."""
     r = load(pkg); v = r["variability"]; rt = r["runtime"]; mem = r["memory_and_session"]
     avg = r["per_run_avg"]; n = max(len(r["runs"]), 1)
+
+    # --- token quantities (stream-based defaults; corrected below if a complete-token
+    #     capture exists for this agent) ---
+    in_mean, out_mean = v["input_tokens"]["mean"], v["output_tokens"]["mean"]
+    in_min, in_max = v["input_tokens"]["min"], v["input_tokens"]["max"]
+    out_min, out_max = v["output_tokens"]["min"], v["output_tokens"]["max"]
+    model_usd = avg["model_usd"]
+    model_usd_min, model_usd_max = v["model_usd"]["min"], v["model_usd"]["max"]
+    tok_factor = None; tok_source = "usage_metadata (stream)"
+    ct, split = _load_correction(pkg)
+    if ct:
+        tok_factor = ct.get("undercount_factor")
+        tok_source = f"Monitoring token_count (complete, n={ct['n_interactions']}); stream×{tok_factor}"
+        comp_in = ct["complete"]["per_interaction_input"]
+        comp_out = ct["complete"]["per_interaction_output"]
+        # preserve the stream distribution shape by scaling its range by the same correction
+        f_in = comp_in / in_mean if in_mean else 1.0
+        f_out = comp_out / out_mean if out_mean else 1.0
+        in_min, in_max = in_min * f_in, in_max * f_in
+        out_min, out_max = out_min * f_out, out_max * f_out
+        in_mean, out_mean = comp_in, comp_out
+        # re-price the corrected tokens at gemini-2.5-flash catalog rates
+        model_usd = in_mean * INPUT_TOK_USD + out_mean * OUTPUT_TOK_USD
+        model_usd_min = in_min * INPUT_TOK_USD + out_min * OUTPUT_TOK_USD
+        model_usd_max = in_max * INPUT_TOK_USD + out_max * OUTPUT_TOK_USD
+    # master vs sub-agent token decomposition (architecture-driven % from two-model validation)
+    pct_master = pct_sub = None
+    master_tok = sub_tok = None
+    if split:
+        pct_master, pct_sub = split["pct_master"], split["pct_sub"]
+        tot = in_mean + out_mean
+        master_tok = tot * pct_master / 100.0
+        sub_tok = tot * pct_sub / 100.0
+
     rag_total, rag_inters = count_rag_searches(pkg)
     web_ground_total, web_ground_inters = count_tool_calls(pkg, _WEB_GROUNDING_TOOLS)
     retr_total, retr_inters = count_memories_retrieved(pkg)
@@ -642,11 +692,14 @@ def derive(pkg):
         "pkg": pkg, "title": META[pkg]["title"], "complexity": META[pkg]["complexity"],
         "pattern": META[pkg]["pattern"], "engine": r["engine"].split("/")[-1], "n": n,
         "turns_desc": turns_desc, "total_turns": total_turns,
-        # usage quantities per interaction
-        "in_tok": v["input_tokens"]["mean"], "in_rng": f"{v['input_tokens']['min']}–{v['input_tokens']['max']}",
+        # usage quantities per interaction (corrected to complete token_count where available)
+        "in_tok": in_mean, "in_rng": f"{in_min:.0f}–{in_max:.0f}",
         "in_var": var_word(v["input_tokens"]["cv_pct"]),
-        "out_tok": v["output_tokens"]["mean"], "out_rng": f"{v['output_tokens']['min']}–{v['output_tokens']['max']}",
+        "out_tok": out_mean, "out_rng": f"{out_min:.0f}–{out_max:.0f}",
         "out_var": var_word(v["output_tokens"]["cv_pct"]),
+        "tok_factor": tok_factor, "tok_source": tok_source,
+        "pct_master": pct_master, "pct_sub": pct_sub,
+        "master_tok": master_tok, "sub_tok": sub_tok,
         "calls": v["model_calls"]["mean"], "calls_var": var_word(v["model_calls"]["cv_pct"]),
         "vcpu_sec": vcpu_total / n,
         "gib_sec": gib_total / n,
@@ -659,8 +712,8 @@ def derive(pkg):
         # Model Armor (P1) — DERIVED, not deployed: bills per token scanned ($0.10/1M).
         # Assumes 100% of conversation I/O (input+output tokens) is scanned. If only the
         # user-facing boundary is scanned, it's a fraction of this.
-        "armor_tokens": v["input_tokens"]["mean"] + v["output_tokens"]["mean"],
-        "c_model_armor": (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6,
+        "armor_tokens": in_mean + out_mean,
+        "c_model_armor": (in_mean + out_mean) * 0.10 / 1e6,
         "fs_reads": (r.get("cumulative", {}) or {}).get("fs_reads", 0),
         "fs_writes": (r.get("cumulative", {}) or {}).get("fs_writes", 0),
         "fs_reads_pi": (r.get("cumulative", {}) or {}).get("fs_reads", 0) / n,
@@ -675,18 +728,19 @@ def derive(pkg):
         "web_ground_total": web_ground_total,
         "web_ground_pi": web_ground_total / n,
         "c_web_ground": (web_ground_total / n) * WEB_GROUNDING_USD_PER_TURN,
-        # secondary derived cost ($/interaction)
-        "c_model": avg["model_usd"], "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
+        # secondary derived cost ($/interaction). c_model re-priced from corrected tokens.
+        "c_model": model_usd, "c_runtime": avg["runtime_usd"], "c_memsess": avg["memory_session_usd"],
         "c_firestore": avg.get("firestore_usd", 0),
         "c_image": image_per_run, "c_grounding": grounding_per_run,
         "c_rag_total": (rag_total / n) * RAG_SEARCH_USD_PER_QUERY,
-        "c_total": avg["total_usd"] + image_per_run + grounding_per_run
-        + (v["input_tokens"]["mean"] + v["output_tokens"]["mean"]) * 0.10 / 1e6
+        "c_total": (model_usd + avg["runtime_usd"] + avg["memory_session_usd"] + avg.get("firestore_usd", 0))
+        + image_per_run + grounding_per_run
+        + (in_mean + out_mean) * 0.10 / 1e6
         + (rag_total / n) * RAG_SEARCH_USD_PER_QUERY
         + (web_ground_total / n) * WEB_GROUNDING_USD_PER_TURN
         + (retr_total / n) * MEM_RETRIEVED_USD_PER,
-        "c_total_min": v["model_usd"]["min"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
-        "c_total_max": v["model_usd"]["max"] + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
+        "c_total_min": model_usd_min + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
+        "c_total_max": model_usd_max + avg["runtime_usd"] + avg["memory_session_usd"] + image_per_run + grounding_per_run,
         "cost_var": var_word(v["model_usd"]["cv_pct"]),
     }
 
@@ -702,6 +756,21 @@ def agent_md(d):
                  "blog-writer, workflow-operator, autonomous-researcher, and multi-agent-orchestrator "
                  "(returning-user runs) + `memory_assistant`._"
                  if d["mem_retrieved"] == 0 else "")
+    # Token-source note: corrected agents read the COMPLETE total from Monitoring token_count
+    # (captures AgentTool sub-agent tokens the stream misses); others use exact usage_metadata.
+    if d.get("tok_factor") is not None:
+        tok_meas = (f"token usage from Cloud Monitoring **`token_count`** (the complete total — captures "
+                    f"AgentTool sub-agent tokens the stream misses; undercount factor **{d['tok_factor']}×** "
+                    f"vs `usage_metadata`)")
+    else:
+        tok_meas = "token usage from the model response (`usage_metadata`, exact)"
+    # Master vs sub-agent token split (architecture-driven %, from the two-model validation).
+    split_rows = []
+    if d.get("pct_master") is not None:
+        split_rows = [
+            f"| Gemini tokens — master/coordinator | tokens | {d['master_tok']:.0f} | {d['pct_master']:.0f}% of I/O | — |",
+            f"| Gemini tokens — sub-agents/tools | tokens | {d['sub_tok']:.0f} | {d['pct_sub']:.0f}% of I/O | — |",
+        ]
     lines = [
         f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",
         f"- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `{d['engine']}`",
@@ -718,14 +787,15 @@ def agent_md(d):
         "metered here — see §7.)", "",
         "## 3. How usage was measured", "",
         f"Deployed to Agent Engine; per run = {d['turns_desc']} conversation in one session + add_session_to_memory; "
-        f"**{d['n']} runs** for variability; 300s Monitoring settle; token usage from the model response "
-        f"(`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).",
+        f"**{d['n']} runs** for variability; 300s Monitoring settle; {tok_meas}, "
+        f"runtime + Memory Bank usage from Cloud Monitoring (per-engine).",
         f"Reproduce: `python scripts/exp_sample.py --package {d['pkg']} --runs {d['n']} --settle 300`", "",
         f"## 4. SKU usage per interaction (PRIMARY)", "",
         f"Measured usage quantities per interaction (avg over {d['n']} runs), with run-to-run range and variability.", "",
         "| SKU dimension | Unit | Typical | Range | Variability |", "|---|---|---|---|---|",
         f"| Gemini input tokens | tokens | {d['in_tok']:.0f} | {d['in_rng']} | {d['in_var']} |",
         f"| Gemini output tokens (incl. thinking) | tokens | {d['out_tok']:.0f} | {d['out_rng']} | {d['out_var']} |",
+        *split_rows,
         f"| Model calls | calls | {d['calls']:.1f} | — | {d['calls_var']} |",
         f"| Agent Runtime — vCPU | vCPU-seconds | {d['vcpu_sec']:.1f} | — | — |",
         f"| Agent Runtime — memory | GiB-seconds | {d['gib_sec']:.1f} | — | — |",
@@ -1059,17 +1129,21 @@ def master(ds):
           "Every measured SKU, per interaction, for all agents in one view. The **Interactions** "
           "column is the number of interactions each agent was tested over. Ranges, distributions, "
           "and derived cost breakdown are in the sections below.", "",
-          "| Agent | Interactions | Total turns | Input tok | Output tok | Model calls | vCPU-s | GiB-s | "
+          "| Agent | Interactions | Total turns | Input tok | Output tok | Master tok | Sub tok | "
+          "Model calls | vCPU-s | GiB-s | "
           "Session events | Mem-gen tok | Mem retrieved | Firestore W/R | RAG queries | "
           "Web grounding | Imagen | $/intxn |",
-          "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|--:|--:|--:|"]
+          "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|--:|--:|--:|"]
     for r in sorted(rows, key=sortk):
         n_ = r.get("n", "—")
         tt = r.get("total_turns") or "—"
         fsw = r.get("fs_writes_pi", 0); fsr = r.get("fs_reads_pi", 0)
         web = r.get("web_ground_pi", r.get("web_searches", 0))
+        mt = f"{r['master_tok']:.0f}" if r.get("master_tok") is not None else "—"
+        st = f"{r['sub_tok']:.0f}" if r.get("sub_tok") is not None else "—"
         L.append(
             f"| {linkify(r['title'])} | {n_} | {tt} | {r['in_tok']:.0f} | {r['out_tok']:.0f} | "
+            f"{mt} | {st} | "
             f"{r['calls']:.1f} | {r['vcpu_sec']:.1f} | {r['gib_sec']:.0f} | {r['sess']:.1f} | "
             f"{r['gen_tok']:.0f} | {r['mem_retrieved']:.2f} | {fsw:.2f}/{fsr:.2f} | "
             f"{r.get('rag_pi', 0):.2f} | {web:.2f} | {r.get('images', 0):.0f} | {r['c_total']:.4f} |")
@@ -1078,7 +1152,8 @@ def master(ds):
           "Interactions column, unless noted):", "",
           "- **Interactions** — number of interactions the agent was tested over (sample size for every average in the row).",
           "- **Total turns** — total user turns sent to the agent across the whole experiment (Σ turns over all interactions); multi-turn archetypes send far more turns than interactions.",
-          "- **Input tok / Output tok** — Gemini prompt tokens (incl. cached) / output tokens (candidates + thinking). Billed at the input / output rates.",
+          "- **Input tok / Output tok** — Gemini prompt tokens (incl. cached) / output tokens (candidates + thinking). Billed at the input / output rates. For multi-agent agents these are the **complete** totals from Cloud Monitoring `token_count` (captures AgentTool sub-agent tokens the response stream misses).",
+          "- **Master tok / Sub tok** — the input+output total split into coordinator/master vs sub-agent/tool tokens, using the per-agent architecture-driven % from the two-model validation (single-agent agents are 100% master; '—' = split not measured).",
           "- **Model calls** — model invocations per interaction; one tool-using turn emits several.",
           "- **vCPU-s / GiB-s** — Agent Runtime vCPU-seconds / memory GiB-seconds, amortized over the measurement window (upper bound, not actual billed instance-time).",
           "- **Session events** — events appended to the Sessions (short-term memory) store.",
@@ -1094,6 +1169,11 @@ def master(ds):
           "- **Billing-accurate units** (our count = the billed dimension): Gemini input/output tokens "
           "(cached split to the cheaper rate; thinking billed as output), RAG queries, memories "
           "retrieved, Firestore document ops, Imagen images.",
+          "- **AgentTool token-undercount correction:** multi-agent agents wrapping a sub-agent as an "
+          "`AgentTool` emit sub-agent token events that never reach the parent response stream, so the "
+          "old `usage_metadata` sums under-counted them. Input/Output tok here are the **complete** "
+          "`token_count` totals from isolated canonical-2.5-flash runs (per-agent factors 1.00–1.41×); "
+          "Master/Sub split is the architecture-driven % from the two-model (3.5-flash/3.1-flash-lite) validation.",
           "- **Estimates** (right dimension, approximated): **vCPU-s / GiB-s** are `allocation_time` "
           "amortized per-interaction over the window incl. idle — an upper bound, not actual billed "
           "instance-hours; **Session events** is event-stream-observed (not metered) and excludes "

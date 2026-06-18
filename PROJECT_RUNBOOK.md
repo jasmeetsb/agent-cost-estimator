@@ -23,6 +23,9 @@ average cost per query — broken down by the GCP products the agent consumes.
 | 2026-06-15 | Map the calculator's 4 archetypes to **purpose-built, deployable GCP/ADK agents** | The calculator inputs are placeholders; representative agents let us replace them with *measured* per-SKU usage. Moderate complexity built first (EXP-008). |
 | 2026-06-16 | Test with **multi-scenario, variable-length, additive** workloads (`--append`) | Real interactions vary in length/topic; cycling 3–4 scenarios (2–5 turns) and accumulating batches gives a representative dataset rather than one repeated script. |
 | 2026-06-15 | **Pin `google-adk` to local + deploy sequentially + ADC for REST** | Hard-won deploy reliability (see Learnings 2026-06-15): unpinned ADK → empty-response crash; concurrent deploys → staging-race; gcloud-CLI token → auth-expiry failures. |
+| 2026-06-17 | Report **authoritative token totals from Monitoring `token_count`**, not `usage_metadata` sums, for AgentTool agents | `stream_query` never surfaces AgentTool-encapsulated sub-agent events → 5 agents undercounted. `token_count` captures every model call (needs isolated windows to attribute). |
+| 2026-06-17 | Separate **master vs sub-agent tokens via a two-model split** (`COST_TWO_MODEL=1`); keep single-model as the canonical default | `token_count` splits only by model, so coordinator-on-one-model + subs-on-another is the only way to attribute role. Default stays single 2.5-flash for the baseline; split is opt-in. |
+| 2026-06-17 | Correct the undercount on the **same canonical model in isolated windows**; re-measure **only token rows** | Two-model engines are a different cost basis (3.5-flash/3.1-lite). Non-token SKUs are count-based + model-independent → don't re-measure them. |
 
 ---
 
@@ -59,6 +62,48 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 ---
 
 ## 3. Learnings Log
+
+- **2026-06-17 — AgentTool sub-agent tokens are INVISIBLE to `stream_query` (the real undercount).**
+  The deployed remote stream surfaces events from the coordinator and from `sub_agents` reached via
+  `transfer_to_agent`, but **NOT** from sub-agents wrapped as **`AgentTool`** — an AgentTool runs a
+  nested Runner whose events never propagate to the parent stream. So `usage_metadata`-summed token
+  totals **undercount** for the 5 AgentTool agents (researcher, blogger, academic, financial,
+  marketing). NOTE: thoughts tokens ARE counted for the events we DO see — the undercount is entirely
+  *missing sub-agent events*, not missing thought tokens. Authoritative fix: Cloud Monitoring
+  `publisher/online_serving/token_count` captures EVERY model call regardless of the stream.
+- **2026-06-17 — Splitting master vs sub-agent tokens needs a two-model trick + sequential isolation.**
+  Within one agent, `token_count` separates only by **model** (`resource.labels.model_user_id`), never
+  by agent-role. To split coordinator vs sub tokens, put the coordinator on one model and ALL
+  descendants on another, then split the metric by model. Impl (`agents/_gmodel.py`): `GlobalGemini`
+  (a `Gemini` subclass pinning `api_client` to `Client(vertexai=True, location="global")`) +
+  `apply_split(root)` that walks `sub_agents` AND `tool.agent` (AgentTool) recursively, skipping
+  workflow agents (Loop/Sequential/Parallel — no `model` field). Guarded behind env `COST_TWO_MODEL=1`
+  (set at deploy time, since `apply_split` runs at import and the result is cloudpickled) so the default
+  deploy stays canonical single-model. Because `token_count` is **project-wide**, the split — and any
+  complete-total capture — requires **one agent at a time in an isolated time window** with no other
+  same-model traffic. (Deploys are sequential regardless: fixed-GCS-path staging race.)
+- **2026-06-17 — gemini-3.x models are GLOBAL-only.** `gemini-3.5-flash` ✓ and `gemini-3.1-flash-lite`
+  ✓ exist but **404 in `us-central1`**; `gemini-3.1-flash` does NOT exist at all. Route per-model via
+  `location="global"` while the Agent Engine itself stays regional (us-central1). Available regionally:
+  gemini-2.5-flash, -flash-lite, -pro.
+- **2026-06-17 — Two delegation patterns have OPPOSITE token distributions (validated, 15 intxn/agent).**
+  `sub_agents`+transfer = **sub-heavy** (orchestrator **17% master / 83% sub** — transfer hands the
+  full conversation context to the sub, which does the bulk of the processing). `AgentTool` =
+  **master-heavy** (71–93% master — the AgentTool sub only sees a narrow sub-task prompt; the
+  coordinator carries the whole conversation and re-ingests each tool result). Single-agent = 100%
+  master. **Consequence for the undercount:** transfer-subs WERE already in the old stream (not
+  undercounted); only AgentTool-subs were missed — so the shortcut `1/%master` **over-corrects**
+  mixed-topology agents (those with both a transfer sub AND an AgentTool). The split ratio is
+  **per-agent and architecture-driven** → portable across model tiers as a *percentage*, applied on
+  top of canonical totals. The clean undercount fix is a direct `token_count` re-measure, not the ratio.
+- **2026-06-17 — Correcting the undercount: re-measure on the SAME canonical model, isolated.** Redeploy
+  the undercounted agents on **canonical 2.5-flash** (NOT the two-model engines — different models =
+  different tokenization/prices/cost basis) and read `token_count` per isolated window = the complete
+  total (master + all subs incl. the AgentTool subs the stream missed). The capture **skips
+  `add_session_to_memory`** — memory-generation runs an LLM that would otherwise add to the
+  conversation `token_count` and **double-count** the separately-measured Memory Bank SKU — and uses
+  **fresh users** (clean conversation tokens; memory-retrieval prompt inflation is a separate measured
+  effect). Undercount factor = complete ÷ stream. `scripts/exp_complete_tokens.py`.
 
 - **2026-06-15 — EXP-008: 4 calculator archetypes (Moderate) deployed + measured.** Built representative
   GCP/ADK agents for Conversational Chatbot / Workflow Operator / Autonomous Researcher / Multi-Agent
@@ -530,6 +575,60 @@ topic-research sessions generate ~no user-centric memories (2 mutations), so not
 a workload reality (cf. the support-FAQ chatbot). The other 3 retrieve. Engine-aware memory backfill
 across each agent's cold-run + returning-run engines.
 
+### EXP-014 — Master/sub token split + AgentTool undercount correction
+- **Date:** 2026-06-17 | All 8 agents (4 archetypes + 4 use-case). Two phases.
+- **Goal:** (1) separate coordinator/master tokens from sub-agent tokens per agent; (2) fix the
+  AgentTool token undercount in the canonical 80-run totals. Motivated by the realization that
+  `stream_query` never surfaces AgentTool sub-agent events (see Learnings 2026-06-17).
+
+**Phase A — two-model split validation (FINAL).** Deployed every agent with `COST_TWO_MODEL=1`
+(coordinator → `gemini-3.5-flash`, all descendants → `gemini-3.1-flash-lite`, both via the global
+endpoint). Ran **15 interactions/agent**, each agent in an isolated window, then split project-wide
+`token_count` by `model_user_id`. 0 failures; clean separation (no model leakage); single-agent
+agents correctly 100/0.
+
+| agent | master tok (3.5-flash) | sub tok (3.1-flash-lite) | %master | pattern |
+|-------|------------------------|---------------------------|---------|---------|
+| multi_agent_orchestrator | 35,865 | 177,994 | **17%** | sub_agents/transfer (sub-heavy) |
+| autonomous_researcher | 1,308,504 | 128,062 | **91%** | AgentTool (master-heavy) |
+| financial_advisor | 703,291 | 151,013 | **82%** | AgentTool |
+| academic_research | 539,706 | 174,545 | **76%** | AgentTool |
+| marketing_agency | 316,642 | 25,418 | **93%** | AgentTool |
+| blogger_agent | 189,773 | 76,289 | **71%** | AgentTool + transfer subs |
+| conversational_chatbot | 93,625 | 0 | **100%** | single agent |
+| workflow_operator | 554,231 | 0 | **100%** | single agent |
+
+**Phase B — Option A complete-token re-measure (IN PROGRESS).** Redeployed the 5 AgentTool agents on
+**canonical single 2.5-flash** (split guarded off) and run **80 isolated interactions each**, replaying
+the exact canonical workloads (`get_scenarios`), capturing both stream tokens and the complete
+`token_count` (filtered to gemini-2.5-flash) per window. Skips `add_session_to_memory`; fresh users.
+Smoke-verified all 5 canonical engines return non-empty streams and emit only `gemini-2.5-flash`
+(no gemini-3.x). Output: `data/complete_tokens_<pkg>.json` (complete per-interaction total +
+undercount factor). Only the **token rows** of the summaries/master table get rewritten; non-token
+SKUs (runtime/Sessions/Memory Bank/Firestore/RAG/grounding) stay at their EXP-010..013 values.
+Tooling: `scripts/exp_complete_tokens.py`, `agents/_gmodel.py`.
+
+**Phase B results (80 interactions/agent, complete `token_count` vs old stream):**
+
+| agent | stream tok/intxn | complete tok/intxn | undercount factor | corrected master / sub tok |
+|-------|------------------|--------------------|-------------------|----------------------------|
+| financial_advisor | 23,389 | 33,018 | **1.412×** | 27,174 / 5,844 |
+| marketing_agency | 11,683 | 14,350 | **1.228×** | 13,288 / 1,062 |
+| autonomous_researcher | 38,835 | 43,324 | **1.116×** | 39,468 / 3,856 |
+| blogger_agent | 15,143 | 16,770 | **1.108×** | 11,957 / 4,813 |
+| academic_research | 5,627 | 5,627 | **1.000×** | 4,254 / 1,373 |
+
+**Findings:** the undercount is **real but agent- and workload-dependent**, 0–41%. The split ratio
+(`1/%master`) is NOT a reliable proxy for the undercount — it **over**-corrects mixed-topology agents
+(blogger has transfer subs already in-stream + one AgentTool, so actual 1.11× ≪ ratio-implied 1.41×)
+and **under**-corrects others (financial actual 1.41× > ratio-implied 1.22×). academic = 1.000× exactly
+(on its canonical 2.5-flash workload it barely invokes its AgentTool sub → nothing missed). This is why
+the **direct `token_count` re-measure** (not the ratio) is the correct fix. The 3 non-AgentTool agents
+(chatbot, workflow = single-agent; orchestrator = transfer subs) were never undercounted and were not
+re-run. Applied: `build_summaries.py` reads `data/complete_tokens_<pkg>.json` (override + re-price) and
+`data/master_sub_split.json` (role %); §0 master matrix gained **Master tok / Sub tok** columns;
+per-agent summaries show the corrected source + factor. docx + xlsx regenerated.
+
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
 - Date / Agent / Workload / Engine id
@@ -546,6 +645,12 @@ across each agent's cold-run + returning-run engines.
   additive (`--append`) datasets ~85 interactions each (EXP-008).
 - [done] Validate Search-grounding (researcher) + Imagen (on-brand-genmedia) collectors against
   real non-zero usage.
+- [done] Quantify the **master vs sub-agent token split** per agent (EXP-014 Phase A: two-model
+  validation, 15 intxn/agent). Found the AgentTool `stream_query` undercount in the process.
+- [in progress] **Correct the AgentTool token undercount** (EXP-014 Phase B): re-measure the 5
+  AgentTool agents' complete `token_count` on canonical 2.5-flash in isolated windows, rewrite the
+  token rows + layer the master/sub %. Then tear down the superseded two-model engines
+  (`data/twomodel_engines.json`, explicit-ID allowlist; Beads untouched).
 - **Close the placeholder→measured SKU gap (EXP-008b):** build agents that actually exercise
   **Agent Sandbox (Code Exec / Computer Use), Vertex AI Search / RAG, Google Maps grounding,
   Model Armor, and Agent Evaluation** — the SKUs the calculator assumes but we haven't billed.

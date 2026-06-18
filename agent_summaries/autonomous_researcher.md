@@ -41,7 +41,7 @@ Gemini tokens (long outputs); Agent Runtime (vCPU + memory); Sessions; Memory Ba
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2–4-turn (varying) conversation in one session + add_session_to_memory; **79 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Deployed to Agent Engine; per run = 2–4-turn (varying) conversation in one session + add_session_to_memory; **79 runs** for variability; 300s Monitoring settle; token usage from Cloud Monitoring **`token_count`** (the complete total — captures AgentTool sub-agent tokens the stream misses; undercount factor **1.1156×** vs `usage_metadata`), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
 Reproduce: `python scripts/exp_sample.py --package autonomous_researcher --runs 79 --settle 300`
 
 ## 4. SKU usage per interaction (PRIMARY)
@@ -50,8 +50,10 @@ Measured usage quantities per interaction (avg over 79 runs), with run-to-run ra
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
-| Gemini input tokens | tokens | 44234 | 16990–166168 | High |
-| Gemini output tokens (incl. thinking) | tokens | 8482 | 4524–14742 | Medium |
+| Gemini input tokens | tokens | 32585 | 12516–122408 | High |
+| Gemini output tokens (incl. thinking) | tokens | 10739 | 5728–18665 | Medium |
+| Gemini tokens — master/coordinator | tokens | 39468 | 91% of I/O | — |
+| Gemini tokens — sub-agents/tools | tokens | 3856 | 9% of I/O | — |
 | Model calls | calls | 7.8 | — | Medium |
 | Agent Runtime — vCPU | vCPU-seconds | 171.2 | — | — |
 | Agent Runtime — memory | GiB-seconds | 200.6 | — | — |
@@ -83,15 +85,15 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 | SKU | $/interaction |
 |---|---|
-| Gemini tokens | 0.0345 |
+| Gemini tokens | 0.0366 |
 | Agent Runtime | 0.0101 |
 | Memory Bank + Sessions | 0.0065 |
 | Firestore (106w/163r over 79 runs) | 0.0000005 |
 | Vertex AI Search (RAG: 1.18 queries/intxn @ $1.50/1K) | 0.001766 |
 | Google Search grounding (1.62 grounded turns/intxn @ $14/1K) | 0.022684 |
 | Memory Bank retrieval (0.38 memories retrieved/intxn @ $0.5/1K) | 0.000190 |
-| Model Armor (derived: 52716 tok scanned @ $0.10/1M) | 0.005272 |
-| **Total (measured SKUs)** | **0.0810** (range 0.0340–0.1005) |
+| Model Armor (derived: 43324 tok scanned @ $0.10/1M) | 0.004332 |
+| **Total (measured SKUs)** | **0.0822** (range 0.0347–0.1000) |
 
 ## 7. Test workload & sample interactions
 

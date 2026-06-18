@@ -10,12 +10,12 @@ Unit = one interaction = a conversation + a memory-write. The 4 archetype agents
 |---|---|---|---|---|---|
 | conversational-chatbot (archetype) | 6369 (2030–17874) | 693 (185–1876) | 7.5 | 20.9 | 39 |
 | workflow-operator (archetype) | 20107 (3343–74345) | 1485 (419–3502) | 14.0 | 25.3 | 47 |
-| autonomous-researcher (archetype) | 44234 (16990–166168) | 8482 (4524–14742) | 7.8 | 171.2 | 201 |
+| autonomous-researcher (archetype) | 32585 (12516–122408) | 10739 (5728–18665) | 7.8 | 171.2 | 201 |
 | multi-agent-orchestrator (archetype) | 149080 (6076–8349717) | 6080 (1140–106637) | 18.9 | 90.6 | 100 |
-| financial-advisor | 21665 (3667–139557) | 1789 (709–16996) | 3.5 | 135.6 | 174 |
-| academic-research | 4055 (2367–8369) | 958 (341–3193) | 3.0 | 66.5 | 85 |
-| marketing-agency | 7027 (2621–18972) | 1184 (535–3126) | 3.7 | 187.9 | 231 |
-| blog-writer | 8882 (3278–17842) | 4135 (257–8595) | 4.8 | 101.3 | 138 |
+| financial-advisor | 23206 (3928–149479) | 9812 (3888–93198) | 3.5 | 135.6 | 174 |
+| academic-research | 4507 (2631–9301) | 1120 (399–3734) | 3.0 | 66.5 | 85 |
+| marketing-agency | 10304 (3843–27818) | 4046 (1828–10681) | 3.7 | 187.9 | 231 |
+| blog-writer | 11345 (4187–22789) | 5425 (337–11277) | 4.8 | 101.3 | 138 |
 | on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | 17.2 | 322.7 | 329 |
 | plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | 4.0 | 104.1 | 127 |
 | memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | 5.8 | 39.0 | 560 |
@@ -103,12 +103,12 @@ Reference only — list price, not actual billed. The usage tables above are the
 |---|---|---|---|---|---|
 | on-brand-genmedia | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
 | multi-agent-orchestrator (archetype) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
-| autonomous-researcher (archetype) | 0.0345 | 0.0101 | 0.0065 | 0.0810 (0.0340–0.1005) | Medium |
-| blog-writer | 0.0130 | 0.0058 | 0.0043 | 0.0595 (0.0385–0.0603) | High |
-| financial-advisor | 0.0110 | 0.0084 | 0.0030 | 0.0380 (0.0144–0.0876) | Very high |
-| marketing-agency | 0.0051 | 0.0062 | 0.0030 | 0.0252 (0.0120–0.0214) | Medium |
+| autonomous-researcher (archetype) | 0.0366 | 0.0101 | 0.0065 | 0.0822 (0.0347–0.1000) | Medium |
+| blog-writer | 0.0170 | 0.0058 | 0.0043 | 0.0638 (0.0389–0.0719) | High |
+| financial-advisor | 0.0315 | 0.0084 | 0.0030 | 0.0595 (0.0223–0.2893) | Very high |
+| marketing-agency | 0.0132 | 0.0062 | 0.0030 | 0.0339 (0.0149–0.0442) | Medium |
 | workflow-operator (archetype) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
-| academic-research | 0.0036 | 0.0028 | 0.0023 | 0.0195 (0.0067–0.0143) | High |
+| academic-research | 0.0042 | 0.0028 | 0.0023 | 0.0201 (0.0069–0.0172) | High |
 | memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
 | plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | conversational-chatbot (archetype) | 0.0036 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0160) | High |
