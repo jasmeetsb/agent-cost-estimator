@@ -51,8 +51,10 @@ Measured usage quantities per interaction (avg over 120 runs), with run-to-run r
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 149080 | 6076–8349717 | Very high |
 | Gemini output tokens (incl. thinking) | tokens | 6080 | 1140–106637 | Very high |
-| Gemini tokens — master/coordinator | tokens | 26067 | 17% of I/O | — |
-| Gemini tokens — sub-agents/tools | tokens | 129093 | 83% of I/O | — |
+| Gemini tokens — master/coordinator (input) | tokens | 33568 | — | — |
+| Gemini tokens — master/coordinator (output) | tokens | 366 | — | — |
+| Gemini tokens — sub-agents/tools (input) | tokens | 115512 | — | — |
+| Gemini tokens — sub-agents/tools (output) | tokens | 5714 | — | — |
 | Model calls | calls | 18.9 | — | Very high |
 | Agent Runtime — vCPU | vCPU-seconds | 90.6 | — | — |
 | Agent Runtime — memory | GiB-seconds | 100.3 | — | — |
@@ -64,6 +66,8 @@ Measured usage quantities per interaction (avg over 120 runs), with run-to-run r
 | Firestore — document reads | reads | 0.63 | — | — |
 | Vertex AI Search (RAG) — queries | searches | 0.42 | — | — |
 
+
+_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The input/output breakdown within each role applies the measured per-role in:out ratio (master 88:12, sub 61:39). Single-agent agents are 100% master._
 
 ## 5. Grounding & media usage
 

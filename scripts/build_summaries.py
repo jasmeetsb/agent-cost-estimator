@@ -41,6 +41,15 @@ def _load_correction(pkg):
         sp = json.loads(spp.read_text()).get("agents", {}).get(pkg)
     return ct, sp
 
+
+# Per-role input:output ratio, MEASURED from the two-model validation `token_count`
+# (model_user_id × type aggregate over all agents): master (gemini-3.5-flash) = 88:12 input:output,
+# sub (gemini-3.1-flash-lite) = 61:39. Used to allocate each agent's corrected input/output totals
+# to master vs sub (the per-agent role TOTAL is exact; this global in:out ratio is the one
+# approximation — weakest for the orchestrator, whose transfer-subs are more input-heavy).
+ROLE_MASTER_IN_W = 3482220 / (3482220 + 493323)   # 0.876
+ROLE_SUB_IN_W = 469042 / (469042 + 301609)          # 0.609
+
 # Vertex AI Search (RAG) query price. Source: GE AP calculator "Agent Search
 # (for RAG)" = $1.50 / 1K queries. Usage (query count) is the primary measure;
 # this price is the secondary derived-cost view.
@@ -662,11 +671,20 @@ def derive(pkg):
     # master vs sub-agent token decomposition (architecture-driven % from two-model validation)
     pct_master = pct_sub = None
     master_tok = sub_tok = None
+    master_in = master_out = sub_in = sub_out = None
     if split:
         pct_master, pct_sub = split["pct_master"], split["pct_sub"]
         tot = in_mean + out_mean
         master_tok = tot * pct_master / 100.0
         sub_tok = tot * pct_sub / 100.0
+        # allocate the agent's corrected input / output to master vs sub using the measured
+        # per-role in:out ratio (so master_in+sub_in == in_mean, master_out+sub_out == out_mean).
+        mt_i, st_i = master_tok * ROLE_MASTER_IN_W, sub_tok * ROLE_SUB_IN_W
+        mt_o, st_o = master_tok * (1 - ROLE_MASTER_IN_W), sub_tok * (1 - ROLE_SUB_IN_W)
+        in_mf = mt_i / (mt_i + st_i) if (mt_i + st_i) else 1.0
+        out_mf = mt_o / (mt_o + st_o) if (mt_o + st_o) else 1.0
+        master_in, sub_in = in_mean * in_mf, in_mean * (1 - in_mf)
+        master_out, sub_out = out_mean * out_mf, out_mean * (1 - out_mf)
 
     rag_total, rag_inters = count_rag_searches(pkg)
     web_ground_total, web_ground_inters = count_tool_calls(pkg, _WEB_GROUNDING_TOOLS)
@@ -700,6 +718,8 @@ def derive(pkg):
         "tok_factor": tok_factor, "tok_source": tok_source,
         "pct_master": pct_master, "pct_sub": pct_sub,
         "master_tok": master_tok, "sub_tok": sub_tok,
+        "master_in": master_in, "master_out": master_out,
+        "sub_in": sub_in, "sub_out": sub_out,
         "calls": v["model_calls"]["mean"], "calls_var": var_word(v["model_calls"]["cv_pct"]),
         "vcpu_sec": vcpu_total / n,
         "gib_sec": gib_total / n,
@@ -764,13 +784,22 @@ def agent_md(d):
                     f"vs `usage_metadata`)")
     else:
         tok_meas = "token usage from the model response (`usage_metadata`, exact)"
-    # Master vs sub-agent token split (architecture-driven %, from the two-model validation).
+    # Master vs sub-agent token split (architecture-driven %, from the two-model validation),
+    # broken out into input / output via the measured per-role in:out ratio (master 88:12, sub 61:39).
     split_rows = []
     if d.get("pct_master") is not None:
         split_rows = [
-            f"| Gemini tokens — master/coordinator | tokens | {d['master_tok']:.0f} | {d['pct_master']:.0f}% of I/O | — |",
-            f"| Gemini tokens — sub-agents/tools | tokens | {d['sub_tok']:.0f} | {d['pct_sub']:.0f}% of I/O | — |",
+            f"| Gemini tokens — master/coordinator (input) | tokens | {d['master_in']:.0f} | — | — |",
+            f"| Gemini tokens — master/coordinator (output) | tokens | {d['master_out']:.0f} | — | — |",
+            f"| Gemini tokens — sub-agents/tools (input) | tokens | {d['sub_in']:.0f} | — | — |",
+            f"| Gemini tokens — sub-agents/tools (output) | tokens | {d['sub_out']:.0f} | — | — |",
         ]
+    split_note = ("\n_Master vs sub-agent split: each agent's master/sub token share is measured "
+                  "directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools "
+                  "on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). "
+                  "The input/output breakdown within each role applies the measured per-role in:out "
+                  "ratio (master 88:12, sub 61:39). Single-agent agents are 100% master._"
+                  if d.get("pct_master") is not None else "")
     lines = [
         f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",
         f"- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `{d['engine']}`",
@@ -811,7 +840,7 @@ def agent_md(d):
          if d.get('rag_total', 0) else None),
         (f"| Google Search grounding — query turns | grounded turns | {d['web_ground_pi']:.2f} | — | — |"
          if d.get('web_ground_total', 0) else None),
-        retr_note, "",
+        retr_note, split_note, "",
         "## 5. Grounding & media usage", "",
         (f"- **Google Search grounding:** {d['web_ground_pi']:.2f} grounded query-turns per interaction "
          f"measured (web_researcher AgentTool invocations; each runs ≥1 native google_search "
@@ -1153,7 +1182,7 @@ def master(ds):
           "- **Interactions** — number of interactions the agent was tested over (sample size for every average in the row).",
           "- **Total turns** — total user turns sent to the agent across the whole experiment (Σ turns over all interactions); multi-turn archetypes send far more turns than interactions.",
           "- **Input tok / Output tok** — Gemini prompt tokens (incl. cached) / output tokens (candidates + thinking). Billed at the input / output rates. For multi-agent agents these are the **complete** totals from Cloud Monitoring `token_count` (captures AgentTool sub-agent tokens the response stream misses).",
-          "- **Master tok / Sub tok** — the input+output total split into coordinator/master vs sub-agent/tool tokens, using the per-agent architecture-driven % from the two-model validation (single-agent agents are 100% master; '—' = split not measured).",
+          "- **Master tok / Sub tok** — the input+output total split into coordinator/master vs sub-agent/tool tokens, using the per-agent architecture-driven % from the two-model validation (single-agent agents are 100% master; '—' = split not measured). Each role's **input/output breakdown** is in that agent's per-summary §4 (allocated via the measured per-role in:out ratio: master 88:12, sub 61:39).",
           "- **Model calls** — model invocations per interaction; one tool-using turn emits several.",
           "- **vCPU-s / GiB-s** — Agent Runtime vCPU-seconds / memory GiB-seconds, amortized over the measurement window (upper bound, not actual billed instance-time).",
           "- **Session events** — events appended to the Sessions (short-term memory) store.",

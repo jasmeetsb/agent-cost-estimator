@@ -52,8 +52,10 @@ Measured usage quantities per interaction (avg over 79 runs), with run-to-run ra
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 32585 | 12516–122408 | High |
 | Gemini output tokens (incl. thinking) | tokens | 10739 | 5728–18665 | Medium |
-| Gemini tokens — master/coordinator | tokens | 39468 | 91% of I/O | — |
-| Gemini tokens — sub-agents/tools | tokens | 3856 | 9% of I/O | — |
+| Gemini tokens — master/coordinator (input) | tokens | 30514 | — | — |
+| Gemini tokens — master/coordinator (output) | tokens | 8210 | — | — |
+| Gemini tokens — sub-agents/tools (input) | tokens | 2071 | — | — |
+| Gemini tokens — sub-agents/tools (output) | tokens | 2530 | — | — |
 | Model calls | calls | 7.8 | — | Medium |
 | Agent Runtime — vCPU | vCPU-seconds | 171.2 | — | — |
 | Agent Runtime — memory | GiB-seconds | 200.6 | — | — |
@@ -66,6 +68,8 @@ Measured usage quantities per interaction (avg over 79 runs), with run-to-run ra
 | Vertex AI Search (RAG) — queries | searches | 1.18 | — | — |
 | Google Search grounding — query turns | grounded turns | 1.62 | — | — |
 
+
+_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The input/output breakdown within each role applies the measured per-role in:out ratio (master 88:12, sub 61:39). Single-agent agents are 100% master._
 
 ## 5. Grounding & media usage
 

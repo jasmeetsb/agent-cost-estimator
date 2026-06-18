@@ -57,8 +57,10 @@ Measured usage quantities per interaction (avg over 80 runs), with run-to-run ra
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 4507 | 2631–9301 | Medium |
 | Gemini output tokens (incl. thinking) | tokens | 1120 | 399–3734 | High |
-| Gemini tokens — master/coordinator | tokens | 4254 | 76% of I/O | — |
-| Gemini tokens — sub-agents/tools | tokens | 1373 | 24% of I/O | — |
+| Gemini tokens — master/coordinator (input) | tokens | 3681 | — | — |
+| Gemini tokens — master/coordinator (output) | tokens | 555 | — | — |
+| Gemini tokens — sub-agents/tools (input) | tokens | 826 | — | — |
+| Gemini tokens — sub-agents/tools (output) | tokens | 565 | — | — |
 | Model calls | calls | 3.0 | — | Medium |
 | Agent Runtime — vCPU | vCPU-seconds | 66.5 | — | — |
 | Agent Runtime — memory | GiB-seconds | 85.2 | — | — |
@@ -72,6 +74,8 @@ Measured usage quantities per interaction (avg over 80 runs), with run-to-run ra
 | Google Search grounding — query turns | grounded turns | 0.70 | — | — |
 
 _Memory retrievals = 0 for this workload. `load_memory` returns memories only when (a) the agent invokes it and (b) earlier sessions generated **user-centric** memories worth recalling. Here it is 0 — the agent has no retrieval tool, or doesn't call it (support-FAQ chatbot answers directly), or calls it but its sessions produce no user-centric memories to retrieve (e.g., academic-research: topic Q&A, not facts about the user). The retrieval SKU IS exercised by financial-advisor, marketing-agency, blog-writer, workflow-operator, autonomous-researcher, and multi-agent-orchestrator (returning-user runs) + `memory_assistant`._
+
+_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The input/output breakdown within each role applies the measured per-role in:out ratio (master 88:12, sub 61:39). Single-agent agents are 100% master._
 
 ## 5. Grounding & media usage
 

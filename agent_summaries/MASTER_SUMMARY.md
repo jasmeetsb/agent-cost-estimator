@@ -63,7 +63,7 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 - **Interactions** — number of interactions the agent was tested over (sample size for every average in the row).
 - **Total turns** — total user turns sent to the agent across the whole experiment (Σ turns over all interactions); multi-turn archetypes send far more turns than interactions.
 - **Input tok / Output tok** — Gemini prompt tokens (incl. cached) / output tokens (candidates + thinking). Billed at the input / output rates. For multi-agent agents these are the **complete** totals from Cloud Monitoring `token_count` (captures AgentTool sub-agent tokens the response stream misses).
-- **Master tok / Sub tok** — the input+output total split into coordinator/master vs sub-agent/tool tokens, using the per-agent architecture-driven % from the two-model validation (single-agent agents are 100% master; '—' = split not measured).
+- **Master tok / Sub tok** — the input+output total split into coordinator/master vs sub-agent/tool tokens, using the per-agent architecture-driven % from the two-model validation (single-agent agents are 100% master; '—' = split not measured). Each role's **input/output breakdown** is in that agent's per-summary §4 (allocated via the measured per-role in:out ratio: master 88:12, sub 61:39).
 - **Model calls** — model invocations per interaction; one tool-using turn emits several.
 - **vCPU-s / GiB-s** — Agent Runtime vCPU-seconds / memory GiB-seconds, amortized over the measurement window (upper bound, not actual billed instance-time).
 - **Session events** — events appended to the Sessions (short-term memory) store.
