@@ -91,7 +91,7 @@ LEGEND = [
 
 def main():
     out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else REPO / "agent_summaries" / "MASTER_SUMMARY.xlsx"
-    rows = [bs.derive(p) for p in bs.PACKAGES] + [MA]
+    rows = [bs.derive(p) for p in bs.PACKAGES]  # memory_assistant now a full agent in PACKAGES
     rows.sort(key=_sortk)
 
     wb = openpyxl.Workbook()

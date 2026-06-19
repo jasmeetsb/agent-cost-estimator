@@ -5,7 +5,7 @@
 ## Executive summary
 
 - **13 agents deployed** on Vertex AI Agent Engine (Gemini Enterprise Agent Platform).
-- **Cost spans $0.0011–$0.0934 per interaction** at catalog list price (83× spread), driven by architecture (sub-agent fan-out, analysis depth) more than the prompt.
+- **Cost spans $0.0011–$0.0932 per interaction** at catalog list price (82× spread), driven by architecture (sub-agent fan-out, analysis depth) more than the prompt.
 - **Architecture matters more than prompt:** financial-advisor consumes ~7× more input tokens than the lightest agent and is the only **runtime-dominated** one.
 - **Run-to-run variability is real:** identical task can swing total cost ~2× (output/thinking tokens are the noisy SKU).
 - **Memory + session SKUs are a meaningful slice** even when memories are never read back — always present for any session-persisted agent.
@@ -34,8 +34,8 @@ All agents: model `gemini-2.5-flash`, deployed to Vertex AI Agent Engine. Reprod
 - **blog-writer** — Multi-agent technical blog authoring. Coordinator + 4 sub-agents (outline, draft, edit, social) + HITL refinement. → [details](blogger_agent.md)
 - **on-brand-genmedia** — Brand-compliant iterative image generation. Loop + Hierarchical: prompt → image (gemini-2.5-flash-image) → score → re-prompt if below threshold. Heaviest image-gen SKU usage in the corpus. → [details](on_brand_genmedia.md)
 - **plumber-data-engineering-assistant** — Build/deploy data pipelines. Deepest hierarchy in the corpus: root + 6 specialist sub-agents (Dataflow / Dataproc / Dataproc-templates / dbt / GitHub / Cloud Monitoring). Touches ~10–11 distinct GCP product SKUs by intent. → [details](plumber_agent.md)
-- **memory_assistant** — Personal assistant with long-term cross-session memory. Coordinator + 2 sub-agents + Memory Bank (write+read). Exercises the most Agent Platform features in this corpus. → [details](memory_assistant.md)
 - **fomc-research** — FOMC meeting financial-analysis report. Hierarchical + Sequential multimodal pipeline (BigQuery metadata + PDF transcripts via pdfplumber + multimodal Gemini). → [details](fomc_research.md)
+- **memory_assistant** — Personal assistant with long-term cross-session memory. Coordinator + 2 sub-agents + Memory Bank (write+read). Exercises the most Agent Platform features in this corpus. → [details](memory_assistant.md)
 - **nexshift-agent** — AI nurse rostering optimizer. Coordinator + 7 sub-agents + OR-Tools CP-SAT solver. 4 orchestration patterns (Hierarchical + Sequential + Parallel + HITL), 31 tools — broadest tool surface in the corpus. → [details](nexshift_agent.md)
 
 ## 0. All SKUs at a glance — full per-interaction matrix (PRIMARY)
@@ -52,10 +52,10 @@ Every measured SKU, per interaction, for all agents in one view. The **Interacti
 | [academic-research](academic_research.md) | 80 | 160 | 4507 | 1120 | 4254 | 1373 | 3.0 | 66.5 | 85 | 6.0 | 2480 | 0.00 | 0.04/0.56 | 0.34 | 0.70 | 0 | 0.0201 |
 | [marketing-agency](marketing_agency.md) | 80 | 160 | 10304 | 4046 | 13288 | 1062 | 3.7 | 187.9 | 231 | 7.6 | 2762 | 0.40 | 0.05/1.01 | 1.70 | 0.53 | 0 | 0.0339 |
 | [blog-writer](blogger_agent.md) | 80 | 160 | 11345 | 5425 | 11957 | 4813 | 4.8 | 101.3 | 138 | 11.1 | 4603 | 0.31 | 0.00/0.95 | 0.80 | 0.50 | 0 | 0.0638 |
-| [on-brand-genmedia](on_brand_genmedia.md) | 35 | — | 83460 | 7349 | — | — | 17.2 | 322.7 | 329 | 31.6 | 4191 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 27 | 0.0934 |
-| [plumber-data-engineering-assistant](plumber_agent.md) | 35 | — | 13800 | 1958 | — | — | 4.0 | 104.1 | 127 | 8.0 | 2853 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0143 |
-| [memory_assistant](memory_assistant.md) | — | — | 3398 | 1605 | — | — | 5.8 | 39.0 | 560 | 11.5 | 2493 | 2.50 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0165 |
-| [fomc-research](fomc_research.md) | 35 | — | 1838 | 479 | — | — | 2.3 | 30.1 | 55 | 4.8 | 2358 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0035 |
+| [on-brand-genmedia](on_brand_genmedia.md) | 80 | 160 | 63013 | 9560 | 28811 | 43761 | 6.9 | 488.8 | 519 | 14.1 | 2406 | 1.16 | 0.68/1.31 | 1.24 | 0.00 | 8 | 0.0572 |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 79 | 158 | 31203 | 4318 | 19607 | 15913 | 6.5 | 339.8 | 376 | 13.1 | 3147 | 1.89 | 0.11/0.65 | 1.11 | 1.09 | 0 | 0.0425 |
+| [fomc-research](fomc_research.md) | 80 | 160 | 27327 | 2103 | 13420 | 16010 | 4.7 | 208.5 | 261 | 9.8 | 2460 | 0.07 | 0.19/0.66 | 0.65 | 0.66 | 0 | 0.0274 |
+| [memory_assistant](memory_assistant.md) | 80 | 160 | 6294 | 2336 | 5773 | 2856 | 5.5 | 160.3 | 192 | 11.3 | 2472 | 0.89 | 2.26/0.31 | 0.00 | 0.00 | 0 | 0.0097 |
 | [nexshift-agent](nexshift_agent.md) | 35 | — | 0 | 0 | — | — | 0.0 | 12.8 | 37 | 2.0 | 2390 | 0.00 | 0.00/0.00 | 0.00 | 0.00 | 0 | 0.0011 |
 
 **Legend** — what each column means (all values are **per interaction**, averaged over the Interactions column, unless noted):
@@ -132,10 +132,10 @@ Input/output tokens split into master (coordinator) vs sub-agent/tool (measured 
 | [academic-research](academic_research.md) | 4507 (2631–9301) | 1120 (399–3734) | 3694 | 560 | 813 | 560 | 3.0 | 66.5 | 85 |
 | [marketing-agency](marketing_agency.md) | 10304 (3843–27818) | 4046 (1828–10681) | 9889 | 3399 | 415 | 647 | 3.7 | 187.9 | 231 |
 | [blog-writer](blogger_agent.md) | 11345 (4187–22789) | 5425 (337–11277) | 9268 | 2689 | 2077 | 2736 | 4.8 | 101.3 | 138 |
-| [on-brand-genmedia](on_brand_genmedia.md) | 83460 (24021–198338) | 7349 (2732–13376) | — | — | — | — | 17.2 | 322.7 | 329 |
-| [plumber-data-engineering-assistant](plumber_agent.md) | 13800 (13475–14578) | 1958 (829–3695) | — | — | — | — | 4.0 | 104.1 | 127 |
-| [memory_assistant](memory_assistant.md) | 3398 (2552–4001) | 1605 (752–3150) | — | — | — | — | 5.8 | 39.0 | 560 |
-| [fomc-research](fomc_research.md) | 1838 (1306–2800) | 479 (188–949) | — | — | — | — | 2.3 | 30.1 | 55 |
+| [on-brand-genmedia](on_brand_genmedia.md) | 63013 (13835–255802) | 9560 (4361–25255) | 27424 | 1387 | 35589 | 8172 | 6.9 | 488.8 | 519 |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 31203 (7667–85274) | 4318 (1019–11203) | 18553 | 1054 | 12650 | 3263 | 6.5 | 339.8 | 376 |
+| [fomc-research](fomc_research.md) | 27327 (4930–172106) | 2103 (221–7832) | 13067 | 353 | 14260 | 1750 | 4.7 | 208.5 | 261 |
+| [memory_assistant](memory_assistant.md) | 6294 (2089–21600) | 2336 (308–7357) | 4803 | 970 | 1490 | 1366 | 5.5 | 160.3 | 192 |
 | [nexshift-agent](nexshift_agent.md) | 0 (0–0) | 0 (0–0) | — | — | — | — | 0.0 | 12.8 | 37 |
 
 ## 2. SKU usage per interaction — Agent Platform features (PRIMARY)
@@ -150,10 +150,10 @@ Input/output tokens split into master (coordinator) vs sub-agent/tool (measured 
 | [academic-research](academic_research.md) | 6.0 | 2480 | 0.0 | 0.0 |
 | [marketing-agency](marketing_agency.md) | 7.6 | 2762 | 0.6 | 0.4 |
 | [blog-writer](blogger_agent.md) | 11.1 | 4603 | 0.3 | 0.3 |
-| [on-brand-genmedia](on_brand_genmedia.md) | 31.6 | 4191 | 0.5 | 0.0 |
-| [plumber-data-engineering-assistant](plumber_agent.md) | 8.0 | 2853 | 0.6 | 0.0 |
-| [memory_assistant](memory_assistant.md) | 11.5 | 2493 | 3.2 | 2.5 |
-| [fomc-research](fomc_research.md) | 4.8 | 2358 | 0.0 | 0.0 |
+| [on-brand-genmedia](on_brand_genmedia.md) | 14.1 | 2406 | 0.6 | 1.2 |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 13.1 | 3147 | 1.3 | 1.9 |
+| [fomc-research](fomc_research.md) | 9.8 | 2460 | 0.0 | 0.1 |
+| [memory_assistant](memory_assistant.md) | 11.3 | 2472 | 1.3 | 0.9 |
 | [nexshift-agent](nexshift_agent.md) | 2.0 | 2390 | 1.0 | 0.0 |
 
 _Memory retrievals vary by workload: task agents that recall prior user context (workflow, financial, marketing, blogger, researcher, orchestrator) retrieve a fraction of a memory per interaction via `load_memory`; the support-FAQ chatbot and topic-research academic retrieve ~0 (their turns produce/recall no user-centric memories). memory_assistant retrieves because cross-session recall is its core purpose._
@@ -172,10 +172,10 @@ Collectors: **`extract_grounding_from_events`** (per-interaction, attributable �
 | [academic-research](academic_research.md) | 0 | 0 |
 | [marketing-agency](marketing_agency.md) | 0 | 0 |
 | [blog-writer](blogger_agent.md) | 61 | 0 |
-| [on-brand-genmedia](on_brand_genmedia.md) | 0 | 27 |
+| [on-brand-genmedia](on_brand_genmedia.md) | 0 | 8 |
 | [plumber-data-engineering-assistant](plumber_agent.md) | 0 | 0 |
-| [memory_assistant](memory_assistant.md) | 0 | 0 |
 | [fomc-research](fomc_research.md) | 0 | 0 |
+| [memory_assistant](memory_assistant.md) | 0 | 0 |
 | [nexshift-agent](nexshift_agent.md) | 0 | 0 |
 
 _Would bill ~$0.035 per grounded prompt (Gemini 2.x) and ~$0.04 per image (Imagen) if triggered._
@@ -194,8 +194,8 @@ _Would bill ~$0.035 per grounded prompt (Gemini 2.x) and ~$0.04 per image (Image
 | [blog-writer](blogger_agent.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | [on-brand-genmedia](on_brand_genmedia.md) | ✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)** |
 | [plumber-data-engineering-assistant](plumber_agent.md) | ✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent) |
-| [memory_assistant](memory_assistant.md) | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
 | [fomc-research](fomc_research.md) | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended) |
+| [memory_assistant](memory_assistant.md) | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
 | [nexshift-agent](nexshift_agent.md) | ✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | — |
 
 **+ Firestore (operational DB):** the 4 archetype agents also exercise a real **Firestore** SKU (save_note/load_note → document writes/reads, scoped per authenticated user). Measured non-zero on all 4 (workflow_operator and autonomous_researcher heaviest: ~1–2 ops/interaction each). Cost is negligible (~$3e-7/interaction) but the SKU is exercised + measured. Not in the calculator (it only models BigQuery + Vector Search for data). The sample agents (EXP-006/007) don't use it.
@@ -206,18 +206,18 @@ Reference only — list price, not actual billed. The usage tables above are the
 
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
-| [on-brand-genmedia](on_brand_genmedia.md) | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
 | [multi-agent-orchestrator (archetype)](multi_agent_orchestrator.md) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
 | [autonomous-researcher (archetype)](autonomous_researcher.md) | 0.0366 | 0.0101 | 0.0065 | 0.0822 (0.0347–0.1000) | Medium |
 | [blog-writer](blogger_agent.md) | 0.0170 | 0.0058 | 0.0043 | 0.0638 (0.0389–0.0719) | High |
 | [financial-advisor](financial_advisor.md) | 0.0315 | 0.0084 | 0.0030 | 0.0595 (0.0223–0.2893) | Very high |
+| [on-brand-genmedia](on_brand_genmedia.md) | 0.0428 | 0.0000 | 0.0007 | 0.0572 (0.0198–0.1446) | High |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 0.0202 | 0.0000 | 0.0009 | 0.0425 (0.0058–0.0545) | Medium |
 | [marketing-agency](marketing_agency.md) | 0.0132 | 0.0062 | 0.0030 | 0.0339 (0.0149–0.0442) | Medium |
+| [fomc-research](fomc_research.md) | 0.0135 | 0.0000 | 0.0007 | 0.0274 (0.0028–0.0719) | Very high |
 | [workflow-operator (archetype)](workflow_operator.md) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
 | [academic-research](academic_research.md) | 0.0042 | 0.0028 | 0.0023 | 0.0201 (0.0069–0.0172) | High |
-| [memory_assistant](memory_assistant.md) | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
-| [plumber-data-engineering-assistant](plumber_agent.md) | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | [conversational-chatbot (archetype)](conversational_chatbot.md) | 0.0036 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0160) | High |
-| [fomc-research](fomc_research.md) | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
+| [memory_assistant](memory_assistant.md) | 0.0077 | 0.0000 | 0.0007 | 0.0097 (0.0022–0.0256) | High |
 | [nexshift-agent](nexshift_agent.md) | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 
 ## 5. Usage-pattern observations
@@ -242,13 +242,13 @@ Each agent's test consists of N **interactions**, each = a 2-turn conversation +
 | [academic-research](academic_research.md) | 45 | 2–16 | **160** | EXP-006 |
 | [blog-writer](blogger_agent.md) | 45 | 2–16 | **160** | EXP-006 |
 | [marketing-agency](marketing_agency.md) | 45 | 2–16 | **160** | EXP-006 |
+| [fomc-research](fomc_research.md) | 5 | 32 | **160** | EXP-007 |
+| [on-brand-genmedia](on_brand_genmedia.md) | 5 | 32 | **160** | EXP-007 |
+| [plumber-data-engineering-assistant](plumber_agent.md) | 5 | 30–32 | **158** | EXP-007 |
 | [nexshift-agent](nexshift_agent.md) | 35 | 2 | **70** | EXP-007 |
-| [fomc-research](fomc_research.md) | 35 | 2 | **70** | EXP-007 |
-| [plumber-data-engineering-assistant](plumber_agent.md) | 35 | 2 | **70** | EXP-007 |
-| [on-brand-genmedia](on_brand_genmedia.md) | 35 | 2 | **70** | EXP-007 |
 | [memory_assistant](memory_assistant.md) | 4 | 3 | **12** | EXP-005 |
 | grounded_news (validation) | 2 | 1 | **2** | collector-validation |
-| **TOTAL** | — | — | **2477** | all experiments combined |
+| **TOTAL** | — | — | **2745** | all experiments combined |
 
 Full per-turn transcripts (input, output_text, tool calls/responses, per-step usage) live at `data/transcript_<agent>.jsonl` locally. **Not committed** — `data/` is gitignored as runtime artifact. Each per-agent doc's §7 shows the workload prompts + one sample interaction inline.
 
@@ -264,8 +264,8 @@ Full per-turn transcripts (input, output_text, tool calls/responses, per-step us
 - [blog-writer](blogger_agent.md) — Multi-agent technical blog authoring.
 - [on-brand-genmedia](on_brand_genmedia.md) — Brand-compliant iterative image generation.
 - [plumber-data-engineering-assistant](plumber_agent.md) — Build/deploy data pipelines.
-- [memory_assistant](memory_assistant.md) — Personal assistant with long-term cross-session memory.
 - [fomc-research](fomc_research.md) — FOMC meeting financial-analysis report.
+- [memory_assistant](memory_assistant.md) — Personal assistant with long-term cross-session memory.
 - [nexshift-agent](nexshift_agent.md) — AI nurse rostering optimizer.
 
 ## Method & reproducibility

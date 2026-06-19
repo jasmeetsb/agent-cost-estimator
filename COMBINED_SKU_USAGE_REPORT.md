@@ -18,10 +18,10 @@ Input/output tokens split into master (coordinator) vs sub-agent/tool (measured 
 | academic-research | 4507 (2631–9301) | 1120 (399–3734) | 3694 | 560 | 813 | 560 | 3.0 | 66.5 | 85 |
 | marketing-agency | 10304 (3843–27818) | 4046 (1828–10681) | 9889 | 3399 | 415 | 647 | 3.7 | 187.9 | 231 |
 | blog-writer | 11345 (4187–22789) | 5425 (337–11277) | 9268 | 2689 | 2077 | 2736 | 4.8 | 101.3 | 138 |
-| on-brand-genmedia | 83460 (24021–198338) | 7349 (2732–13376) | — | — | — | — | 17.2 | 322.7 | 329 |
-| plumber-data-engineering-assistant | 13800 (13475–14578) | 1958 (829–3695) | — | — | — | — | 4.0 | 104.1 | 127 |
-| memory_assistant | 3398 (2552–4001) | 1605 (752–3150) | — | — | — | — | 5.8 | 39.0 | 560 |
-| fomc-research | 1838 (1306–2800) | 479 (188–949) | — | — | — | — | 2.3 | 30.1 | 55 |
+| on-brand-genmedia | 63013 (13835–255802) | 9560 (4361–25255) | 27424 | 1387 | 35589 | 8172 | 6.9 | 488.8 | 519 |
+| plumber-data-engineering-assistant | 31203 (7667–85274) | 4318 (1019–11203) | 18553 | 1054 | 12650 | 3263 | 6.5 | 339.8 | 376 |
+| fomc-research | 27327 (4930–172106) | 2103 (221–7832) | 13067 | 353 | 14260 | 1750 | 4.7 | 208.5 | 261 |
+| memory_assistant | 6294 (2089–21600) | 2336 (308–7357) | 4803 | 970 | 1490 | 1366 | 5.5 | 160.3 | 192 |
 | nexshift-agent | 0 (0–0) | 0 (0–0) | — | — | — | — | 0.0 | 12.8 | 37 |
 
 ## 2. SKU usage per interaction — Agent Platform features (PRIMARY)
@@ -36,10 +36,10 @@ Input/output tokens split into master (coordinator) vs sub-agent/tool (measured 
 | academic-research | 6.0 | 2480 | 0.0 | 0.0 |
 | marketing-agency | 7.6 | 2762 | 0.6 | 0.4 |
 | blog-writer | 11.1 | 4603 | 0.3 | 0.3 |
-| on-brand-genmedia | 31.6 | 4191 | 0.5 | 0.0 |
-| plumber-data-engineering-assistant | 8.0 | 2853 | 0.6 | 0.0 |
-| memory_assistant | 11.5 | 2493 | 3.2 | 2.5 |
-| fomc-research | 4.8 | 2358 | 0.0 | 0.0 |
+| on-brand-genmedia | 14.1 | 2406 | 0.6 | 1.2 |
+| plumber-data-engineering-assistant | 13.1 | 3147 | 1.3 | 1.9 |
+| fomc-research | 9.8 | 2460 | 0.0 | 0.1 |
+| memory_assistant | 11.3 | 2472 | 1.3 | 0.9 |
 | nexshift-agent | 2.0 | 2390 | 1.0 | 0.0 |
 
 _Memory retrievals vary by workload: task agents that recall prior user context (workflow, financial, marketing, blogger, researcher, orchestrator) retrieve a fraction of a memory per interaction via `load_memory`; the support-FAQ chatbot and topic-research academic retrieve ~0 (their turns produce/recall no user-centric memories). memory_assistant retrieves because cross-session recall is its core purpose._
@@ -58,10 +58,10 @@ Collectors added for Google Search grounding (Cloud Monitoring) and image genera
 | academic-research | 0 | 0 |
 | marketing-agency | 0 | 0 |
 | blog-writer | 61 | 0 |
-| on-brand-genmedia | 0 | 27 |
+| on-brand-genmedia | 0 | 8 |
 | plumber-data-engineering-assistant | 0 | 0 |
-| memory_assistant | 0 | 0 |
 | fomc-research | 0 | 0 |
+| memory_assistant | 0 | 0 |
 | nexshift-agent | 0 | 0 |
 
 _Would bill ~$0.035 per grounded request (Gemini 2.x) and ~$0.04 per image (Imagen) if triggered._
@@ -80,6 +80,10 @@ Per-interaction quantities for the archetype agents (Firestore document ops via 
 | academic-research | 0.04 | 0.56 | 0.34 | 0.70 |
 | marketing-agency | 0.05 | 1.01 | 1.70 | 0.53 |
 | blog-writer | 0.00 | 0.95 | 0.80 | 0.50 |
+| on-brand-genmedia | 0.68 | 1.31 | 1.24 | 0.00 |
+| plumber-data-engineering-assistant | 0.11 | 0.65 | 1.11 | 1.09 |
+| fomc-research | 0.19 | 0.66 | 0.65 | 0.66 |
+| memory_assistant | 2.26 | 0.31 | 0.00 | 0.00 |
 
 _RAG priced at $1.50/1K queries, Google Search grounding at $14/1K grounded turns, Firestore at catalog read/write rates (GE AP calculator). Usage counts are the deliverable; cost is the secondary view in §4. Google Search grounding = web_researcher AgentTool invocations (native google_search grounding_metadata is encapsulated by the tool; Monitoring does not track native ADK google_search)._
 
@@ -93,8 +97,8 @@ _RAG priced at $1.50/1K queries, Google Search grounding at $14/1K grounded turn
 | blog-writer | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — |
 | on-brand-genmedia | ✓ | ✓ | ✓ | ✓ (write) | — | **27 images measured (gemini-2.5-flash-image)** |
 | plumber-data-engineering-assistant | ✓ | ✓ | ✓ | ✓ (write) | — | — (+BQ/GCS/Dataflow/Dataproc/Dataform by intent) |
-| memory_assistant | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
 | fomc-research | ✓ | ✓ | ✓ | ✓ (write) | capable, 0 measured | — (BigQuery + Cloud Storage intended) |
+| memory_assistant | ✓ | ✓ | ✓ | ✓ (write+read) | — | — |
 | nexshift-agent | ✓ | ✓ (CP-SAT compute) | ✓ | ✓ (write) | — | — |
 
 ## 4. Secondary: derived cost per interaction (usage × catalog list price)
@@ -103,18 +107,18 @@ Reference only — list price, not actual billed. The usage tables above are the
 
 | Agent | Gemini $ | Runtime $ | Mem+Sess $ | Total $ (range) | Cost variability |
 |---|---|---|---|---|---|
-| on-brand-genmedia | 0.0434 | 0.0086 | 0.0015 | 0.0934 (0.0549–0.1254) | Medium |
 | multi-agent-orchestrator (archetype) | 0.0599 | 0.0067 | 0.0104 | 0.0932 (0.0225–2.7886) | Very high |
 | autonomous-researcher (archetype) | 0.0366 | 0.0101 | 0.0065 | 0.0822 (0.0347–0.1000) | Medium |
 | blog-writer | 0.0170 | 0.0058 | 0.0043 | 0.0638 (0.0389–0.0719) | High |
 | financial-advisor | 0.0315 | 0.0084 | 0.0030 | 0.0595 (0.0223–0.2893) | Very high |
+| on-brand-genmedia | 0.0428 | 0.0000 | 0.0007 | 0.0572 (0.0198–0.1446) | High |
+| plumber-data-engineering-assistant | 0.0202 | 0.0000 | 0.0009 | 0.0425 (0.0058–0.0545) | Medium |
 | marketing-agency | 0.0132 | 0.0062 | 0.0030 | 0.0339 (0.0149–0.0442) | Medium |
+| fomc-research | 0.0135 | 0.0000 | 0.0007 | 0.0274 (0.0028–0.0719) | Very high |
 | workflow-operator (archetype) | 0.0097 | 0.0029 | 0.0081 | 0.0232 (0.0132–0.0416) | High |
 | academic-research | 0.0042 | 0.0028 | 0.0023 | 0.0201 (0.0069–0.0172) | High |
-| memory_assistant | 0.0050 | 0.0035 | 0.0080 | 0.0165 (0.0144–0.0206) | High |
-| plumber-data-engineering-assistant | 0.0090 | 0.0028 | 0.0009 | 0.0143 (0.0099–0.0172) | Medium |
 | conversational-chatbot (archetype) | 0.0036 | 0.0019 | 0.0045 | 0.0139 (0.0074–0.0160) | High |
-| fomc-research | 0.0017 | 0.0009 | 0.0007 | 0.0035 (0.0025–0.0048) | Medium |
+| memory_assistant | 0.0077 | 0.0000 | 0.0007 | 0.0097 (0.0022–0.0256) | High |
 | nexshift-agent | 0.0000 | 0.0004 | 0.0007 | 0.0011 (0.0011–0.0011) | Low |
 
 ## 5. Usage-pattern observations

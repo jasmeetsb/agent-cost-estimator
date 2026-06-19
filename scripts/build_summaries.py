@@ -438,6 +438,40 @@ META["conversational_chatbot"] = {
     "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank. (BigQuery/KB lookup "
             "mocked locally — would bill BigQuery in production.)",
 }
+
+META["memory_assistant"] = {
+    "title": "memory_assistant", "use_case": "Personal assistant with cross-session memory",
+    "complexity": "High: Hierarchical + Memory Bank",
+    "pattern": "Coordinator + 2 sub-agents (transfer) + Memory Bank + Firestore",
+    "diagram": """graph TB
+    User([User]) <--> Coord
+    subgraph Engine["Agent Engine — memory_assistant"]
+        direction TB
+        Coord["personal_assistant (Gemini 2.5 Flash)"]
+        Coord -->|tool| LM[load_memory]
+        Coord -->|tool| SN[save_note / load_note]
+        Coord -->|sub-agent| PREF["prefs_agent"]
+        Coord -->|sub-agent| NOTE["notes_agent"]
+    end
+    subgraph Core["Always-on Agent Platform SKUs"]
+        direction LR
+        Gemini[("Gemini 2.5 Flash<br/>per-token")]
+        Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
+        Sess[("Sessions<br/>per event appended")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+        FS[("Firestore<br/>per document op")]
+    end
+    Engine -.-> Core""",
+    "arch": ("Personal assistant with long-term cross-session memory (coordinator + 2 specialist "
+             "sub-agents via transfer: prefs_agent for unit preferences, notes_agent for checklists). "
+             "Recalls the user every turn with `load_memory` and persists details with Firestore "
+             "`save_note`/`load_note`. Memory-Bank-driven: its defining cost is memory generation + "
+             "retrieval, not conversation tokens. Sub-agents run via `transfer_to_agent`, so their "
+             "tokens appear in the stream (no AgentTool undercount)."),
+    "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; **Memory Bank** (generation + "
+            "retrieval — the defining SKU); **Firestore** (save_note/load_note). No RAG / Search "
+            "grounding / Imagen.",
+}
 META["workflow_operator"] = {
     "title": "workflow-operator (archetype)", "use_case": "Order-fulfillment workflow operator",
     "complexity": "Archetype: Workflow Operator / Moderate",
@@ -541,6 +575,7 @@ META["multi_agent_orchestrator"] = {
 
 PACKAGES = ["financial_advisor", "academic_research", "blogger_agent", "marketing_agency",
             "nexshift_agent", "fomc_research", "plumber_agent", "on_brand_genmedia",
+            "memory_assistant",
             "conversational_chatbot", "workflow_operator", "autonomous_researcher",
             "multi_agent_orchestrator"]
 
@@ -923,13 +958,7 @@ def agent_md(d):
 
 
 def combined(ds):
-    ma = {"title": "memory_assistant", "complexity": "High", "pattern": "Hierarchical + Memory Bank",
-          "in_tok": 3398, "in_rng": "2552–4001", "out_tok": 1605, "out_rng": "752–3150",
-          "calls": 5.75, "vcpu_sec": 39.0, "gib_sec": 560.0, "sess": 11.5, "gen_tok": 2493,
-          "mem_written": 3.25, "mem_retrieved": 2.5, "web_searches": 0, "images": 0,
-          "c_model": 0.0050, "c_runtime": 0.0035, "c_memsess": 0.0080, "c_total": 0.0165,
-          "c_total_min": 0.0144, "c_total_max": 0.0206, "cost_var": "High"}
-    rows = ds + [ma]
+    rows = ds  # memory_assistant is now a full derive() agent (in PACKAGES), not a hardcoded row
     # Row order: the 4 archetypes first, then the 4 actively-developed use-case agents,
     # then everything else (by input-token weight). Keeps the most relevant rows on top.
     _ARCHE = ["conversational_chatbot", "workflow_operator", "autonomous_researcher", "multi_agent_orchestrator"]
@@ -1110,13 +1139,7 @@ def linkify(name: str) -> str:
 
 
 def master(ds):
-    ma = {"title": "memory_assistant", "complexity": "High", "pattern": "Hierarchical + Memory Bank",
-          "in_tok": 3398, "in_rng": "2552–4001", "out_tok": 1605, "out_rng": "752–3150",
-          "calls": 5.75, "vcpu_sec": 39.0, "gib_sec": 560.0, "sess": 11.5, "gen_tok": 2493,
-          "mem_written": 3.25, "mem_retrieved": 2.5, "web_searches": 0, "images": 0,
-          "c_model": 0.0050, "c_runtime": 0.0035, "c_memsess": 0.0080, "c_total": 0.0165,
-          "c_total_min": 0.0144, "c_total_max": 0.0206, "cost_var": "High"}
-    rows = ds + [ma]
+    rows = ds  # memory_assistant is now a full derive() agent (in PACKAGES), not a hardcoded row
     # Row order: the 4 archetypes first, then the 4 actively-developed use-case agents,
     # then everything else (by input-token weight). Keeps the most relevant rows on top.
     _ARCHE = ["conversational_chatbot", "workflow_operator", "autonomous_researcher", "multi_agent_orchestrator"]

@@ -71,9 +71,13 @@ WORKLOADS = {
         "Generate a brand-aligned hero image for a coffee shop's grand opening promotion.",
         "Now create a variation sized for an Instagram banner.",
     ],
+    "memory_assistant": [
+        "Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.",
+        "What's 70F in my preferred units, and suggest a quick dinner idea for me.",
+    ],
     "plumber_agent": [
-        "Design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery.",
-        "What would the dbt model look like to aggregate the daily data into weekly summaries?",
+        "First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery.",
+        "Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me.",
     ],
     # ---- Archetype agents (moderate complexity) ----
     "conversational_chatbot": [

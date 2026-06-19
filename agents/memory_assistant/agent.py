@@ -8,7 +8,9 @@ the `reasoning_engine/memory_bank/*` SKUs in addition to tokens and runtime.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools import preload_memory
+from google.adk.tools import load_memory
+
+from .fs_state import save_note, load_note
 
 MODEL = "gemini-2.5-flash"
 
@@ -62,11 +64,22 @@ root_agent = Agent(
     description="A personal assistant that remembers the user across sessions.",
     instruction=(
         "You are a personal assistant with long-term memory of the user. "
-        "Recalled facts about the user appear in context — use them to "
-        "personalize answers without re-asking. Delegate preference/unit "
-        "questions to prefs_agent and list/note formatting to notes_agent. "
-        "Keep answers concise."
+        "At the START of every conversation, ALWAYS call load_memory to recall prior "
+        "memories about this user (and load_note, topic = their name or 'user', for stored "
+        "notes), then personalize answers without re-asking. When the user shares a preference "
+        "or detail about themselves, persist it with save_note (topic = their name or 'user'). "
+        "Delegate preference/unit questions to prefs_agent and list/note formatting to "
+        "notes_agent. Keep answers concise."
     ),
-    tools=[preload_memory],
+    tools=[load_memory, save_note, load_note],
     sub_agents=[prefs_agent, notes_agent],
 )
+
+# Two-model split: coordinator -> gemini-3.5-flash, all sub-agents/tools -> gemini-3.1-flash-lite
+# (global Vertex endpoint) when COST_TWO_MODEL=1; default deploy = single gemini-2.5-flash.
+import os as _os  # noqa: E402
+from ._gmodel import apply_split, apply_uniform  # noqa: E402
+if _os.environ.get("COST_TWO_MODEL") == "1":
+    apply_split(root_agent)
+else:
+    apply_uniform(root_agent, "gemini-2.5-flash")

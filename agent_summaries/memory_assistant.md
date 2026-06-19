@@ -1,162 +1,206 @@
-# Agent Cost Summary — `memory_assistant`
+# SKU Usage Summary — `memory_assistant` (memory_assistant)
 
-> **Template note:** this is the per-agent summary format we produce for every agent. Sections:
-> (1) architecture, (2) components/SKUs used, (3) how experiments were run, (4) typical usage +
-> cost with variance. Copy this file per agent and fill from its experiment reports.
-
-- **Model:** gemini-2.5-flash
-- **Engine:** `reasoningEngines/4783370910813913088` (Vertex AI Agent Engine / GEAP Agent Runtime)
-- **Experiments:** EXP-004 (full priced breakdown), EXP-005 (4-run variability) — see PROJECT_RUNBOOK.md
-- **Status:** most complex agent deployed (sub-agents + Memory Bank)
-
----
+- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6626790115710599168`
+- **Use case:** Personal assistant with cross-session memory · **Complexity:** High: Hierarchical + Memory Bank
+- **Unit:** 1 interaction = 2-turn conversation + memory-write (5.5 model calls avg), averaged over **80 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
 
-A coordinator with long-term memory that delegates to two specialist sub-agents.
-
-```
-personal_assistant (coordinator, gemini-2.5-flash)
-├── tool: preload_memory            ← recalls user facts from Memory Bank each turn
-├── sub_agent: prefs_agent          → set_unit_preference, convert_temp
-└── sub_agent: notes_agent          → make_checklist
-
-Memory Bank (auto-wired on Agent Engine deploy, ADK >=1.5.0)
-  - add_session_to_memory → server-side LLM extracts memories
-  - preload_memory        → retrieves memories into context
-Sessions (managed, persistent) → every turn/event persisted
-```
-
 ```mermaid
 graph TB
-    User([User]) <-->|2 sessions across days| Coord
-    subgraph Engine["Vertex AI Agent Engine — memory_assistant"]
+    User([User]) <--> Coord
+    subgraph Engine["Agent Engine — memory_assistant"]
         direction TB
-        Coord["personal_assistant<br/>(preload_memory tool)"]
-        Coord --> P[prefs_agent]
-        Coord --> N[notes_agent]
+        Coord["personal_assistant (Gemini 2.5 Flash)"]
+        Coord -->|tool| LM[load_memory]
+        Coord -->|tool| SN[save_note / load_note]
+        Coord -->|sub-agent| PREF["prefs_agent"]
+        Coord -->|sub-agent| NOTE["notes_agent"]
     end
     subgraph Core["Always-on Agent Platform SKUs"]
         direction LR
         Gemini[("Gemini 2.5 Flash<br/>per-token")]
         Runtime[("Agent Runtime<br/>vCPU + memory-sec")]
         Sess[("Sessions<br/>per event appended")]
-        MB[("Memory Bank<br/>per memory + gen tokens<br/>(read+write+gen)")]
+        MB[("Memory Bank<br/>per memory + gen tokens")]
+        FS[("Firestore<br/>per document op")]
     end
     Engine -.-> Core
 ```
 
-**Cost unit — "1 interaction" = 3 user messages across 2 sessions** (NOT a single query):
-1. Session A, turn 1 — give facts (name/job)
-2. Session A, turn 2 — give preferences (units/diet)
-3. `add_session_to_memory` — server-side memory generation
-4. Session B, turn 1 — recall question
+Personal assistant with long-term cross-session memory (coordinator + 2 specialist sub-agents via transfer: prefs_agent for unit preferences, notes_agent for checklists). Recalls the user every turn with `load_memory` and persists details with Firestore `save_note`/`load_note`. Memory-Bank-driven: its defining cost is memory generation + retrieval, not conversation tokens. Sub-agents run via `transfer_to_agent`, so their tokens appear in the stream (no AgentTool undercount).
 
-Those 3 turns fan out to ~5.75 model calls and ~9 Agent Runtime requests. All "per interaction"
-numbers below cover this whole flow — so they are **not comparable** to a single-query agent's
-$/query (e.g. weather/research, EXP-001/002). Normalize to $/turn or $/model-call to compare.
+**Pattern:** Coordinator + 2 sub-agents (transfer) + Memory Bank + Firestore
 
----
+## 2. SKUs (products) consumed
 
-## 2. Components / SKUs used
+Gemini tokens; Agent Runtime (vCPU + memory); Sessions; **Memory Bank** (generation + retrieval — the defining SKU); **Firestore** (save_note/load_note). No RAG / Search grounding / Imagen.
 
-| GCP component | SKU / meter | Capture source |
-|---------------|-------------|----------------|
-| Gemini 2.5 Flash | input/output/cached tokens | `usage_metadata` (per query) |
-| Agent Runtime | vCPU-sec + GiB-sec | Cloud Monitoring `reasoning_engine/*/allocation_time` |
-| Memory Bank — generate | Gemini tokens (server-side) | Monitoring `memory_bank/generate_memories_token_count` |
-| Memory Bank — retrieve | per retrieval op | Monitoring `memory_bank/memory_retrieval_count` |
-| Memory Bank — store | per memory/month | export-only (monthly) |
-| Sessions | per event appended | observed events (approx; export for authoritative) |
-| Cloud Trace / Logging / GCS | spans / GiB / GB-mo | not captured (needs export) |
+(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
 
-All prices are catalog list prices pulled live via `pricing.py`.
+## 3. How usage was measured
 
----
+Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **80 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
+Reproduce: `python scripts/exp_sample.py --package memory_assistant --runs 80 --settle 300`
 
-## 3. How the experiments were run
+## 4. SKU usage per interaction (PRIMARY)
 
-1. **Deploy once** to Agent Engine (`scripts/deploy.py --agent memory_assistant`); Memory Bank +
-   managed Sessions auto-wire.
-2. **Drive the workflow** (`scripts/exp004_memory.py`, `scripts/exp005_variability.py`):
-   per run = Session A (2 fact turns) → `add_session_to_memory` → 20s wait → Session B (recall).
-   Per-run token usage captured instantly from `usage_metadata`.
-3. **Settle ~300s** for Cloud Monitoring ingestion (metrics lag ~3–5 min), then pull runtime +
-   memory_bank metrics scoped to the engine over the run window (60s alignment, sum-in-window).
-4. **Repeat N times** (EXP-005: 4 runs, fresh user each to isolate per-run noise) and compute
-   typical (average), range (low–high), and variability for each usage dimension.
-5. **Price** every captured quantity × catalog rate; report per-SKU and total per run.
+Measured usage quantities per interaction (avg over 80 runs), with run-to-run range and variability.
 
-Reproduce: `python scripts/exp005_variability.py --runs 4 --settle 300`.
+| SKU dimension | Unit | Typical | Range | Variability |
+|---|---|---|---|---|
+| Gemini input tokens | tokens | 6294 | 2089–21600 | High |
+| Gemini output tokens (incl. thinking) | tokens | 2336 | 308–7357 | High |
+| Gemini tokens — master/coordinator (input) | tokens | 4803 | — | — |
+| Gemini tokens — master/coordinator (output) | tokens | 970 | — | — |
+| Gemini tokens — sub-agents/tools (input) | tokens | 1490 | — | — |
+| Gemini tokens — sub-agents/tools (output) | tokens | 1366 | — | — |
+| Model calls | calls | 5.5 | — | Medium |
+| Agent Runtime — vCPU | vCPU-seconds | 160.3 | — | — |
+| Agent Runtime — memory | GiB-seconds | 192.2 | — | — |
+| Sessions | events appended | 11.3 | — | Medium |
+| Memory Bank — generation | tokens | 2472 | — | — |
+| Memory Bank — memories written | memories | 1.3 | — | — |
+| Memory Bank — retrievals | reads | 0.9 | — | — |
+| Firestore — document writes | writes | 2.26 | — | — |
+| Firestore — document reads | reads | 0.31 | — | — |
 
----
 
-## 4. Typical usage & cost (per interaction)
+_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The four input/output × master/sub values reconcile both the master/sub totals and the input/output totals (seeded by the measured per-role in:out ratio — master 88:12, sub 61:39). Single-agent agents are 100% master._
 
-### Usage distribution (EXP-005, 4 runs, identical workload)
+## 5. Grounding & media usage
 
-| Metric | Typical (avg) | Range (low–high) | Variability |
-|--------|---------------|------------------|-------------|
-| input tokens | 3,398 | 2,552–4,001 | Medium |
-| output tokens (incl. thinking) | 1,605 | 752–3,150 | **High** |
-| model calls | 5.75 | 5–6 | Low |
-| session events | 11.5 | 10–12 | Low |
-| memory retrievals / run | ~2.5 | — | — |
-| memories written / run | ~3.25 | — | — |
-| recall success | 100% | — | — |
+- **Google Search grounding:** 0 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
+- **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
 
-### Cost per interaction, by SKU (typical, catalog list price)
+## 5b. Caveats on usage capture
 
-| SKU | typical / run | notes |
-|-----|---------------|-------|
-| Conversation tokens | **$0.0050** | range $0.0029–$0.0091 — the main cost swing |
-| Memory generation tokens | ~$0.0008 | ~2,500 tok @ input rate |
-| Memory retrievals | ~$0.0013 | ~2.5 × $0.0005 |
-| Session events | ~$0.0029 | ~11.5 × $0.00025 |
-| Agent Runtime (amortized) | ~$0.0035 | **utilization-dependent** — low here (busy window); rises at low QPS |
-| **Total per interaction** | **≈ $0.013** | excludes monthly memory storage + Trace/Logging/egress |
+- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).
+- Memory storage (stored-memory count over time) is export-only.
+- Grounding count is project-wide (no per-engine label); image count is event-based.
+- Still uncaptured: Cloud Trace, Logging, Storage.
 
-### Variance summary
+## 6. Secondary: derived cost (usage × catalog list price)
 
-- **Model cost swings ~3.1× run-to-run** for the identical task (high variability), driven almost
-  entirely by **output/thinking tokens** — the model "thinks" a variable amount each run.
-- **Structural usage is stable** (model calls, session events, input tokens vary little run-to-run).
-- **Function is reliable** (100% recall), so the variability is in *cost*, not correctness.
-- **Runtime cost is utilization-dependent**, not a fixed per-run number: idle memory allocation
-  dominates at low QPS (see EXP-001), so always state a queries/hour assumption.
+Provided for reference only. List price, not actual billed; **usage above is the primary output.**
 
-**Bottom line:** budget **~$0.013 per interaction at list price**, but treat it as a distribution
-(±50% on the model-token portion). For an SLA/quote, use the p50–max range, not the mean, and pin a
-utilization assumption for the runtime component.
+| SKU | $/interaction |
+|---|---|
+| Gemini tokens | 0.0077 |
+| Agent Runtime | 0.0000 |
+| Memory Bank + Sessions | 0.0007 |
+| Firestore (181w/25r over 80 runs) | 0.0000006 |
+| Memory Bank retrieval (0.89 memories retrieved/intxn @ $0.5/1K) | 0.000444 |
+| Model Armor (derived: 8630 tok scanned @ $0.10/1M) | 0.000863 |
+| **Total (measured SKUs)** | **0.0097** (range 0.0022–0.0256) |
 
----
+## 7. Test workload & sample interactions
 
-## 5. Caveats & not-yet-captured
-- Catalog **list price**, not the project's actual billed rate (internal project; true $ needs BigQuery export).
-- **Memory storage** (monthly) and **session-event** authoritative counts are export-only.
-- **Cloud Trace** (enabled on deploy), **Logging**, **GCS**, **egress** not captured.
-- Runtime amortization depends on the measurement window's utilization.
+**5 interactions** (160 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
 
-## 6. Test workload & sample interaction
+**Workload (turn-by-turn):**
 
-Total user turns across EXP-004 + EXP-005: **15** (1 single full run + 4 variability runs × 3 turns).
-Each "interaction" is a **3-turn flow across 2 sessions** + an `add_session_to_memory` call between
-sessions. Fresh `user_id` per variability run so memory state doesn't carry across.
+| Turn | User query |
+|---|---|
+| 1 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 2 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 3 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 4 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 5 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 6 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 7 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 8 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 9 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 10 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 11 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 12 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 13 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 14 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 15 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 16 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 17 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 18 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 19 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 20 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 21 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 22 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 23 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 24 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 25 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 26 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 27 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 28 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 29 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 30 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
+| 31 | Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that. |
+| 32 | What's 70F in my preferred units, and suggest a quick dinner idea for me. |
 
-**Repeated workload (turn-by-turn):**
+**Sample interaction (first run):**
 
-| Turn | Session | User query |
-|---|---|---|
-| 1 | A | Hi! My name is Alice and I'm a marine biologist in Lisbon. |
-| 2 | A | Please remember I always prefer metric units and I'm vegetarian. |
-| — | — | *(server-side `add_session_to_memory` → Memory Bank generates memories)* |
-| 3 | B | Based on what you know about me, suggest what I should pack for a research trip, and note my dietary preference. |
+- **Turn 1** (1428 in / 173 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Got it, Sam! I'll remember that you prefer metric units and are vegetarian.
+- **Turn 2** (3993 in / 1665 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is approximately 21.1°C.  70°F is approximately 21.1°C.  For a quick vegetarian dinner, how about a 15-minute black bean quesadilla? Just sauté some black beans with your favorite spices (like cu…
+- **Turn 3** (1810 in / 559 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Thanks, Sam! I've made a note that you prefer metric units and are vegetarian. I'll remember that for our future conversations.
+- **Turn 4** (3862 in / 1249 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is 21.1°C.  Thanks for the temperature conversion! 70°F is 21.1°C.  For a quick vegetarian dinner, how about some black bean tacos with avocado and salsa? They're easy to make and delicious!
+- **Turn 5** (1435 in / 239 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: It's great to meet you, Sam! I've made a note that you prefer metric units and are vegetarian. I'll remember that for our future conversations. How can I help you today?
+- **Turn 6** (935 in / 263 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 
+- **Turn 7** (1417 in / 174 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Hello Sam! I've made a note that you prefer metric units and are vegetarian. It's great to meet you! How can I help you today?
+- **Turn 8** (20183 in / 7183 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: For a quick vegetarian dinner, how about a lentil soup or a tofu and vegetable stir-fry? Both are easy to make and you can customize them with your favorite spices and vegetables.  Now, regarding the …
+- **Turn 9** (1451 in / 212 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Hello Sam! I've noted that you prefer metric units and are vegetarian. I'll remember that. It's a pleasure to meet you!
+- **Turn 10** (5131 in / 4143 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: Hi Sam!  I'm back. For a quick vegetarian dinner, how about some black bean tacos with avocado and salsa? They're fast, flavorful, and filling!  Regarding the 70°F conversion to metric, I can't perfor…
+- **Turn 11** (5876 in / 2098 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Thanks, Sam! I've made a note that you prefer metric units and are vegetarian. I'll remember that for our future conversations.
+- **Turn 12** (9247 in / 1612 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 21.11 degrees Celsius.  You got it. 70F is 21.11 degrees Celsius.  For a quick vegetarian dinner, how about a 15-minute lentil soup, or a quick veggie stir-fry with some noodles or rice?
+- **Turn 13** (1490 in / 200 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Hello Sam! I've noted that you prefer metric units and are vegetarian. I'll keep that in mind.
+- **Turn 14** (7312 in / 2498 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is 21.11°C.  Great! For a quick vegetarian dinner, how about some black bean tacos? You just need tortillas, a can of black beans (rinsed and drained), some salsa, and any other toppings you like…
+- **Turn 15** (1609 in / 361 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Hello Sam! I've made a note that you prefer metric units and are vegetarian. I'll remember that for our future conversations.
+- **Turn 16** (6205 in / 2230 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is approximately 21.1°C. I can help you with unit conversions, but I can't suggest dinner ideas. I'll transfer you to Sam's personal assistant for that.  Thanks for waiting! Since you're vegetari…
+- **Turn 17** (1414 in / 254 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Hello Sam! It's great to meet you. I've made a note that you prefer metric units and are vegetarian. I'll remember that for our future conversations.  How can I help you today?
+- **Turn 18** (2917 in / 1344 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is 21.11°C.  Okay, Sam. Since you're vegetarian, how about a quick stir-fry with tofu and your favorite vegetables, served over rice or noodles? It's fast, customizable, and delicious!
+- **Turn 19** (648 in / 139 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: 
+- **Turn 20** (3937 in / 1204 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is 21.11°C. I can help with temperature conversions, but I'm not able to suggest dinner ideas. I'll transfer you to my colleague who can help with that.  That's 21.11°C in your preferred units!  …
+- **Turn 21** (4023 in / 1268 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Thanks, Sam! I've noted that you prefer metric units and are vegetarian. I'll remember that for our future interactions.
+- **Turn 22** (5750 in / 2689 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is approximately 21.1°C.   Okay, 70°F is approximately 21.1°C.  For a quick vegetarian dinner idea, how about some black bean tacos? You can quickly sauté some black beans with a little onion, be…
+- **Turn 23** (1452 in / 253 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Got it, Sam! I'll remember that you prefer metric units and are vegetarian. Nice to meet you!
+- **Turn 24** (3929 in / 1764 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70F is 21.11 degrees Celsius.  Okay, 70F is 21.11 degrees Celsius.  For a quick vegetarian dinner, how about a hearty lentil soup or some black bean burgers? Both are quick to make and delicious!
+- **Turn 25** (648 in / 79 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: 
+- **Turn 26** (5279 in / 2541 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is 21.11°C.  Thanks for waiting! 70°F is 21.11°C.  For a quick vegetarian dinner idea, how about some black bean tacos or a simple pasta primavera? Both are fast and delicious!
+- **Turn 27** (1471 in / 225 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Thanks, Sam! I've made a note that you prefer metric units and are vegetarian. I'll remember that for future interactions.
+- **Turn 28** (3110 in / 1836 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: 70°F is 21.11°C.  Okay Sam, 70°F is 21.11°C.  As for a quick dinner idea, since you're vegetarian, how about some black bean tacos with avocado and salsa? They're quick, easy, and delicious!
+- **Turn 29** (1458 in / 203 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: It's great to meet you, Sam! I've made a note that you prefer metric units and are vegetarian. I'll remember these details to personalize our future interactions.
+- **Turn 30** (4202 in / 3260 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: Great! I suggest a quick vegetarian stir-fry with tofu and plenty of colorful vegetables like bell peppers, broccoli, and snap peas, served over some rice or noodles. It's fast, customizable, and deli…
+- **Turn 31** (1565 in / 306 out tokens) — user: *Hi, I'm Sam. I prefer metric units and I'm vegetarian — please remember that.*
+  - reply preview: Hi Sam, I've made a note that you prefer metric units and are vegetarian. I'll remember that for our future conversations!
+- **Turn 32** (4831 in / 1710 out tokens) — user: *What's 70F in my preferred units, and suggest a quick dinner idea for me.*
+  - reply preview: Okay, since you're vegetarian, how about a quick black bean stir-fry with some rice or quinoa? It's fast, healthy, and easy to customize with your favorite veggies.
 
-**Sample recall (Turn 3, from EXP-004):**
-> *"Given that you are vegetarian, I will keep that in mind. For a research trip, I'd suggest packing comfortable clothes suitable for the climate of your destination, any necessary research materials (laptop, notebooks, pens), toiletries, and …"*
-
-Recall succeeded **100%** of the time across all 5 runs — the agent always correctly remembered "vegetarian" from Session A without needing it re-told. Functional reliability is high; only the *cost* varies (see §4).
-
-Transcripts for memory_assistant predate the `exp_sample.py` transcript-logging flow, so no JSONL
-is committed/captured for this agent — the prompts above came from the experiment scripts
-(`scripts/exp004_memory.py`, `scripts/exp005_variability.py`).
+Full transcripts: `data/transcript_memory_assistant.jsonl` (one JSON record per turn; full input, output_text, every tool call+response, per-step usage). **Not committed** (data/ is gitignored — runtime artifact).

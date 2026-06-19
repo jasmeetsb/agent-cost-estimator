@@ -63,6 +63,30 @@ Agent Engine runtime: ~$2.4e-5/vCPU-core-sec, ~$2.5e-6/GiB-mem-sec (from Reasoni
 
 ## 3. Learnings Log
 
+- **2026-06-19 — adk-sample agents need their OWN pyproject deps in the deploy, or the engine
+  builds but won't start.** Deploying a sample via the generic `deploy.py` (archetype reqs only)
+  → container builds, then crashes on startup: `ModuleNotFoundError: No module named
+  'diff_match_patch'` → API returns `400 ... failed to start and cannot serve traffic` (the real
+  error is only in Cloud Logging, not the create call). Fix: `deploy.py` now reads the original
+  sample's `pyproject.toml` `[project].dependencies` (mapped per package) and merges them, minus
+  dev tools and the base-provided pins (google-adk/aiplatform/genai). fomc needs diff-match-patch +
+  pdfplumber + tabulate + scikit-learn; plumber needs apache-beam[gcp] + GitPython + dbt-bigquery +
+  google-api-python-client; on_brand needs scikit-learn + pandas + tenacity.
+- **2026-06-19 — APPENDED tool instructions get ignored by a strong existing prompt; PREPEND a
+  mandatory preamble (or wrap router agents).** Adding `+ _TOOL_SUFFIX` to fomc/plumber's existing
+  workflow prompts → the new tools (load_memory/RAG/web_research/save_note) **never fired** (the
+  model followed the dominant original prompt). Fixes: (a) fomc — PREPEND a numbered "MANDATORY
+  FIRST STEPS" preamble; (b) plumber (a pure router that `transfer_to_agent`s on turn 1) — the
+  preamble alone wasn't enough until the workload itself explicitly demanded recall/RAG/web; (c)
+  on_brand (a tool-less LoopAgent root) — wrap it in a coordinator LlmAgent whose primary job IS the
+  tool sequence, invoking the loop as an AgentTool. Lesson: to exercise a SKU you must make tool-use
+  the agent's primary instruction, not an afterthought.
+- **2026-06-19 — a coordinator wrapper can suppress the wrapped agent's core SKU.** Wrapping
+  on_brand's image-gen loop in a memory/RAG coordinator dropped image generation from ~0.77/intxn
+  (EXP-007 standalone loop) to ~0.10/intxn — the coordinator often answers from memory/RAG without
+  delegating to the image loop. The Imagen SKU is still exercised, just at a lower rate for this
+  architecture. (`apply_split` leaves the image model untouched — guarded by name/`-image`.)
+
 - **2026-06-17 — AgentTool sub-agent tokens are INVISIBLE to `stream_query` (the real undercount).**
   The deployed remote stream surfaces events from the coordinator and from `sub_agents` reached via
   `transfer_to_agent`, but **NOT** from sub-agents wrapped as **`AgentTool`** — an AgentTool runs a
@@ -628,6 +652,39 @@ the **direct `token_count` re-measure** (not the ratio) is the correct fix. The 
 re-run. Applied: `build_summaries.py` reads `data/complete_tokens_<pkg>.json` (override + re-price) and
 `data/master_sub_split.json` (role %); §0 master matrix gained **Master tok / Sub tok** columns;
 per-agent summaries show the corrected source + factor. docx + xlsx regenerated.
+
+### EXP-015 — Full-SKU + two-model build of 4 legacy agents
+- **Date:** 2026-06-18/19 | fomc_research, plumber_agent, on_brand_genmedia, memory_assistant
+  (nexshift skipped — returns empty to free-form prompts → no meaningful tokens). All canonical
+  **gemini-2.5-flash @ 80 interactions** (`--user-pool 5`), + a 15-interaction two-model run for the
+  master/sub split. Brings these 4 to parity with the existing 12-agent corpus.
+- **Build:** copied `fs_state.py` + `_gmodel.py` into each; added Firestore (`save_note`/`load_note`)
+  + `load_memory` to all; RAG (`VertexAiSearchTool` on `agent-knowledge`) to fomc/plumber/on_brand;
+  a dedicated `web_research` **AgentTool** to fomc/plumber; on_brand wrapped in a coordinator that
+  invokes the image-gen loop as an AgentTool. Two-model split guarded behind `COST_TWO_MODEL=1`;
+  canonical default forces uniform 2.5-flash via `apply_uniform` (fixes plumber's mixed 2.0/2.5-pro
+  sub-agents). Corpus extended with 18 docs (`fomc-*`/`de-*`/`brand-*` → 54). memory_assistant
+  promoted from a hardcoded legacy row to a full `derive()` agent (META + PACKAGES).
+- **Methodology:** per-engine SKUs from `exp_sample` (with memory); **complete** conversation tokens
+  from a separate no-memory `exp_complete_tokens` run (memory-gen shares the 2.5-flash token bucket,
+  so it can't be cleanly separated in one run); master/sub % from the two-model run.
+
+| Agent | Intxns | in/out tok | %master | RAG/intxn | web grnd/intxn | mem retr/intxn | Imagen | undercount factor | $/intxn |
+|-------|--------|------------|---------|-----------|----------------|----------------|--------|-------------------|---------|
+| memory_assistant | 80 | 6,294 / 2,336 | 66.9% | – | – | 0.89 | – | 1.00 (transfer subs) | $0.0097 |
+| fomc_research | 80 | 27,327 / 2,103 | 45.6% | 0.65 | 0.66 | 0.07 | – | **2.19×** | $0.0274 |
+| plumber_agent | 79 | 31,203 / 4,318 | 55.2% | 1.11 | 1.09 | 1.89 | – | 1.07× | $0.0425 |
+| on_brand_genmedia | 80 | 63,013 / 9,560 | 39.7% | 1.24 | – | 1.16 | 0.10 img/intxn | **4.63×** | $0.0572 |
+
+**Findings:** all 4 now measure their full applicable SKU set + the master/sub split. The complete-
+token factors track topology exactly — on_brand **4.63×** (the entire image-gen loop is AgentTool-
+encapsulated, so the stream missed ~78% of its text tokens), fomc **2.19×** (heavy AgentTool
+web_research), plumber **1.07×** (mostly transfer subs already in-stream; only web_research missed),
+memory_assistant 1.00× (transfer subs → stream complete). **Caveat:** on_brand's Imagen rate
+(0.10/intxn) is well below EXP-007's standalone loop (0.77) — the coordinator wrapper often satisfies
+requests via memory/RAG without delegating to the image loop. Corpus now spans **13 agents**.
+Pre-EXP-015 + canonical engines saved for teardown by explicit ID (`data/old_engines_exp015.json`,
+`data/canonical_engines_exp015.json`); two-model engines are the current deployment.
 
 <!-- Template for new experiments:
 ### EXP-NNN — <title>

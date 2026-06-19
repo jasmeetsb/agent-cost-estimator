@@ -63,4 +63,45 @@ on_brand_genmedia = LoopAgent(
     ],
     before_agent_callback=set_session,
 )
-root_agent = on_brand_genmedia
+
+# --- Coordinator wrapper: adds conversational SKUs (Memory Bank recall, Firestore notes, RAG
+# brand guidelines) around the image-generation loop, which it invokes as an AgentTool. The loop
+# (and its image model, used inside the generate_images tool) is unchanged. ---
+from google.adk.agents import Agent  # noqa: E402
+from google.adk.tools import load_memory, VertexAiSearchTool  # noqa: E402
+from google.adk.tools.agent_tool import AgentTool  # noqa: E402
+
+from .config import GENAI_MODEL  # noqa: E402
+from .fs_state import save_note, load_note  # noqa: E402
+
+_DATA_STORE = ("projects/jsb-genai-sa/locations/global/collections/"
+               "default_collection/dataStores/agent-knowledge")
+brand_rag = VertexAiSearchTool(data_store_id=_DATA_STORE, bypass_multi_tools_limit=True)
+image_loop_tool = AgentTool(agent=on_brand_genmedia)
+
+on_brand_coordinator = Agent(
+    name="on_brand_coordinator",
+    model=GENAI_MODEL,
+    description="Brand-media coordinator: recalls brand prefs, retrieves brand guidelines, and "
+                "runs the on-brand image-generation loop.",
+    instruction=(
+        "You create brand-compliant images. At the START, ALWAYS call load_memory to recall the "
+        "user's brand preferences and load_note (topic = the brand or campaign) for prior assets; "
+        "consult the brand-guideline corpus via the Vertex AI Search RAG tool. Then call the "
+        "on_brand_genmedia tool (the image-generation loop) to generate the on-brand image for the "
+        "user's request. After it returns, persist a short summary of the generated asset with "
+        "save_note (topic = the brand or campaign), and report the result concisely."
+    ),
+    tools=[load_memory, save_note, load_note, brand_rag, image_loop_tool],
+)
+
+root_agent = on_brand_coordinator
+
+# Two-model split when COST_TWO_MODEL=1; default deploy = single gemini-2.5-flash. The image
+# model lives inside the generate_images tool (not an agent.model), so it is never switched.
+import os as _os  # noqa: E402
+from ._gmodel import apply_split, apply_uniform  # noqa: E402
+if _os.environ.get("COST_TWO_MODEL") == "1":
+    apply_split(root_agent)
+else:
+    apply_uniform(root_agent, "gemini-2.5-flash")
