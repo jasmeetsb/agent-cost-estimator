@@ -686,6 +686,87 @@ requests via memory/RAG without delegating to the image loop. Corpus now spans *
 Pre-EXP-015 + canonical engines saved for teardown by explicit ID (`data/old_engines_exp015.json`,
 `data/canonical_engines_exp015.json`); two-model engines are the current deployment.
 
+### EXP-016 — Cached-token analysis (implicit Gemini context cache)
+- **Date:** 2026-06-25 | analysis-only; no new agent runs (re-uses transcripts from EXP-010..015).
+- **Method:** `usage.cached` in each turn's `usage_metadata` is the cached SUBSET of `usage.prompt`
+  (`cached_content_token_count` / `prompt_token_count`). Cache hit % = `cached / prompt`. Computed
+  per-agent across **every transcript turn** from the canonical gemini-2.5-flash 80-run corpus.
+
+**Cache hit % per agent — canonical gemini-2.5-flash (main runs, `--user-pool 5` + memory):**
+
+| Agent | Turns | Prompt tokens | Cached tokens | **Cache hit %** | Turns with ≥1 cache hit | Hit-rate within those turns |
+|-------|------:|---:|---:|---:|---:|---:|
+| multi_agent_orchestrator | 432 | 17,889,575 | 14,641,197 | **81.8%** | 47% | 48% |
+| autonomous_researcher | 253 | 3,494,455 | 1,990,620 | **57.0%** | 81% | 67% |
+| plumber_agent | 158 | 2,438,547 | 1,198,816 | **49.2%** | 84% | 54% |
+| workflow_operator | 426 | 2,378,894 | 1,089,973 | **45.8%** | 68% | 57% |
+| on_brand_genmedia | 160 | 1,077,042 | 486,107 | **45.1%** | 59% | 53% |
+| financial_advisor | 160 | 1,733,220 | 673,059 | **38.8%** | 73% | 56% |
+| fomc_research | 160 | 968,942 | 336,026 | **34.7%** | 34% | 57% |
+| marketing_agency | 160 | 562,172 | 166,257 | **29.6%** | 44% | 67% |
+| memory_assistant | 160 | 503,513 | 75,540 | **15.0%** | 22% | 40% |
+| blogger_agent | 160 | 710,586 | 96,663 | **13.6%** | 28% | 44% |
+| conversational_chatbot | 432 | 764,260 | 73,722 | **9.6%** | 11% | 53% |
+| academic_research | 160 | 324,402 | 27,830 | **8.6%** | 11% | 68% |
+| nexshift_agent | 70 | 0 | 0 | 0.0% | 0% | – |
+
+**Phase-2 transcripts (no-memory complete-token runs on the same canonical 2.5-flash engines)** —
+similar ordering, with `financial_advisor` rising to **57%** and `academic_research` to **17%** (more
+consistent prompt prefixes without memory variability injecting per-user state):
+
+| Agent | Turns | Prompt tokens | Cached tokens | Cache hit % |
+|-------|------:|---:|---:|---:|
+| autonomous_researcher | 256 | 2,579,155 | 1,555,055 | 60.3% |
+| financial_advisor | 160 | 1,705,108 | 977,575 | 57.3% |
+| plumber_agent | 160 | 2,480,071 | 1,354,363 | 54.6% |
+| on_brand_genmedia | 154 | 1,051,076 | 446,721 | 42.5% |
+| marketing_agency | 160 | 799,266 | 294,311 | 36.8% |
+| fomc_research | 158 | 1,053,498 | 370,459 | 35.2% |
+| academic_research | 160 | 360,527 | 60,091 | 16.7% |
+| blogger_agent | 160 | 867,488 | 116,521 | 13.4% |
+
+**Master vs sub split probe (two-model engines: master = gemini-3.5-flash, sub = gemini-3.1-flash-lite;
+5 sessions/agent; `/tmp/probe_cached_per_author.py`):**
+
+| Agent | Master prompt | Master cache % | Sub prompt | Sub cache % | Coverage of sub side |
+|-------|---:|---:|---:|---:|---|
+| on_brand_genmedia | 669,732 | **70.4%** | – | – | sub HIDDEN (AgentTool image loop) |
+| autonomous_researcher | 464,232 | **52.4%** | – | – | sub HIDDEN (AgentTool web_research) |
+| financial_advisor | 293,763 | **40.1%** | – | – | partial — AgentTool data_analyst hidden |
+| marketing_agency | 182,919 | **39.9%** | – | – | partial |
+| plumber_agent | 140,143 | **24.5%** | 86,279 | **0.0%** | partial; 3 transfer subs visible |
+| fomc_research | 79,378 | **13.7%** | – | – | partial |
+| workflow_operator | 151,134 | **4.3%** | – | – | FULL (single agent) |
+| conversational_chatbot | 26,951 | **0.0%** | – | – | FULL (single agent) |
+| multi_agent_orchestrator | 12,384 | **0.0%** | 87,248 | **0.0%** | FULL (pure transfer) |
+| memory_assistant | 22,519 | **0.0%** | 10,442 | **0.0%** | FULL |
+| blogger_agent | 63,167 | **0.0%** | 15,570 | **0.0%** | partial; AgentTool hidden |
+| academic_research | 47,168 | **0.0%** | – | – | partial; no transfer subs invoked in 5 sessions |
+
+**Findings:**
+1. **Cache hit % tracks prompt-prefix repetition.** Multi-agent transfer with stable specialist
+   prompts (orchestrator) hits 82% on 2.5-flash; single-agent chatbot with varied tool args + fresh
+   per-user context hits ~10%.
+2. **Scale matters massively.** Canonical orchestrator @ 80 runs = 82%; 5-run probe of the same agent =
+   0%. Implicit caching needs prefix repetition within its TTL window — small probes won't reproduce
+   large-scale rates for short-prefix agents.
+3. **`gemini-3.1-flash-lite` subs show 0% cache hits across every visible sub** (orchestrator's 3
+   specialists, blogger's blog_planner, memory_assistant's prefs_agent, plumber's dataflow+dbt). This
+   appears to be a model-tier behavior, not topology — possibly implicit caching off / higher prefix-
+   size threshold on the flash-lite tier.
+4. **AgentTool sub-agents are unobservable from the parent stream** (same root cause as EXP-014's
+   undercount). To get their cached split, a `before_model_callback` instrumenting per-author
+   `usage_metadata` would need to be added + redeployed.
+
+**Caveats:**
+- The "master/sub" probe is on the 3.5-flash/3.1-flash-lite two-model setup — DIFFERENT model basis
+  than the canonical 2.5-flash numbers. Cache behavior is not portable across model generations.
+- Probe ran 5 sessions/agent — too small for short-prefix agents to warm the cache. Canonical rates
+  (from 80 runs) are the authoritative single-model number.
+- Cloud Monitoring `publisher/online_serving/token_count` does NOT expose `cached`-vs-non-cached
+  labels for Gemini publishers (only for Anthropic Claude). So canonical-scale master/sub cached
+  split is not recoverable post-hoc — would require instrumented re-run.
+
 <!-- Template for new experiments:
 ### EXP-NNN — <title>
 - Date / Agent / Workload / Engine id
