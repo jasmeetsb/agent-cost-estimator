@@ -85,7 +85,7 @@ def comparison_table(ds):
     for pkg, d in ds:
         title, fn = NICE[pkg]
         rows.append(
-            f"| [{title}](archetypes/{fn}.md) | {d['n']} | {d['total_turns']} | "
+            f"| [{title}](agent-estimates/{fn}.md) | {d['n']} | {d['total_turns']} | "
             f"{d['in_tok']:,.0f} | {d['out_tok']:,.0f} | {d['calls']:.1f} | {d['vcpu_sec']:.1f} | "
             f"{d['sess']:.1f} | {d['gen_tok']:,.0f} | {d['mem_retrieved']:.2f} | "
             f"{d['fs_writes_pi']:.2f}/{d['fs_reads_pi']:.2f} | {d.get('rag_pi',0):.2f} | "
@@ -140,7 +140,7 @@ def main():
     ap.add_argument("--group", default="archetypes", choices=list(GROUPS) + ["all"])
     args = ap.parse_args()
     out = Path(args.out).expanduser()
-    sub = "archetypes" if args.group in ("archetypes", "all") else args.group
+    sub = "agent-estimates"  # single home for all agent docs; the README groups them by type
     (out / sub).mkdir(parents=True, exist_ok=True)
 
     pkgs = sum(GROUPS.values(), []) if args.group == "all" else GROUPS[args.group]
