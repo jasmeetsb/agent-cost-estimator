@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6626790115710599168`
 - **Use case:** Personal assistant with cross-session memory · **Complexity:** High: Hierarchical + Memory Bank
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (5.5 model calls avg), averaged over **80 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = a 2-turn conversation in a single session, followed by a memory-write step (5.5 model calls on average). All numbers below are averaged over **80 interactions**. Deployed on Vertex AI Agent Engine.
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -37,25 +37,24 @@ Personal assistant with long-term cross-session memory (coordinator + 2 speciali
 
 Gemini tokens; Agent Runtime (vCPU + memory); Sessions; **Memory Bank** (generation + retrieval — the defining SKU); **Firestore** (save_note/load_note). No RAG / Search grounding / Imagen.
 
-(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
+(Sessions and Agent Runtime are billed automatically by Agent Engine; Memory Bank generation is triggered by `add_session_to_memory`. Where the agent uses Google Search grounding or image generation, that usage is reported in §5.)
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **80 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package memory_assistant --runs 80 --settle 300`
+Each interaction = a 2-turn conversation in one session, followed by `add_session_to_memory` (which triggers Memory Bank generation). We ran **80 interactions** to capture run-to-run variability, waited 300s for Cloud Monitoring metrics to settle, then read usage: token counts come from the model's per-response `usage_metadata` (exact — this agent makes no AgentTool-hidden sub-agent calls, so the response stream already sees every model call); runtime (vCPU / memory-seconds) and Memory Bank usage come from Cloud Monitoring (per-engine metrics).
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 80 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (averaged over 80 interactions), with the min–max range and variability label across interactions.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 6294 | 2089–21600 | High |
 | Gemini output tokens (incl. thinking) | tokens | 2336 | 308–7357 | High |
-| Gemini tokens — master/coordinator (input) | tokens | 4803 | — | — |
-| Gemini tokens — master/coordinator (output) | tokens | 970 | — | — |
-| Gemini tokens — sub-agents/tools (input) | tokens | 1490 | — | — |
-| Gemini tokens — sub-agents/tools (output) | tokens | 1366 | — | — |
+| Gemini tokens — coordinator agent (input) | tokens | 4803 | — | — |
+| Gemini tokens — coordinator agent (output) | tokens | 970 | — | — |
+| Gemini tokens — sub-agents (input) | tokens | 1490 | — | — |
+| Gemini tokens — sub-agents (output) | tokens | 1366 | — | — |
 | Model calls | calls | 5.5 | — | Medium |
 | Agent Runtime — vCPU | vCPU-seconds | 160.3 | — | — |
 | Agent Runtime — memory | GiB-seconds | 192.2 | — | — |
@@ -67,19 +66,19 @@ Measured usage quantities per interaction (avg over 80 runs), with run-to-run ra
 | Firestore — document reads | reads | 0.31 | — | — |
 
 
-_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The four input/output × master/sub values reconcile both the master/sub totals and the input/output totals (seeded by the measured per-role in:out ratio — master 88:12, sub 61:39). Single-agent agents are 100% master._
+_**Coordinator vs sub-agent token split** — the share of total Gemini tokens processed by the root coordinator agent versus the sub-agents it delegates to. Measured directly by running the coordinator and the sub-agents on two different model versions (coordinator on gemini-3.5-flash, sub-agents on gemini-3.1-flash-lite) and separating their token counts by model in Cloud Monitoring — this is the **master/sub** split in the two-model measurement. The input-vs-output breakdown within each role is allocated by the measured per-role input:output ratio (coordinator ≈ 88:12, sub-agents ≈ 61:39). Single-agent agents have no sub-agents, so they are 100% coordinator._
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 0 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
-- **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
+- **Google Search grounding:** none in this workload — the agent does not call `google_search`. (Would bill ~$14 / 1K grounded query-turns if used.)
+- **Image generation (Imagen):** none in this workload. (Would bill ~$0.04 / image if used.)
 
 ## 5b. Caveats on usage capture
 
-- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).
-- Memory storage (stored-memory count over time) is export-only.
-- Grounding count is project-wide (no per-engine label); image count is event-based.
-- Still uncaptured: Cloud Trace, Logging, Storage.
+- **Agent Runtime (vCPU / GiB-seconds)** is the engine's allocated compute amortized over the measurement window, so it depends on utilization (queries per hour). Treat it as an upper bound, not actual billed instance-time.
+- **Memory storage** (the number of stored memories accruing over time) is not captured here — it is only available from the billing export.
+- **Grounding** is counted from the agent's tool calls (Cloud Monitoring's grounding metric is project-wide, with no per-engine label); **Imagen** image counts come from response events.
+- **Not yet captured:** Cloud Trace, Cloud Logging, Cloud Storage.
 
 ## 6. Secondary: derived cost (usage × catalog list price)
 
@@ -90,14 +89,14 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Gemini tokens | 0.0077 |
 | Agent Runtime | 0.0000 |
 | Memory Bank + Sessions | 0.0007 |
-| Firestore (181w/25r over 80 runs) | 0.0000006 |
-| Memory Bank retrieval (0.89 memories retrieved/intxn @ $0.5/1K) | 0.000444 |
+| Firestore (181 writes / 25 reads over 80 interactions) | 0.0000006 |
+| Memory Bank retrieval (0.89 memories retrieved/interaction @ $0.5/1K) | 0.000444 |
 | Model Armor (derived: 8630 tok scanned @ $0.10/1M) | 0.000863 |
 | **Total (measured SKUs)** | **0.0097** (range 0.0022–0.0256) |
 
 ## 7. Test workload & sample interactions
 
-**5 interactions** (160 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
+Each interaction repeated the same 2-turn workload shown below, to isolate run-to-run variability; each used a fresh user id.
 
 **Workload (turn-by-turn):**
 

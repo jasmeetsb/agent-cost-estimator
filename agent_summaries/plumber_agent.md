@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `7166518383553282048`
 - **Use case:** Build/deploy data pipelines (Dataflow / Dataproc / dbt / GCS) · **Complexity:** High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (6.5 model calls avg), averaged over **79 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = a 2-turn conversation in a single session, followed by a memory-write step (6.5 model calls on average). All numbers below are averaged over **79 interactions**. Deployed on Vertex AI Agent Engine.
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -63,25 +63,24 @@ By **intent**, this agent touches ~10–11 distinct GCP product SKUs (the broade
 
 Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; **BigQuery** (dbt execution); **Cloud Storage** (SQL artifacts, GCS data IO); **Dataflow**, **Dataproc**, **Dataform** (sub-agent intent, only billed when actually invoked); **Cloud Monitoring** API reads.
 
-(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
+(Sessions and Agent Runtime are billed automatically by Agent Engine; Memory Bank generation is triggered by `add_session_to_memory`. Where the agent uses Google Search grounding or image generation, that usage is reported in §5.)
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **79 runs** for variability; 300s Monitoring settle; token usage from Cloud Monitoring **`token_count`** (the complete total — captures AgentTool sub-agent tokens the stream misses; undercount factor **1.0655×** vs `usage_metadata`), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package plumber_agent --runs 79 --settle 300`
+Each interaction = a 2-turn conversation in one session, followed by `add_session_to_memory` (which triggers Memory Bank generation). We ran **79 interactions** to capture run-to-run variability, waited 300s for Cloud Monitoring metrics to settle, then read usage: token counts come from Cloud Monitoring **`token_count`** — the **complete** total. This agent delegates to sub-agents invoked as callable tools (ADK `AgentTool`), and those sub-agent model calls do not appear in the parent agent's response stream, so a stream-based count undercounts this agent by **1.0655×**; `token_count` captures every model call and corrects it; runtime (vCPU / memory-seconds) and Memory Bank usage come from Cloud Monitoring (per-engine metrics).
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 79 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (averaged over 79 interactions), with the min–max range and variability label across interactions.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 31203 | 7667–85274 | Medium |
 | Gemini output tokens (incl. thinking) | tokens | 4318 | 1019–11203 | High |
-| Gemini tokens — master/coordinator (input) | tokens | 18553 | — | — |
-| Gemini tokens — master/coordinator (output) | tokens | 1054 | — | — |
-| Gemini tokens — sub-agents/tools (input) | tokens | 12650 | — | — |
-| Gemini tokens — sub-agents/tools (output) | tokens | 3263 | — | — |
+| Gemini tokens — coordinator agent (input) | tokens | 18553 | — | — |
+| Gemini tokens — coordinator agent (output) | tokens | 1054 | — | — |
+| Gemini tokens — sub-agents (input) | tokens | 12650 | — | — |
+| Gemini tokens — sub-agents (output) | tokens | 3263 | — | — |
 | Model calls | calls | 6.5 | — | Medium |
 | Agent Runtime — vCPU | vCPU-seconds | 339.8 | — | — |
 | Agent Runtime — memory | GiB-seconds | 375.6 | — | — |
@@ -92,22 +91,22 @@ Measured usage quantities per interaction (avg over 79 runs), with run-to-run ra
 | Firestore — document writes | writes | 0.11 | — | — |
 | Firestore — document reads | reads | 0.65 | — | — |
 | Vertex AI Search (RAG) — queries | searches | 1.11 | — | — |
-| Google Search grounding — query turns | grounded turns | 1.09 | — | — |
+| Google Search grounding | grounded query-turns | 1.09 | — | — |
 
 
-_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The four input/output × master/sub values reconcile both the master/sub totals and the input/output totals (seeded by the measured per-role in:out ratio — master 88:12, sub 61:39). Single-agent agents are 100% master._
+_**Coordinator vs sub-agent token split** — the share of total Gemini tokens processed by the root coordinator agent versus the sub-agents it delegates to. Measured directly by running the coordinator and the sub-agents on two different model versions (coordinator on gemini-3.5-flash, sub-agents on gemini-3.1-flash-lite) and separating their token counts by model in Cloud Monitoring — this is the **master/sub** split in the two-model measurement. The input-vs-output breakdown within each role is allocated by the measured per-role input:output ratio (coordinator ≈ 88:12, sub-agents ≈ 61:39). Single-agent agents have no sub-agents, so they are 100% coordinator._
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 1.09 grounded query-turns per interaction measured (web_researcher AgentTool invocations; each runs ≥1 native google_search generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not track native ADK google_search — so the AgentTool call count is the measurable unit.
-- **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
+- **Google Search grounding:** 1.09 grounded query-turns per interaction. Grounding runs inside a dedicated web-research sub-agent that the coordinator invokes as a tool (ADK `AgentTool`); each call issues one or more native `google_search` requests and returns grounded results. We count each web-research call as one grounded query-turn — the billable unit (~$14 / 1K grounded query-turns). Native `google_search` grounding is encapsulated inside the AgentTool and is not tracked by Cloud Monitoring's `web_search_requests` metric, so the AgentTool call count is the reliable measure.
+- **Image generation (Imagen):** none in this workload. (Would bill ~$0.04 / image if used.)
 
 ## 5b. Caveats on usage capture
 
-- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).
-- Memory storage (stored-memory count over time) is export-only.
-- Grounding count is project-wide (no per-engine label); image count is event-based.
-- Still uncaptured: Cloud Trace, Logging, Storage.
+- **Agent Runtime (vCPU / GiB-seconds)** is the engine's allocated compute amortized over the measurement window, so it depends on utilization (queries per hour). Treat it as an upper bound, not actual billed instance-time.
+- **Memory storage** (the number of stored memories accruing over time) is not captured here — it is only available from the billing export.
+- **Grounding** is counted from the agent's tool calls (Cloud Monitoring's grounding metric is project-wide, with no per-engine label); **Imagen** image counts come from response events.
+- **Not yet captured:** Cloud Trace, Cloud Logging, Cloud Storage.
 
 ## 6. Secondary: derived cost (usage × catalog list price)
 
@@ -118,16 +117,16 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Gemini tokens | 0.0202 |
 | Agent Runtime | 0.0000 |
 | Memory Bank + Sessions | 0.0009 |
-| Firestore (9w/51r over 79 runs) | 0.0000001 |
-| Vertex AI Search (RAG: 1.11 queries/intxn @ $1.50/1K) | 0.001671 |
-| Google Search grounding (1.09 grounded turns/intxn @ $14/1K) | 0.015241 |
-| Memory Bank retrieval (1.89 memories retrieved/intxn @ $0.5/1K) | 0.000943 |
+| Firestore (9 writes / 51 reads over 79 interactions) | 0.0000001 |
+| Vertex AI Search (RAG: 1.11 queries/interaction @ $1.50/1K) | 0.001671 |
+| Google Search grounding (1.09 grounded query-turns/interaction @ $14/1K) | 0.015241 |
+| Memory Bank retrieval (1.89 memories retrieved/interaction @ $0.5/1K) | 0.000943 |
 | Model Armor (derived: 35521 tok scanned @ $0.10/1M) | 0.003552 |
 | **Total (measured SKUs)** | **0.0425** (range 0.0058–0.0545) |
 
 ## 7. Test workload & sample interactions
 
-**5 interactions** (158 total user turns), fresh user_id per interaction. Interactions cycle **2 distinct conversation scenarios** of varying length (30-turn×1, 32-turn×4) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+Each interaction used a fresh user id. The workload draws from **1 distinct conversation scenarios** of varying length (30–32 turns); real-world conversations differ in length and topic, so cycling several scenarios spreads coverage rather than repeating a single script. Longer interactions repeat these same base scenarios to exercise multi-turn cost scaling.
 
 **Scenario 1** (32 turns):
 
@@ -165,41 +164,6 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | 30 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
 | 31 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
 | 32 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-
-**Scenario 2** (30 turns):
-
-| Turn | User query |
-|---|---|
-| 1 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 2 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 3 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 4 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 5 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 6 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 7 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 8 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 9 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 10 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 11 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 12 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 13 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 14 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 15 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 16 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 17 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 18 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 19 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 20 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 21 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 22 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 23 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 24 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 25 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 26 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 27 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 28 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
-| 29 | First recall any prior pipeline work for me, check the internal data-engineering references and current best practices on the web, then design a Dataflow pipeline that reads daily CSV uploads from GCS and writes cleaned rows to BigQuery. |
-| 30 | Using the internal references again, what would the dbt model look like to aggregate the daily data into weekly summaries? Then save the design for me. |
 
 **Sample interaction (first run):**
 

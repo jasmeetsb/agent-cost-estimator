@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `5724610038794813440`
 - **Use case:** Multi-agent technical blog authoring · **Complexity:** High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (4.8 model calls avg), averaged over **80 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = a 2-turn conversation in a single session, followed by a memory-write step (4.8 model calls on average). All numbers below are averaged over **80 interactions**. Deployed on Vertex AI Agent Engine.
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -42,25 +42,24 @@ Human-in-the-loop: the user can request changes mid-flow and the root re-invokes
 
 Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; Google Search grounding (capable, not triggered).
 
-(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
+(Sessions and Agent Runtime are billed automatically by Agent Engine; Memory Bank generation is triggered by `add_session_to_memory`. Where the agent uses Google Search grounding or image generation, that usage is reported in §5.)
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **80 runs** for variability; 300s Monitoring settle; token usage from Cloud Monitoring **`token_count`** (the complete total — captures AgentTool sub-agent tokens the stream misses; undercount factor **1.1075×** vs `usage_metadata`), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package blogger_agent --runs 80 --settle 300`
+Each interaction = a 2-turn conversation in one session, followed by `add_session_to_memory` (which triggers Memory Bank generation). We ran **80 interactions** to capture run-to-run variability, waited 300s for Cloud Monitoring metrics to settle, then read usage: token counts come from Cloud Monitoring **`token_count`** — the **complete** total. This agent delegates to sub-agents invoked as callable tools (ADK `AgentTool`), and those sub-agent model calls do not appear in the parent agent's response stream, so a stream-based count undercounts this agent by **1.1075×**; `token_count` captures every model call and corrects it; runtime (vCPU / memory-seconds) and Memory Bank usage come from Cloud Monitoring (per-engine metrics).
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 80 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (averaged over 80 interactions), with the min–max range and variability label across interactions.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
 | Gemini input tokens | tokens | 11345 | 4187–22789 | Medium |
 | Gemini output tokens (incl. thinking) | tokens | 5425 | 337–11277 | High |
-| Gemini tokens — master/coordinator (input) | tokens | 9268 | — | — |
-| Gemini tokens — master/coordinator (output) | tokens | 2689 | — | — |
-| Gemini tokens — sub-agents/tools (input) | tokens | 2077 | — | — |
-| Gemini tokens — sub-agents/tools (output) | tokens | 2736 | — | — |
+| Gemini tokens — coordinator agent (input) | tokens | 9268 | — | — |
+| Gemini tokens — coordinator agent (output) | tokens | 2689 | — | — |
+| Gemini tokens — sub-agents (input) | tokens | 2077 | — | — |
+| Gemini tokens — sub-agents (output) | tokens | 2736 | — | — |
 | Model calls | calls | 4.8 | — | Medium |
 | Agent Runtime — vCPU | vCPU-seconds | 101.3 | — | — |
 | Agent Runtime — memory | GiB-seconds | 137.8 | — | — |
@@ -71,22 +70,22 @@ Measured usage quantities per interaction (avg over 80 runs), with run-to-run ra
 | Firestore — document writes | writes | 0.00 | — | — |
 | Firestore — document reads | reads | 0.95 | — | — |
 | Vertex AI Search (RAG) — queries | searches | 0.80 | — | — |
-| Google Search grounding — query turns | grounded turns | 0.50 | — | — |
+| Google Search grounding | grounded query-turns | 0.50 | — | — |
 
 
-_Master vs sub-agent split: each agent's master/sub token share is measured directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). The four input/output × master/sub values reconcile both the master/sub totals and the input/output totals (seeded by the measured per-role in:out ratio — master 88:12, sub 61:39). Single-agent agents are 100% master._
+_**Coordinator vs sub-agent token split** — the share of total Gemini tokens processed by the root coordinator agent versus the sub-agents it delegates to. Measured directly by running the coordinator and the sub-agents on two different model versions (coordinator on gemini-3.5-flash, sub-agents on gemini-3.1-flash-lite) and separating their token counts by model in Cloud Monitoring — this is the **master/sub** split in the two-model measurement. The input-vs-output breakdown within each role is allocated by the measured per-role input:output ratio (coordinator ≈ 88:12, sub-agents ≈ 61:39). Single-agent agents have no sub-agents, so they are 100% coordinator._
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 0.50 grounded query-turns per interaction measured (web_researcher AgentTool invocations; each runs ≥1 native google_search generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not track native ADK google_search — so the AgentTool call count is the measurable unit.
-- **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
+- **Google Search grounding:** 0.50 grounded query-turns per interaction. Grounding runs inside a dedicated web-research sub-agent that the coordinator invokes as a tool (ADK `AgentTool`); each call issues one or more native `google_search` requests and returns grounded results. We count each web-research call as one grounded query-turn — the billable unit (~$14 / 1K grounded query-turns). Native `google_search` grounding is encapsulated inside the AgentTool and is not tracked by Cloud Monitoring's `web_search_requests` metric, so the AgentTool call count is the reliable measure.
+- **Image generation (Imagen):** none in this workload. (Would bill ~$0.04 / image if used.)
 
 ## 5b. Caveats on usage capture
 
-- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).
-- Memory storage (stored-memory count over time) is export-only.
-- Grounding count is project-wide (no per-engine label); image count is event-based.
-- Still uncaptured: Cloud Trace, Logging, Storage.
+- **Agent Runtime (vCPU / GiB-seconds)** is the engine's allocated compute amortized over the measurement window, so it depends on utilization (queries per hour). Treat it as an upper bound, not actual billed instance-time.
+- **Memory storage** (the number of stored memories accruing over time) is not captured here — it is only available from the billing export.
+- **Grounding** is counted from the agent's tool calls (Cloud Monitoring's grounding metric is project-wide, with no per-engine label); **Imagen** image counts come from response events.
+- **Not yet captured:** Cloud Trace, Cloud Logging, Cloud Storage.
 
 ## 6. Secondary: derived cost (usage × catalog list price)
 
@@ -97,17 +96,17 @@ Provided for reference only. List price, not actual billed; **usage above is the
 | Gemini tokens | 0.0170 |
 | Agent Runtime | 0.0058 |
 | Memory Bank + Sessions | 0.0043 |
-| Firestore (0w/76r over 80 runs) | 0.0000000 |
-| Vertex AI Search (RAG: 0.80 queries/intxn @ $1.50/1K) | 0.001200 |
-| Google Search grounding (0.50 grounded turns/intxn @ $14/1K) | 0.007000 |
-| Memory Bank retrieval (0.31 memories retrieved/intxn @ $0.5/1K) | 0.000156 |
+| Firestore (0 writes / 76 reads over 80 interactions) | 0.0000000 |
+| Vertex AI Search (RAG: 0.80 queries/interaction @ $1.50/1K) | 0.001200 |
+| Google Search grounding (0.50 grounded query-turns/interaction @ $14/1K) | 0.007000 |
+| Memory Bank retrieval (0.31 memories retrieved/interaction @ $0.5/1K) | 0.000156 |
 | Model Armor (derived: 16770 tok scanned @ $0.10/1M) | 0.001677 |
 | Search grounding | 0.0267 |
 | **Total (measured SKUs)** | **0.0638** (range 0.0389–0.0719) |
 
 ## 7. Test workload & sample interactions
 
-**45 interactions** (160 total user turns), fresh user_id per interaction. Interactions cycle **2 distinct conversation scenarios** of varying length (2-turn×40, 16-turn×5) — real-world interactions differ in length and topic, so this spreads coverage rather than repeating one script.
+Each interaction used a fresh user id. The workload draws from **1 distinct conversation scenarios** of varying length (2–16 turns); real-world conversations differ in length and topic, so cycling several scenarios spreads coverage rather than repeating a single script. Longer interactions repeat these same base scenarios to exercise multi-turn cost scaling.
 
 **Scenario 1** (2 turns):
 
@@ -115,27 +114,6 @@ Provided for reference only. List price, not actual billed; **usage above is the
 |---|---|
 | 1 | Write a short technical blog post about why vector databases matter for RAG. |
 | 2 | Make the intro punchier and add a one-line takeaway at the end. |
-
-**Scenario 2** (16 turns):
-
-| Turn | User query |
-|---|---|
-| 1 | Write a short technical blog post about why vector databases matter for RAG. |
-| 2 | Make the intro punchier and add a one-line takeaway at the end. |
-| 3 | Write a short technical blog post about why vector databases matter for RAG. |
-| 4 | Make the intro punchier and add a one-line takeaway at the end. |
-| 5 | Write a short technical blog post about why vector databases matter for RAG. |
-| 6 | Make the intro punchier and add a one-line takeaway at the end. |
-| 7 | Write a short technical blog post about why vector databases matter for RAG. |
-| 8 | Make the intro punchier and add a one-line takeaway at the end. |
-| 9 | Write a short technical blog post about why vector databases matter for RAG. |
-| 10 | Make the intro punchier and add a one-line takeaway at the end. |
-| 11 | Write a short technical blog post about why vector databases matter for RAG. |
-| 12 | Make the intro punchier and add a one-line takeaway at the end. |
-| 13 | Write a short technical blog post about why vector databases matter for RAG. |
-| 14 | Make the intro punchier and add a one-line takeaway at the end. |
-| 15 | Write a short technical blog post about why vector databases matter for RAG. |
-| 16 | Make the intro punchier and add a one-line takeaway at the end. |
 
 **Sample interaction (first run):**
 

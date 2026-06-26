@@ -2,7 +2,7 @@
 
 - **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `6362665432486248448`
 - **Use case:** AI nurse rostering & scheduling optimizer · **Complexity:** High
-- **Unit:** 1 interaction = 2-turn conversation + memory-write (0.0 model calls avg), averaged over **35 interactions**. Deployed on Vertex AI Agent Engine (GEAP).
+- **Unit:** 1 interaction = a 2-turn conversation in a single session, followed by a memory-write step (0.0 model calls on average). All numbers below are averaged over **35 interactions**. Deployed on Vertex AI Agent Engine.
 - **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).
 
 ## 1. Architecture
@@ -46,16 +46,15 @@ graph TB
 
 Gemini tokens; Agent Runtime (vCPU/memory, **compute-heavy from CP-SAT solver**); Sessions; Memory Bank.
 
-(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet metered here — see §7.)
+(Sessions and Agent Runtime are billed automatically by Agent Engine; Memory Bank generation is triggered by `add_session_to_memory`. Where the agent uses Google Search grounding or image generation, that usage is reported in §5.)
 
 ## 3. How usage was measured
 
-Deployed to Agent Engine; per run = 2-turn conversation in one session + add_session_to_memory; **35 runs** for variability; 300s Monitoring settle; token usage from the model response (`usage_metadata`, exact), runtime + Memory Bank usage from Cloud Monitoring (per-engine).
-Reproduce: `python scripts/exp_sample.py --package nexshift_agent --runs 35 --settle 300`
+Each interaction = a 2-turn conversation in one session, followed by `add_session_to_memory` (which triggers Memory Bank generation). We ran **35 interactions** to capture run-to-run variability, waited 300s for Cloud Monitoring metrics to settle, then read usage: token counts come from the model's per-response `usage_metadata` (exact — this agent makes no AgentTool-hidden sub-agent calls, so the response stream already sees every model call); runtime (vCPU / memory-seconds) and Memory Bank usage come from Cloud Monitoring (per-engine metrics).
 
 ## 4. SKU usage per interaction (PRIMARY)
 
-Measured usage quantities per interaction (avg over 35 runs), with run-to-run range and variability.
+Measured usage quantities per interaction (averaged over 35 interactions), with the min–max range and variability label across interactions.
 
 | SKU dimension | Unit | Typical | Range | Variability |
 |---|---|---|---|---|
@@ -74,15 +73,15 @@ _Memory retrievals = 0 for this workload. `load_memory` returns memories only wh
 
 ## 5. Grounding & media usage
 
-- **Google Search grounding:** 0 measured. The agent does not use google_search in this workload; would bill ~$14/1K grounded turns if used.
-- **Image generation (Imagen):** 0 images measured (from response events). Would bill ~$0.04/image if used.
+- **Google Search grounding:** none in this workload — the agent does not call `google_search`. (Would bill ~$14 / 1K grounded query-turns if used.)
+- **Image generation (Imagen):** none in this workload. (Would bill ~$0.04 / image if used.)
 
 ## 5b. Caveats on usage capture
 
-- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).
-- Memory storage (stored-memory count over time) is export-only.
-- Grounding count is project-wide (no per-engine label); image count is event-based.
-- Still uncaptured: Cloud Trace, Logging, Storage.
+- **Agent Runtime (vCPU / GiB-seconds)** is the engine's allocated compute amortized over the measurement window, so it depends on utilization (queries per hour). Treat it as an upper bound, not actual billed instance-time.
+- **Memory storage** (the number of stored memories accruing over time) is not captured here — it is only available from the billing export.
+- **Grounding** is counted from the agent's tool calls (Cloud Monitoring's grounding metric is project-wide, with no per-engine label); **Imagen** image counts come from response events.
+- **Not yet captured:** Cloud Trace, Cloud Logging, Cloud Storage.
 
 ## 6. Secondary: derived cost (usage × catalog list price)
 
@@ -98,7 +97,7 @@ Provided for reference only. List price, not actual billed; **usage above is the
 
 ## 7. Test workload & sample interactions
 
-**35 interactions** (70 total user turns), fresh user_id per interaction. All interactions repeat the same 2-turn workload to isolate run-to-run variability.
+Each interaction repeated the same 2-turn workload shown below, to isolate run-to-run variability; each used a fresh user id.
 
 **Workload (turn-by-turn):**
 

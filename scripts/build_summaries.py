@@ -527,16 +527,16 @@ META["autonomous_researcher"] = {
         MB[("Memory Bank<br/>per memory + gen tokens")]
     end
     subgraph Extras["Agent-specific SKUs"]
-        GS[("Google Search grounding<br/>per grounded prompt")]
+        GS[("Google Search grounding<br/>per grounded query-turn")]
     end
     Engine -.-> Core
     GSt -.-> GS""",
-    "arch": ("Deep-research agent (archetype: Autonomous Researcher, Moderate). Plans, grounds on the "
-             "web via ADK `google_search`, and synthesizes long reports. Token-depth-driven: premium "
-             "model intent (Gemini Pro), long outputs (~10,700 output tokens/interaction measured), and "
-             "Search grounding (~69 grounded searches across the run — the first SKU usage that "
-             "actually exercises Search grounding in this project). Internal-corpus RAG (Vertex AI "
-             "Search) deferred to the High variant, since google_search must be the sole tool."),
+    "arch": ("Deep-research agent (archetype: Autonomous Researcher, Moderate). It plans a query, grounds "
+             "on the live web via ADK `google_search`, and synthesizes a long report. The cost profile is "
+             "driven by token depth: long generated outputs (~10,700 output tokens per interaction) plus "
+             "Google Search grounding (~1.6 grounded query-turns per interaction). Because a built-in tool "
+             "like `google_search` must be the only tool on its agent, grounding runs in a dedicated "
+             "web-research sub-agent; internal-corpus retrieval (Vertex AI Search / RAG) is light here."),
     "skus": "Gemini tokens (long outputs); Agent Runtime (vCPU + memory); Sessions; Memory Bank; "
             "**Google Search grounding** (measured non-zero).",
 }
@@ -823,49 +823,58 @@ def agent_md(d):
     # Token-source note: corrected agents read the COMPLETE total from Monitoring token_count
     # (captures AgentTool sub-agent tokens the stream misses); others use exact usage_metadata.
     if d.get("tok_factor") is not None:
-        tok_meas = (f"token usage from Cloud Monitoring **`token_count`** (the complete total — captures "
-                    f"AgentTool sub-agent tokens the stream misses; undercount factor **{d['tok_factor']}×** "
-                    f"vs `usage_metadata`)")
+        tok_meas = (f"token counts come from Cloud Monitoring **`token_count`** — the **complete** total. "
+                    f"This agent delegates to sub-agents invoked as callable tools (ADK `AgentTool`), and "
+                    f"those sub-agent model calls do not appear in the parent agent's response stream, so a "
+                    f"stream-based count undercounts this agent by **{d['tok_factor']}×**; `token_count` "
+                    f"captures every model call and corrects it")
     else:
-        tok_meas = "token usage from the model response (`usage_metadata`, exact)"
+        tok_meas = ("token counts come from the model's per-response `usage_metadata` (exact — this agent "
+                    "makes no AgentTool-hidden sub-agent calls, so the response stream already sees every "
+                    "model call)")
     # Master vs sub-agent token split (architecture-driven %, from the two-model validation),
     # broken out into input / output via the measured per-role in:out ratio (master 88:12, sub 61:39).
     split_rows = []
     if d.get("pct_master") is not None:
         split_rows = [
-            f"| Gemini tokens — master/coordinator (input) | tokens | {d['master_in']:.0f} | — | — |",
-            f"| Gemini tokens — master/coordinator (output) | tokens | {d['master_out']:.0f} | — | — |",
-            f"| Gemini tokens — sub-agents/tools (input) | tokens | {d['sub_in']:.0f} | — | — |",
-            f"| Gemini tokens — sub-agents/tools (output) | tokens | {d['sub_out']:.0f} | — | — |",
+            f"| Gemini tokens — coordinator agent (input) | tokens | {d['master_in']:.0f} | — | — |",
+            f"| Gemini tokens — coordinator agent (output) | tokens | {d['master_out']:.0f} | — | — |",
+            f"| Gemini tokens — sub-agents (input) | tokens | {d['sub_in']:.0f} | — | — |",
+            f"| Gemini tokens — sub-agents (output) | tokens | {d['sub_out']:.0f} | — | — |",
         ]
-    split_note = ("\n_Master vs sub-agent split: each agent's master/sub token share is measured "
-                  "directly (two-model validation — coordinator on gemini-3.5-flash, sub-agents/tools "
-                  "on gemini-3.1-flash-lite, separated via Cloud Monitoring `token_count` by model). "
-                  "The four input/output × master/sub values reconcile both the master/sub totals and "
-                  "the input/output totals (seeded by the measured per-role in:out ratio — master "
-                  "88:12, sub 61:39). Single-agent agents are 100% master._"
+    split_note = ("\n_**Coordinator vs sub-agent token split** — the share of total Gemini tokens "
+                  "processed by the root coordinator agent versus the sub-agents it delegates to. Measured "
+                  "directly by running the coordinator and the sub-agents on two different model versions "
+                  "(coordinator on gemini-3.5-flash, sub-agents on gemini-3.1-flash-lite) and separating "
+                  "their token counts by model in Cloud Monitoring — this is the **master/sub** split in "
+                  "the two-model measurement. The input-vs-output breakdown within each role is allocated "
+                  "by the measured per-role input:output ratio (coordinator ≈ 88:12, sub-agents ≈ 61:39). "
+                  "Single-agent agents have no sub-agents, so they are 100% coordinator._"
                   if d.get("pct_master") is not None else "")
     lines = [
         f"# SKU Usage Summary — `{m['title']}` ({d['pkg']})", "",
         f"- **Source:** google/adk-samples · **Model:** gemini-2.5-flash · **Engine:** `{d['engine']}`",
         f"- **Use case:** {m['use_case']} · **Complexity:** {d['complexity']}",
-        f"- **Unit:** 1 interaction = {d['turns_desc']} conversation + memory-write ({d['calls']:.1f} model calls avg), "
-        f"averaged over **{d['n']} interactions**. Deployed on Vertex AI Agent Engine (GEAP).",
+        f"- **Unit:** 1 interaction = a {d['turns_desc']} conversation in a single session, followed by a "
+        f"memory-write step ({d['calls']:.1f} model calls on average). All numbers below are averaged over "
+        f"**{d['n']} interactions**. Deployed on Vertex AI Agent Engine.",
         "- **Focus:** measured **usage per SKU**; dollar cost is a secondary derived view (§6).", "",
         "## 1. Architecture", "",
         "```mermaid", m["diagram"], "```", "",
         m["arch"], f"\n**Pattern:** {m['pattern']}", "",
         "## 2. SKUs (products) consumed", "", m["skus"],
-        "\n(Sessions + Agent Runtime are automatic on Agent Engine; Memory Bank generation exercised "
-        "via add_session_to_memory. Search grounding / Imagen used by the agent but usage not yet "
-        "metered here — see §7.)", "",
+        "\n(Sessions and Agent Runtime are billed automatically by Agent Engine; Memory Bank generation "
+        "is triggered by `add_session_to_memory`. Where the agent uses Google Search grounding or image "
+        "generation, that usage is reported in §5.)", "",
         "## 3. How usage was measured", "",
-        f"Deployed to Agent Engine; per run = {d['turns_desc']} conversation in one session + add_session_to_memory; "
-        f"**{d['n']} runs** for variability; 300s Monitoring settle; {tok_meas}, "
-        f"runtime + Memory Bank usage from Cloud Monitoring (per-engine).",
-        f"Reproduce: `python scripts/exp_sample.py --package {d['pkg']} --runs {d['n']} --settle 300`", "",
+        f"Each interaction = a {d['turns_desc']} conversation in one session, followed by "
+        f"`add_session_to_memory` (which triggers Memory Bank generation). We ran **{d['n']} interactions** "
+        f"to capture run-to-run variability, waited 300s for Cloud Monitoring metrics to settle, then read "
+        f"usage: {tok_meas}; runtime (vCPU / memory-seconds) and Memory Bank usage come from Cloud "
+        f"Monitoring (per-engine metrics).", "",
         f"## 4. SKU usage per interaction (PRIMARY)", "",
-        f"Measured usage quantities per interaction (avg over {d['n']} runs), with run-to-run range and variability.", "",
+        f"Measured usage quantities per interaction (averaged over {d['n']} interactions), with the "
+        f"min–max range and variability label across interactions.", "",
         "| SKU dimension | Unit | Typical | Range | Variability |", "|---|---|---|---|---|",
         f"| Gemini input tokens | tokens | {d['in_tok']:.0f} | {d['in_rng']} | {d['in_var']} |",
         f"| Gemini output tokens (incl. thinking) | tokens | {d['out_tok']:.0f} | {d['out_rng']} | {d['out_var']} |",
@@ -883,38 +892,47 @@ def agent_md(d):
          if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
         (f"| Vertex AI Search (RAG) — queries | searches | {d['rag_pi']:.2f} | — | — |"
          if d.get('rag_total', 0) else None),
-        (f"| Google Search grounding — query turns | grounded turns | {d['web_ground_pi']:.2f} | — | — |"
+        (f"| Google Search grounding | grounded query-turns | {d['web_ground_pi']:.2f} | — | — |"
          if d.get('web_ground_total', 0) else None),
         retr_note, split_note, "",
         "## 5. Grounding & media usage", "",
-        (f"- **Google Search grounding:** {d['web_ground_pi']:.2f} grounded query-turns per interaction "
-         f"measured (web_researcher AgentTool invocations; each runs ≥1 native google_search "
-         f"generation). Bills ~$14/1K grounded turns. NOTE: native google_search grounding_metadata is "
-         f"encapsulated inside the AgentTool and the Monitoring web_search_requests metric does not "
-         f"track native ADK google_search — so the AgentTool call count is the measurable unit."
+        (f"- **Google Search grounding:** {d['web_ground_pi']:.2f} grounded query-turns per interaction. "
+         f"Grounding runs inside a dedicated web-research sub-agent that the coordinator invokes as a tool "
+         f"(ADK `AgentTool`); each call issues one or more native `google_search` requests and returns "
+         f"grounded results. We count each web-research call as one grounded query-turn — the billable "
+         f"unit (~$14 / 1K grounded query-turns). Native `google_search` grounding is encapsulated inside the "
+         f"AgentTool and is not tracked by Cloud Monitoring's `web_search_requests` metric, so the "
+         f"AgentTool call count is the reliable measure."
          if d.get('web_ground_total', 0) else
-         f"- **Google Search grounding:** {d['web_searches']:.0f} measured. The agent does not use "
-         "google_search in this workload; would bill ~$14/1K grounded turns if used."),
-        f"- **Image generation (Imagen):** {d['images']:.0f} images measured (from response events). "
-        "Would bill ~$0.04/image if used.", "",
+         "- **Google Search grounding:** none in this workload — the agent does not call `google_search`. "
+         "(Would bill ~$14 / 1K grounded query-turns if used.)"),
+        (f"- **Image generation (Imagen):** {(d.get('images',0) or 0)/max(d['n'],1):.2f} images per "
+         f"interaction. Bills ~$0.04 / image."
+         if d.get('images', 0) else
+         "- **Image generation (Imagen):** none in this workload. (Would bill ~$0.04 / image if used.)"),
+        "",
         "## 5b. Caveats on usage capture", "",
-        "- vCPU/GiB-seconds are amortized over the measurement window (utilization-dependent).",
-        "- Memory storage (stored-memory count over time) is export-only.",
-        "- Grounding count is project-wide (no per-engine label); image count is event-based.",
-        "- Still uncaptured: Cloud Trace, Logging, Storage.", "",
+        "- **Agent Runtime (vCPU / GiB-seconds)** is the engine's allocated compute amortized over the "
+        "measurement window, so it depends on utilization (queries per hour). Treat it as an upper bound, "
+        "not actual billed instance-time.",
+        "- **Memory storage** (the number of stored memories accruing over time) is not captured here — "
+        "it is only available from the billing export.",
+        "- **Grounding** is counted from the agent's tool calls (Cloud Monitoring's grounding metric is "
+        "project-wide, with no per-engine label); **Imagen** image counts come from response events.",
+        "- **Not yet captured:** Cloud Trace, Cloud Logging, Cloud Storage.", "",
         "## 6. Secondary: derived cost (usage × catalog list price)", "",
         "Provided for reference only. List price, not actual billed; **usage above is the primary output.**", "",
         "| SKU | $/interaction |", "|---|---|",
         f"| Gemini tokens | {d['c_model']:.4f} |",
         f"| Agent Runtime | {d['c_runtime']:.4f} |",
         f"| Memory Bank + Sessions | {d['c_memsess']:.4f} |",
-        (f"| Firestore ({d['fs_writes']:.0f}w/{d['fs_reads']:.0f}r over {d['n']} runs) | {d['c_firestore']:.7f} |"
+        (f"| Firestore ({d['fs_writes']:.0f} writes / {d['fs_reads']:.0f} reads over {d['n']} interactions) | {d['c_firestore']:.7f} |"
          if d.get('fs_writes', 0) or d.get('fs_reads', 0) else None),
-        (f"| Vertex AI Search (RAG: {d['rag_pi']:.2f} queries/intxn @ $1.50/1K) | {d['c_rag']:.6f} |"
+        (f"| Vertex AI Search (RAG: {d['rag_pi']:.2f} queries/interaction @ $1.50/1K) | {d['c_rag']:.6f} |"
          if d.get('rag_total', 0) else None),
-        (f"| Google Search grounding ({d['web_ground_pi']:.2f} grounded turns/intxn @ $14/1K) | {d['c_web_ground']:.6f} |"
+        (f"| Google Search grounding ({d['web_ground_pi']:.2f} grounded query-turns/interaction @ $14/1K) | {d['c_web_ground']:.6f} |"
          if d.get('web_ground_total', 0) else None),
-        (f"| Memory Bank retrieval ({d['mem_retrieved']:.2f} memories retrieved/intxn @ $0.5/1K) | {d['c_mem_retr']:.6f} |"
+        (f"| Memory Bank retrieval ({d['mem_retrieved']:.2f} memories retrieved/interaction @ $0.5/1K) | {d['c_mem_retr']:.6f} |"
          if d.get('mem_retrieved', 0) else None),
         f"| Model Armor (derived: {d['armor_tokens']:.0f} tok scanned @ $0.10/1M) | {d['c_model_armor']:.6f} |",
         (f"| Imagen (image generation) | {d['c_image']:.4f} |" if d['c_image'] else None),
@@ -927,19 +945,33 @@ def agent_md(d):
     if wp:
         tc = wp["turn_counts"]
         multi = len(wp["scenarios"]) > 1
-        turn_desc = (", ".join(f"{n}-turn×{c}" for n, c in tc.items())
-                     if multi else f"{next(iter(tc), 2)} turns each")
+        _lengths = sorted(tc)
+        turn_desc = (f"{_lengths[0]}–{_lengths[-1]} turns" if multi and len(_lengths) > 1
+                     else f"{next(iter(tc), 2)} turns")
+        # Collapse scenarios that are just a shorter base scenario cycled to be longer (e.g. a
+        # 16-turn conversation = a 2-turn scenario repeated 8×). Keep the first (shortest) of each
+        # distinct set of user queries; the longer repeats only padded multi-turn coverage.
+        distinct, seen = [], set()
+        for sc in wp["scenarios"]:
+            key = tuple(dict.fromkeys(sc))
+            if key in seen:
+                continue
+            seen.add(key)
+            distinct.append(sc)
+        repeated = len(wp["scenarios"]) - len(distinct)
         lines += ["",
                   "## 7. Test workload & sample interactions", "",
-                  f"**{wp['n_interactions']} interactions** ({len(rows)} total user turns), "
-                  f"fresh user_id per interaction. "
-                  + (f"Interactions cycle **{len(wp['scenarios'])} distinct conversation scenarios** of "
-                     f"varying length ({turn_desc}) — real-world interactions differ in length and topic, "
-                     "so this spreads coverage rather than repeating one script."
-                     if multi else
-                     "All interactions repeat the same 2-turn workload to isolate run-to-run variability."),
+                  (f"Each interaction used a fresh user id. The workload draws from "
+                   f"**{len(distinct)} distinct conversation scenarios** of varying length ({turn_desc}); "
+                   "real-world conversations differ in length and topic, so cycling several scenarios "
+                   "spreads coverage rather than repeating a single script."
+                   + (" Longer interactions repeat these same base scenarios to exercise multi-turn cost "
+                      "scaling." if repeated else "")
+                   if multi else
+                   "Each interaction repeated the same 2-turn workload shown below, to isolate "
+                   "run-to-run variability; each used a fresh user id."),
                   ""]
-        for si, sc in enumerate(wp["scenarios"], 1):
+        for si, sc in enumerate(distinct, 1):
             lines.append(f"**Scenario {si}** ({len(sc)} turns):" if multi else "**Workload (turn-by-turn):**")
             lines.append("")
             lines.append("| Turn | User query |"); lines.append("|---|---|")
