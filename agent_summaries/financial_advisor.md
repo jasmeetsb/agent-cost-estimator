@@ -38,7 +38,7 @@ graph TB
 - `execution_analyst` — defines an execution plan (timing, sizing)
 - `risk_analyst` — assesses risks of the proposed strategy
 
-A single user query fans out to multiple model calls; it is input-heavy (~23k input / ~10k output tokens per interaction, complete token_count) — the heaviest input consumer among the four use-case agents.
+A single user query fans out to multiple model calls, and the agent is input-heavy (~23k input / ~10k output tokens per interaction): each specialist sub-agent re-ingests the analysis context, so input tokens dominate.
 
 **Pattern:** Hierarchical (coordinator + 4 AgentTool specialists)
 

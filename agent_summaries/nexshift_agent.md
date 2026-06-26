@@ -38,7 +38,7 @@ graph TB
 - `empathy` — surfaces employee concerns / exceptions
 - `presenter` — formats the final roster for output
 
-**31 tools** total across sub-agents — the broadest tool surface in this corpus. The OR-Tools constraint solve runs inside Agent Runtime, so vCPU cost can spike for harder rosters. Our experimental prompts were too free-form to trigger the full solver pipeline (returned mostly empty responses).
+**31 tools** total across the sub-agents — a very broad tool surface. The OR-Tools constraint solve runs inside Agent Runtime, so vCPU cost can spike for harder rosters. The solver expects structured shift/constraint input; free-form natural-language prompts do not exercise the full solver pipeline.
 
 **Pattern:** Hierarchical + Sequential + Parallel + HITL (4 patterns)
 

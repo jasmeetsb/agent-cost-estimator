@@ -29,7 +29,7 @@ graph TB
     Engine -.-> Core
 ```
 
-Personal assistant with long-term cross-session memory (coordinator + 2 specialist sub-agents via transfer: prefs_agent for unit preferences, notes_agent for checklists). Recalls the user every turn with `load_memory` and persists details with Firestore `save_note`/`load_note`. Memory-Bank-driven: its defining cost is memory generation + retrieval, not conversation tokens. Sub-agents run via `transfer_to_agent`, so their tokens appear in the stream (no AgentTool undercount).
+Personal assistant with long-term cross-session memory (coordinator + 2 specialist sub-agents via transfer: prefs_agent for unit preferences, notes_agent for checklists). Recalls the user every turn with `load_memory` and persists details with Firestore `save_note`/`load_note`. Memory-Bank-driven: its defining cost is memory generation + retrieval, not conversation tokens. Sub-agents run via `transfer_to_agent` (handing off control) rather than as callable tools, so their model calls appear in the parent response stream.
 
 **Pattern:** Coordinator + 2 sub-agents (transfer) + Memory Bank + Firestore
 

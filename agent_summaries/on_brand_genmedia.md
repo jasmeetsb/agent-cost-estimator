@@ -43,7 +43,7 @@ Iterative image generation with a scoring gate. Sub-agents:
 - `scoring_agent` — scores the image against brand guidelines (0–100)
 - `checker_agent` — gate: if score < `SCORE_THRESHOLD` (default 45), loop back to prompt refinement; up to `MAX_ITERATIONS` (default 2)
 
-Multiple Imagen calls per interaction make this the costliest agent in our corpus by image-gen SKU + model tokens combined.
+Multiple Imagen calls per interaction make image generation the dominant cost, on top of the model tokens spent on prompt refinement and scoring.
 
 **Pattern:** Loop + Hierarchical (iterate-until-on-brand)
 

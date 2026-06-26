@@ -123,9 +123,9 @@ META = {
                  "- `trading_analyst` — proposes a trading strategy from the data\n"
                  "- `execution_analyst` — defines an execution plan (timing, sizing)\n"
                  "- `risk_analyst` — assesses risks of the proposed strategy\n\n"
-                 "A single user query fans out to multiple model calls; it is input-heavy "
-                 "(~23k input / ~10k output tokens per interaction, complete token_count) — the "
-                 "heaviest input consumer among the four use-case agents."),
+                 "A single user query fans out to multiple model calls, and the agent is input-heavy "
+                 "(~23k input / ~10k output tokens per interaction): each specialist sub-agent "
+                 "re-ingests the analysis context, so input tokens dominate."),
         "skus": "Gemini tokens (input/output/cached); Agent Runtime (vCPU + memory); Sessions; "
                 "Memory Bank (generation + writes); Google Search grounding (capable but not triggered).",
     },
@@ -260,10 +260,10 @@ META = {
                  "- `solver_agent` — runs the OR-Tools CP-SAT constraint solver (compute-heavy)\n"
                  "- `empathy` — surfaces employee concerns / exceptions\n"
                  "- `presenter` — formats the final roster for output\n\n"
-                 "**31 tools** total across sub-agents — the broadest tool surface in this corpus. "
+                 "**31 tools** total across the sub-agents — a very broad tool surface. "
                  "The OR-Tools constraint solve runs inside Agent Runtime, so vCPU cost can spike "
-                 "for harder rosters. Our experimental prompts were too free-form to trigger the "
-                 "full solver pipeline (returned mostly empty responses)."),
+                 "for harder rosters. The solver expects structured shift/constraint input; free-form "
+                 "natural-language prompts do not exercise the full solver pipeline."),
         "skus": "Gemini tokens; Agent Runtime (vCPU/memory, **compute-heavy from CP-SAT solver**); "
                 "Sessions; Memory Bank.",
     },
@@ -351,16 +351,16 @@ META = {
     Mon -.-> CM
     GH -.-> GHE""",
         "arch": ("`plumber_agent` (root) routes data-engineering requests to **6 specialist sub-agents** "
-                 "— the deepest hierarchy in this corpus. Each sub-agent owns a distinct GCP data product:\n"
+                 "— a deep delegation hierarchy. Each sub-agent owns a distinct GCP data product:\n"
                  "- `dataflow_agent` — Dataflow pipeline design + job submission\n"
                  "- `dataproc_agent` — Dataproc cluster operations\n"
                  "- `dataproc_template_agent` — Dataproc template management\n"
                  "- `dbt_agent` — dbt model generation; writes SQL to **GCS** + executes against **BigQuery**\n"
                  "- `github_agent` — repo operations via GitPython (clone, branch, commit)\n"
                  "- `monitoring_agent` — reads Cloud Monitoring metrics for pipeline observability\n\n"
-                 "By **intent**, this agent touches ~10–11 distinct GCP product SKUs (the broadest in our "
-                 "corpus). In practice, whether each SKU bills depends on whether the user prompt invokes "
-                 "that sub-agent against real resources."),
+                 "By **intent**, this agent touches ~10–11 distinct GCP product SKUs. In practice, whether "
+                 "each SKU bills depends on whether the user prompt invokes that sub-agent against real "
+                 "resources."),
         "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; Memory Bank; **BigQuery** (dbt "
                 "execution); **Cloud Storage** (SQL artifacts, GCS data IO); **Dataflow**, **Dataproc**, "
                 "**Dataform** (sub-agent intent, only billed when actually invoked); **Cloud Monitoring** "
@@ -403,8 +403,8 @@ META["on_brand_genmedia"] = {
              "- `scoring_agent` — scores the image against brand guidelines (0–100)\n"
              "- `checker_agent` — gate: if score < `SCORE_THRESHOLD` (default 45), loop back to "
              "prompt refinement; up to `MAX_ITERATIONS` (default 2)\n\n"
-             "Multiple Imagen calls per interaction make this the costliest agent in our corpus by "
-             "image-gen SKU + model tokens combined."),
+             "Multiple Imagen calls per interaction make image generation the dominant cost, on top of "
+             "the model tokens spent on prompt refinement and scoring."),
     "skus": "Gemini tokens (heavy fan-out across iterations); Agent Runtime (vCPU + memory); "
             "Sessions; Memory Bank; **Imagen / gemini-2.5-flash-image** (per-image SKU, multiple per "
             "interaction); Cloud Storage (image artifacts).",
@@ -466,8 +466,9 @@ META["memory_assistant"] = {
              "sub-agents via transfer: prefs_agent for unit preferences, notes_agent for checklists). "
              "Recalls the user every turn with `load_memory` and persists details with Firestore "
              "`save_note`/`load_note`. Memory-Bank-driven: its defining cost is memory generation + "
-             "retrieval, not conversation tokens. Sub-agents run via `transfer_to_agent`, so their "
-             "tokens appear in the stream (no AgentTool undercount)."),
+             "retrieval, not conversation tokens. Sub-agents run via `transfer_to_agent` (handing off "
+             "control) rather than as callable tools, so their model calls appear in the parent "
+             "response stream."),
     "skus": "Gemini tokens; Agent Runtime (vCPU + memory); Sessions; **Memory Bank** (generation + "
             "retrieval — the defining SKU); **Firestore** (save_note/load_note). No RAG / Search "
             "grounding / Imagen.",
@@ -565,10 +566,9 @@ META["multi_agent_orchestrator"] = {
     "arch": ("Coordinator that decomposes a request and delegates to 3 specialist sub-agents — "
              "data_specialist (metrics / records / corpus), analysis_specialist (stats / trends), "
              "action_specialist (summary / ticket / notify) (archetype: Multi-Agent Orchestrator, "
-             "Moderate). Fan-out-driven and the most expensive of the four archetypes: heavy input "
-             "from context re-ingestion across sub-agents, ~19 model calls and ~38 session events per "
-             "interaction (coordinator + sub-agent token multiplication). Specialist tools are local "
-             "stand-ins for BigQuery / RAG."),
+             "Moderate). Fan-out-driven and input-heavy: the coordinator re-ingests context across its "
+             "sub-agents, so input tokens dominate — ~19 model calls and ~38 session events per "
+             "interaction. Specialist tools are local stand-ins for BigQuery / RAG."),
     "skus": "Gemini tokens (coordinator + sub-agents); Agent Runtime (vCPU + memory); Sessions; "
             "Memory Bank. (Specialist BigQuery/RAG calls mocked — would bill in production.)",
 }

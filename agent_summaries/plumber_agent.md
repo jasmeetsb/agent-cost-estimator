@@ -47,7 +47,7 @@ graph TB
     GH -.-> GHE
 ```
 
-`plumber_agent` (root) routes data-engineering requests to **6 specialist sub-agents** — the deepest hierarchy in this corpus. Each sub-agent owns a distinct GCP data product:
+`plumber_agent` (root) routes data-engineering requests to **6 specialist sub-agents** — a deep delegation hierarchy. Each sub-agent owns a distinct GCP data product:
 - `dataflow_agent` — Dataflow pipeline design + job submission
 - `dataproc_agent` — Dataproc cluster operations
 - `dataproc_template_agent` — Dataproc template management
@@ -55,7 +55,7 @@ graph TB
 - `github_agent` — repo operations via GitPython (clone, branch, commit)
 - `monitoring_agent` — reads Cloud Monitoring metrics for pipeline observability
 
-By **intent**, this agent touches ~10–11 distinct GCP product SKUs (the broadest in our corpus). In practice, whether each SKU bills depends on whether the user prompt invokes that sub-agent against real resources.
+By **intent**, this agent touches ~10–11 distinct GCP product SKUs. In practice, whether each SKU bills depends on whether the user prompt invokes that sub-agent against real resources.
 
 **Pattern:** Hierarchical (deepest in corpus: coordinator + 6 specialists)
 

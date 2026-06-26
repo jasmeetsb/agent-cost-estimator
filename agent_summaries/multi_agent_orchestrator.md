@@ -28,7 +28,7 @@ graph TB
     DS -.->|prod| BQ[(BigQuery / RAG)]
 ```
 
-Coordinator that decomposes a request and delegates to 3 specialist sub-agents — data_specialist (metrics / records / corpus), analysis_specialist (stats / trends), action_specialist (summary / ticket / notify) (archetype: Multi-Agent Orchestrator, Moderate). Fan-out-driven and the most expensive of the four archetypes: heavy input from context re-ingestion across sub-agents, ~19 model calls and ~38 session events per interaction (coordinator + sub-agent token multiplication). Specialist tools are local stand-ins for BigQuery / RAG.
+Coordinator that decomposes a request and delegates to 3 specialist sub-agents — data_specialist (metrics / records / corpus), analysis_specialist (stats / trends), action_specialist (summary / ticket / notify) (archetype: Multi-Agent Orchestrator, Moderate). Fan-out-driven and input-heavy: the coordinator re-ingests context across its sub-agents, so input tokens dominate — ~19 model calls and ~38 session events per interaction. Specialist tools are local stand-ins for BigQuery / RAG.
 
 **Pattern:** Coordinator + 3 specialist sub-agents (agent-call fan-out)
 
