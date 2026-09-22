@@ -10,7 +10,7 @@ Results are catalog list-price estimates, not billed spend.
 
 ## Results
 
-13 agents measured on `gemini-2.5-flash`. Cost ranges from **$0.0011 to $0.0932 per
+Cost ranges from **$0.0011 to $0.0932 per
 interaction**, driven mostly by architecture (sub-agent fan-out, analysis depth) rather
 than by the prompt. See [docs/agent_summaries/MASTER_SUMMARY.md](docs/agent_summaries/MASTER_SUMMARY.md).
 
