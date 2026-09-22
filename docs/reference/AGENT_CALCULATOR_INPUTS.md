@@ -1,6 +1,6 @@
 # GE Agent Platform — Calculator Inputs (per Agent Type)
 
-Source: `Reference/[GE Agent Platform] Calculator inputs.xlsx` → **Inputs** tab. Agent types are columns; Product SKUs (grouped by lifecycle Phase) and their individual data-point fields are rows. Blank cell = field not applicable / not set for that agent type.
+Source: `docs/reference/[GE Agent Platform] Calculator inputs.xlsx` → **Inputs** tab. Agent types are columns; Product SKUs (grouped by lifecycle Phase) and their individual data-point fields are rows. Blank cell = field not applicable / not set for that agent type.
 
 **Field category legend:** *Use Case Input* = top-level scenario assumption · *Modifiable Input* = user-tunable · *Calculated Input* = derived by the calculator · *N/A* = no SKU input.
 

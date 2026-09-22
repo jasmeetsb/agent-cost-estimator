@@ -1,7 +1,7 @@
 # Representative Agent Architectures — GE Agent Platform Archetypes
 
 Design doc for **representative, deployable** agent architectures matching the four archetypes in
-the calculator's Inputs tab (`Reference/AGENT_CALCULATOR_INPUTS.md`), each at Low / Moderate / High
+the calculator's Inputs tab (`docs/reference/AGENT_CALCULATOR_INPUTS.md`), each at Low / Moderate / High
 complexity. Every architecture targets **Google Cloud / Gemini Enterprise Agent Platform (GEAP)**
 built with **ADK** and deployed to **Vertex AI Agent Engine** (the managed Agent Runtime).
 

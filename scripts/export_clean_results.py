@@ -1,6 +1,6 @@
 """Export FULL, scrubbed agent summary docs into the clean `agent-cost-estimates` repo.
 
-Takes the complete existing per-agent summary docs (agent_summaries/<pkg>.md) — architecture,
+Takes the complete existing per-agent summary docs (docs/agent_summaries/<pkg>.md) — architecture,
 the full SKU usage table with ranges + variability, SKUs-consumed list, grounding/media,
 caveats, derived cost, and test workload + sample interactions — and emits self-contained
 Markdown for an extended team: internal IDs scrubbed, no links back to the (private) source repo.
@@ -55,7 +55,7 @@ _SCRUB = [
 def clean_doc(pkg: str) -> str:
     """Full source summary, scrubbed of internal IDs / repo-internal references."""
     title, _ = NICE[pkg]
-    lines = (REPO / "agent_summaries" / f"{pkg}.md").read_text().split("\n")
+    lines = (REPO / "docs" / "agent_summaries" / f"{pkg}.md").read_text().split("\n")
     out = []
     for ln in lines:
         s = ln.strip()

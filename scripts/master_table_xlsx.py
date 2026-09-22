@@ -90,7 +90,7 @@ LEGEND = [
 
 
 def main():
-    out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else REPO / "agent_summaries" / "MASTER_SUMMARY.xlsx"
+    out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else REPO / "docs" / "agent_summaries" / "MASTER_SUMMARY.xlsx"
     rows = [bs.derive(p) for p in bs.PACKAGES]  # memory_assistant now a full agent in PACKAGES
     rows.sort(key=_sortk)
 
@@ -111,7 +111,7 @@ def main():
             if ci == 1:
                 link = bs.LINKS.get(d["title"])
                 if link:
-                    cell.hyperlink = f"{GITHUB_BASE}/agent_summaries/{link}"
+                    cell.hyperlink = f"{GITHUB_BASE}/docs/agent_summaries/{link}"
                     cell.font = Font(color="0563C1", underline="single")
     ws.freeze_panes = "B2"  # freeze header row + agent column
     ws.column_dimensions["A"].width = 34

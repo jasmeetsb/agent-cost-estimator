@@ -14,9 +14,9 @@ deploy it, run N iterations, get an average cost-per-query estimate.
 ```bash
 . .venv/bin/activate
 python src/agent_cost_estimator/pricing.py gemini-2.5-flash   # inspect resolved prices
-python scripts/harness.py --mode local  --iters 5             # no deploy needed
-python scripts/deploy.py                                       # deploy to Agent Engine (~5-10 min)
-python scripts/harness.py --mode remote --iters 5             # query deployed endpoint
+python scripts/harness.py --agent weather_agent --mode local --iters 5    # no deploy needed
+python scripts/deploy.py --agent weather_agent                             # deploy (~5-10 min)
+python scripts/harness.py --agent weather_agent --mode remote --iters 5   # query deployed endpoint
 ```
 
 ## Architecture
@@ -27,6 +27,8 @@ python scripts/harness.py --mode remote --iters 5             # query deployed e
   breakdown and aggregates averages over a run.
 - `agents/weather_agent/` — the sample ADK agent (`root_agent`).
 - `scripts/` — `deploy.py`, `harness.py`, `local_test.py`.
+- `docs/` — runbook, methodology, SKU/cost reports, per-agent summaries (`docs/agent_summaries/`),
+  calculator reference (`docs/reference/`), design specs.
 - `data/` — generated artifacts (reports, cache, deployment.json). Not source.
 
 ## Cost model (how a query is priced)

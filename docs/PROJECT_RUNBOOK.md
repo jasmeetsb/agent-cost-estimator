@@ -408,7 +408,7 @@ the *cost* is what's noisy. ⇒ A single run can misestimate by 2–3×; report 
 
 **Findings:** ~3× cost spread across agents; financial-advisor is the only runtime-dominated one
 (deep multi-specialist analysis). Search grounding + Imagen NOT yet metered (uncaptured). Per-agent
-summaries in `agent_summaries/`; cross-agent comparison in `COMBINED_SKU_USAGE_REPORT.md`. Tooling:
+summaries in `docs/agent_summaries/`; cross-agent comparison in `COMBINED_SKU_USAGE_REPORT.md`. Tooling:
 `scripts/deploy_sample.py`, `scripts/exp_sample.py`, `scripts/build_summaries.py`.
 - **Parity rerun (2026-05-28):** re-ran all 4 at **35 iters** (were 3); averages settled lower as
   noisy 3-run samples smoothed out — financial $0.0289, blog $0.0116, academic $0.0074,
@@ -429,7 +429,7 @@ summaries in `agent_summaries/`; cross-agent comparison in `COMBINED_SKU_USAGE_R
 **Findings:** on-brand-genmedia validated the **Imagen SKU** (27 `gemini-2.5-flash-image` invocations,
 captured via Monitoring `model_invocation_count`). nexshift shows even a non-responding agent still
 incurs Sessions + Memory Bank + Runtime cost. plumber has the broadest SKU intent but most are mocked/
-untriggered by 2-turn prompts. Per-agent summaries (with Mermaid architecture diagrams) in `agent_summaries/`.
+untriggered by 2-turn prompts. Per-agent summaries (with Mermaid architecture diagrams) in `docs/agent_summaries/`.
 
 ### EXP-008 — 4 calculator archetypes, purpose-built (Moderate complexity)
 - **Date:** 2026-06-15/16 | **Unit: $/interaction** | initially 35 runs, then **expanded to ~85** via
@@ -453,7 +453,7 @@ expansion (2–5 turns, 3–4 distinct scenarios/agent) makes the dataset repres
 interactions, not one repeated script. **Corpus total now: 1,443 user turns across all experiments.**
 
 ### EXP-008b — SKU coverage gap vs the reference calculator (2026-06-16)
-The calculator (`Reference/AGENT_CALCULATOR_INPUTS.md`) pre-populates **16–17 SKU sections per
+The calculator (`docs/reference/AGENT_CALCULATOR_INPUTS.md`) pre-populates **16–17 SKU sections per
 archetype** as placeholders. What our deployed archetype agents actually exercise is narrower:
 
 | SKU | Calculator (placeholder) | Our agents (measured) |

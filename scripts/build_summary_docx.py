@@ -1,7 +1,7 @@
 """Build a Word (.docx) version of the memory_assistant cost summary with charts.
 
 Reads data/cost_report_exp005_variability.json, renders variance visuals with
-matplotlib, and assembles agent_summaries/memory_assistant.docx.
+matplotlib, and assembles docs/agent_summaries/memory_assistant.docx.
 """
 
 import json
@@ -18,7 +18,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "data"
-OUT_DIR = REPO / "agent_summaries"
+OUT_DIR = REPO / "docs" / "agent_summaries"
 IMG = DATA / "summary_charts"
 IMG.mkdir(parents=True, exist_ok=True)
 
